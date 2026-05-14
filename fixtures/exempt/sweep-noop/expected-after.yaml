@@ -1,0 +1,10 @@
+version: 2
+entries:
+  - id: EX-2026-0001
+    rule_id: CH-DIFF-CLAIM-REMOVED
+    reason: "Active entry under sweeper input — no removal expected on this idempotent pass."
+    owner: platform-team@docs.invalid
+    created_at: "2026-04-01"
+    expires_at: "2026-06-30"
+    path:
+      - crates/legacy-sql-driver/src/parser.rs

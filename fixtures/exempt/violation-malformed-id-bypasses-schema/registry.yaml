@@ -1,0 +1,11 @@
+# Bypasses schema (id pattern enforcement) to exercise Rust-side
+# CH-EXEMPT-MALFORMED-ID emission when a registry is constructed in memory.
+version: 2
+entries:
+  - id: not-a-real-id
+    rule_id: CH-DIFF-CLAIM-REMOVED
+    reason: "Edge-case fixture: in-memory constructor side-stepped the EX-YYYY-NNNN id grammar."
+    owner: platform-team@docs.invalid
+    created_at: "2026-04-01"
+    expires_at: "2026-06-30"
+    path: crates/foo/src/lib.rs

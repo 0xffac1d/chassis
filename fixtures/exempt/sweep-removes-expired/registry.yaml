@@ -1,0 +1,23 @@
+version: 2
+entries:
+  - id: EX-2026-0001
+    rule_id: CH-DIFF-CLAIM-REMOVED
+    reason: "Expired entry that the sweeper must remove on a Wave 2 verification pass."
+    owner: platform-team@docs.invalid
+    created_at: "2026-01-01"
+    expires_at: "2026-01-31"
+    path: crates/foo/src/old.rs
+  - id: EX-2026-0002
+    rule_id: CH-DIFF-OWNER-CHANGED
+    reason: "Still-active entry that the sweeper must leave in place during the Wave 2 pass."
+    owner: platform-team@docs.invalid
+    created_at: "2026-04-01"
+    expires_at: "2026-06-30"
+    path: crates/bar/src/lib.rs
+  - id: EX-2026-0003
+    rule_id: CH-DIFF-FIELD-REMOVED
+    reason: "Second expired entry exercising bulk-removal path on the sweeper sweep loop."
+    owner: platform-team@docs.invalid
+    created_at: "2026-02-01"
+    expires_at: "2026-02-28"
+    path: crates/baz/src/lib.rs

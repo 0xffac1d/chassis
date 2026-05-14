@@ -1,0 +1,202 @@
+version: 2
+entries:
+- id: EX-2026-0001
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-1/src/lib.rs
+- id: EX-2026-0002
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-2/src/lib.rs
+- id: EX-2026-0003
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-3/src/lib.rs
+- id: EX-2026-0004
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-4/src/lib.rs
+- id: EX-2026-0005
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-5/src/lib.rs
+- id: EX-2026-0006
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-6/src/lib.rs
+- id: EX-2026-0007
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-7/src/lib.rs
+- id: EX-2026-0008
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-8/src/lib.rs
+- id: EX-2026-0009
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-9/src/lib.rs
+- id: EX-2026-0010
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-10/src/lib.rs
+- id: EX-2026-0011
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-11/src/lib.rs
+- id: EX-2026-0012
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-12/src/lib.rs
+- id: EX-2026-0013
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-13/src/lib.rs
+- id: EX-2026-0014
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-14/src/lib.rs
+- id: EX-2026-0015
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-15/src/lib.rs
+- id: EX-2026-0016
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-16/src/lib.rs
+- id: EX-2026-0017
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-17/src/lib.rs
+- id: EX-2026-0018
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-18/src/lib.rs
+- id: EX-2026-0019
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-19/src/lib.rs
+- id: EX-2026-0020
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-20/src/lib.rs
+- id: EX-2026-0021
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-21/src/lib.rs
+- id: EX-2026-0022
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-22/src/lib.rs
+- id: EX-2026-0023
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-23/src/lib.rs
+- id: EX-2026-0024
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-24/src/lib.rs
+- id: EX-2026-0025
+  rule_id: CH-DIFF-CLAIM-REMOVED
+  reason: Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked
+    in CHASSIS-142.
+  owner: platform-team@docs.invalid
+  created_at: '2026-04-01'
+  expires_at: '2026-06-30'
+  path: crates/foo-25/src/lib.rs

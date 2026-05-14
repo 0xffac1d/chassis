@@ -1,0 +1,3 @@
+[
+  { "ruleId": "CH-EXEMPT-PATHS-EMPTY", "severity": "error" }
+]

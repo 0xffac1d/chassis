@@ -1,0 +1,9 @@
+version: 2
+entries:
+  - id: EX-2026-0001
+    rule_id: CH-DIFF-CLAIM-REMOVED
+    reason: "Long-running migration of legacy SQL driver beyond ninety-day window per CHASSIS-200."
+    owner: platform-team@docs.invalid
+    created_at: "2026-01-01"
+    expires_at: "2026-05-01"
+    path: crates/legacy-sql-driver/src/parser.rs
