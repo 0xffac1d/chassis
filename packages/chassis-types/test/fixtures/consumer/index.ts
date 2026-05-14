@@ -15,7 +15,9 @@ export const demoLibraryContract: LibraryContract = {
   version: '0.1.0',
   assurance_level: 'declared',
   owner: 'chassis-types-fixtures',
-  exports: [],
+  exports: [
+    { path: 'src/index.ts', kind: 'module', description: 'Crate/package root re-exports.' },
+  ],
   invariants: [{ id: 'consumer.types-resolve', text: 'This file compiles against generated Contract typings.' }],
   edge_cases: [],
 };

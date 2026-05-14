@@ -6,7 +6,10 @@ status: stable
 since: "0.1.0"
 assurance_level: declared
 owner: chassis-fixtures
-exports: []
+exports:
+  - path: "src/main.rs"
+    kind: module
+    description: "Crate root for the minimal Rust fixture."
 invariants:
   - id: rust-minimal.compiles
     text: "src/main.rs compiles under the host Rust toolchain"

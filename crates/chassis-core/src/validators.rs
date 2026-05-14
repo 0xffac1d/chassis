@@ -144,6 +144,20 @@ mod tests {
         let _ = StaticValidator::from_embedded("{not json", "CH-RULE-VAL");
     }
 
+    fn validate_kind_fixture(dir: &str) {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/happy-path")
+            .join(dir)
+            .join("CONTRACT.yaml");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+        let value: serde_json::Value =
+            serde_yaml::from_str(&raw).expect("parse fixture CONTRACT.yaml");
+        CanonicalMetadataContractValidator
+            .validate(&value)
+            .unwrap_or_else(|e| panic!("{dir} fixture failed validation: {e}"));
+    }
+
     #[test]
     fn canonical_validator_accepts_repo_contract_yaml() {
         let contract_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/happy-path/rust-minimal/CONTRACT.yaml");
@@ -152,6 +166,47 @@ mod tests {
         CanonicalMetadataContractValidator
             .validate(&value)
             .expect("repo root CONTRACT.yaml validates");
+    }
+
+    #[test]
+    fn validates_library_fixture() {
+        validate_kind_fixture("rust-minimal");
+        validate_kind_fixture("typescript-vite");
+    }
+
+    #[test]
+    fn validates_cli_fixture() {
+        validate_kind_fixture("cli-minimal");
+    }
+
+    #[test]
+    fn validates_component_fixture() {
+        validate_kind_fixture("component-minimal");
+    }
+
+    #[test]
+    fn validates_endpoint_fixture() {
+        validate_kind_fixture("endpoint-minimal");
+    }
+
+    #[test]
+    fn validates_entity_fixture() {
+        validate_kind_fixture("entity-minimal");
+    }
+
+    #[test]
+    fn validates_service_fixture() {
+        validate_kind_fixture("service-minimal");
+    }
+
+    #[test]
+    fn validates_event_stream_fixture() {
+        validate_kind_fixture("event-stream-minimal");
+    }
+
+    #[test]
+    fn validates_feature_flag_fixture() {
+        validate_kind_fixture("feature-flag-minimal");
     }
 
     #[test]
@@ -171,5 +226,69 @@ mod tests {
             "expected 'required' or 'enum' in error detail, got: {detail}"
         );
         assert_eq!(err.rule_id, "CH-RUST-METADATA-CONTRACT");
+    }
+
+    #[test]
+    fn adversarial_cli_missing_kind_required_field_fails() {
+        // CLI contract missing the kind-specific `entrypoint` field.
+        let yaml = r#"
+name: "cli-broken"
+kind: cli
+version: "0.1.0"
+purpose: "Adversarial CLI fixture missing the kind-specific entrypoint required field."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+argsSummary: "broken [--help]"
+invariants:
+  - id: cli-broken.some
+    text: "Has at least one invariant."
+edge_cases: []
+"#;
+        let value: serde_json::Value = serde_yaml::from_str(yaml).expect("parse inline yaml");
+        let err = CanonicalMetadataContractValidator
+            .validate(&value)
+            .expect_err("cli missing entrypoint must fail");
+        assert!(
+            err.detail.contains("entrypoint"),
+            "expected 'entrypoint' in error detail, got: {}",
+            err.detail
+        );
+    }
+
+    #[test]
+    fn adversarial_entity_invalid_relationship_kind_fails() {
+        // Entity contract with a relationship kind outside the allowed enum.
+        let yaml = r#"
+name: "entity-broken"
+kind: entity
+version: "0.1.0"
+purpose: "Adversarial entity fixture using an invalid relationship kind value."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+fields:
+  - name: "id"
+    type: "uuid"
+relationships:
+  - name: "primary"
+    kind: "has_many_through"
+    target: "Other"
+invariants:
+  - id: entity-broken.some
+    text: "Has at least one invariant."
+edge_cases: []
+"#;
+        let value: serde_json::Value = serde_yaml::from_str(yaml).expect("parse inline yaml");
+        let err = CanonicalMetadataContractValidator
+            .validate(&value)
+            .expect_err("invalid relationship kind must fail");
+        assert!(
+            err.detail.contains("enum") || err.detail.contains("has_many_through"),
+            "expected enum violation in error detail, got: {}",
+            err.detail
+        );
     }
 }

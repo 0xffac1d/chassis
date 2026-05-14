@@ -1,0 +1,27 @@
+name: "cli-minimal"
+kind: cli
+version: "0.1.0"
+purpose: "Minimal CLI happy-path fixture exercising the kind=cli subschema (entrypoint + argsSummary + structured subcommands)."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+entrypoint: "chassis"
+argsSummary: "chassis [--help] <subcommand> [args]"
+subcommands:
+  - name: "validate"
+    description: "Validate CONTRACT.yaml against the canonical schema."
+    required_args:
+      - "<path>"
+    optional_args:
+      - "--strict"
+  - name: "doctor"
+    description: "Diagnose schema/fixture coherence in the working tree."
+invariants:
+  - id: cli-minimal.entrypoint-present
+    text: "entrypoint matches the published binary name."
+  - id: cli-minimal.subcommands-have-names
+    text: "Each subcommand declares a unique name and description."
+edge_cases:
+  - id: cli-minimal.no-args-monolithic
+    text: "Fixture also covers the monolithic-CLI shape if subcommands were absent."

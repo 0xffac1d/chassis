@@ -1,0 +1,47 @@
+name: "entity-minimal"
+kind: entity
+version: "0.1.0"
+purpose: "Minimal data entity fixture exercising kind=entity structured fields and relationships."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+fields:
+  - name: "id"
+    type: "uuid"
+    nullable: false
+    indexed: true
+    description: "Primary key for the entity."
+  - name: "email"
+    type: "string"
+    nullable: false
+    indexed: true
+    description: "Login email; unique index applied at the indexes level."
+  - name: "display_name"
+    type: "string"
+    nullable: true
+    description: "Optional human-readable label."
+relationships:
+  - name: "primary_address"
+    kind: "one-to-one"
+    target: "Address"
+  - name: "orders"
+    kind: "one-to-many"
+    target: "Order"
+indexes:
+  - fields:
+      - "email"
+    unique: true
+    name: "ux_user_email"
+timestamps:
+  createdAt: true
+  updatedAt: true
+  deletedAt: false
+invariants:
+  - id: entity-minimal.id-not-nullable
+    text: "Primary-key field must be non-nullable and indexed."
+  - id: entity-minimal.email-unique
+    text: "Email column carries a unique index."
+edge_cases:
+  - id: entity-minimal.no-versioning
+    text: "Versioning strategy is omitted to confirm the schema does not require it."
