@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-CLAIM-ADDED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-CLAIM-ADDED",
+      "severity": "info",
+      "classification": "additive",
+      "subject": "contract<diff-fixture>.invariants.fixture.two"
+    }
+  ],
+  "strict_rule_id_set": true
+}

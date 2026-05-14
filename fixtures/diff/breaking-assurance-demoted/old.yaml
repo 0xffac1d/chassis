@@ -1,0 +1,15 @@
+name: diff-fixture
+kind: library
+purpose: "Fixture contract used by chassis-core diff tests as a baseline shape."
+status: stable
+since: "0.1.0"
+version: "1.0.0"
+assurance_level: verified
+owner: diff-tests
+exports: []
+invariants:
+  - id: fixture.one
+    text: "first invariant text"
+edge_cases:
+  - id: fixture.edge.one
+    text: "first edge case text"

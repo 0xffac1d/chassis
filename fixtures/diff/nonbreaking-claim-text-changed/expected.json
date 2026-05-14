@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-CLAIM-TEXT-CHANGED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-CLAIM-TEXT-CHANGED",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.invariants.fixture.one"
+    }
+  ],
+  "strict_rule_id_set": true
+}

@@ -1,0 +1,15 @@
+{
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-VERSION-DOWNGRADED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-VERSION-DOWNGRADED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.version"
+    }
+  ],
+  "strict_rule_id_set": true
+}

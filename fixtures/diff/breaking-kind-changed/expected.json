@@ -1,0 +1,21 @@
+{
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-KIND-CHANGED": 1,
+    "CH-DIFF-NAME-CHANGED": 0,
+    "CH-DIFF-VERSION-NOT-BUMPED": 0,
+    "CH-DIFF-VERSION-DOWNGRADED": 0,
+    "CH-DIFF-VERSION-BREAKING-WITHOUT-MAJOR": 0,
+    "CH-DIFF-VERSION-MAJOR-WITHOUT-BREAKING": 0,
+    "CH-DIFF-REQUIRED-KIND-FIELD-REMOVED": 0
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-KIND-CHANGED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.kind"
+    }
+  ],
+  "strict_rule_id_set": true
+}

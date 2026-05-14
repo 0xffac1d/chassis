@@ -1,0 +1,16 @@
+{
+  "_note": "fixture.other is also new (CLAIM-ADDED) to keep invariants minItems>=1 in the new doc.",
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-INVARIANT-DEMOTED-TO-EDGE-CASE": 1,
+    "CH-DIFF-CLAIM-ADDED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-INVARIANT-DEMOTED-TO-EDGE-CASE",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.invariants.fixture.shared"
+    }
+  ]
+}

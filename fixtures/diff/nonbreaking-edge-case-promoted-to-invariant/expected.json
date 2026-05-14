@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-EDGE-CASE-PROMOTED-TO-INVARIANT": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-EDGE-CASE-PROMOTED-TO-INVARIANT",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.edge_cases.fixture.shared"
+    }
+  ],
+  "strict_rule_id_set": true
+}

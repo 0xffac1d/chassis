@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-ASSURANCE-PROMOTED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-ASSURANCE-PROMOTED",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.assurance_level"
+    }
+  ],
+  "strict_rule_id_set": true
+}

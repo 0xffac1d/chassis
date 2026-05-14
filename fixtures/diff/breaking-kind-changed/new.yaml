@@ -1,0 +1,20 @@
+name: diff-fixture
+kind: service
+purpose: "Fixture contract used by chassis-core diff tests as a baseline shape."
+status: stable
+since: "0.1.0"
+version: "2.0.0"
+assurance_level: declared
+owner: diff-tests
+protocol: rest
+endpoints: []
+consumes: []
+produces: []
+resilience:
+  timeout: "5s"
+invariants:
+  - id: fixture.one
+    text: "first invariant text"
+edge_cases:
+  - id: fixture.edge.one
+    text: "first edge case text"

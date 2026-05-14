@@ -1,0 +1,4 @@
+{
+  "_note": "Adversarial fixture. Inputs intentionally fail Contract shape check. diff() must return DiffError::Parse — the CH-DIFF-PARSE-ERROR rule. Skipped by fixture schema validation per verification script convention.",
+  "parse_error": true
+}

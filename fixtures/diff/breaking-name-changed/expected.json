@@ -1,0 +1,15 @@
+{
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-NAME-CHANGED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-NAME-CHANGED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture-beta>"
+    }
+  ],
+  "strict_rule_id_set": true
+}
