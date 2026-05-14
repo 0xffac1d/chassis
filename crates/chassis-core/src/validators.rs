@@ -1,4 +1,4 @@
-//! JSON-Schema-backed validator. Heavy; opt-in via `feature = "validation"`.
+//! JSON-Schema-backed validators over the canonical chassis schemas.
 
 #![forbid(unsafe_code)]
 
@@ -15,7 +15,7 @@ pub trait Validator {
 
 
 /// Validation error. Carries the offending rule id, a static summary
-/// message, and (when the real compiler is wired in) a rendered
+/// message, and a rendered
 /// `jsonschema` error trail for diagnostics.
 #[derive(Debug)]
 pub struct ValidationError {
@@ -50,10 +50,8 @@ pub struct StaticValidator {
     compiled: jsonschema::Validator,
 }
 
-/// Validates arbitrary JSON against the canonical [`metadata/contract.schema.json`]
-/// embedded in `chassis-schemas` (same source tree as the Chassis CLI).
-///
-/// Enable **`feature = "validation"`** on `chassis-runtime` to use this type.
+/// Validates arbitrary JSON against the canonical `contract.schema.json`
+/// embedded in `chassis-core` at build time via `include_str!`.
 pub struct CanonicalMetadataContractValidator;
 
 impl Validator for CanonicalMetadataContractValidator {
@@ -154,5 +152,24 @@ mod tests {
         CanonicalMetadataContractValidator
             .validate(&value)
             .expect("repo root CONTRACT.yaml validates");
+    }
+
+    #[test]
+    fn adversarial_invalid_schema_fixture_fails_validation() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/adversarial/invalid-schema/CONTRACT.yaml");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+        let value: serde_json::Value =
+            serde_yaml::from_str(&raw).expect("parse invalid-schema CONTRACT.yaml");
+        let err = CanonicalMetadataContractValidator
+            .validate(&value)
+            .expect_err("adversarial fixture must fail canonical validation");
+        let detail = err.detail.as_str();
+        assert!(
+            detail.contains("required") || detail.contains("enum"),
+            "expected 'required' or 'enum' in error detail, got: {detail}"
+        );
+        assert_eq!(err.rule_id, "CH-RUST-METADATA-CONTRACT");
     }
 }
