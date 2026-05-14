@@ -3,13 +3,13 @@
  *
  * Barrel re-exporting every generated schema type.
  * - Bare names: top-level schema types with a globally unique name
- *   (e.g. AgentAction, ApiResponse). Use `import { AgentAction }`.
+ *   (e.g. Contract, Diagnostic). Use `import { Contract }`.
  * - Namespaced: every schema module is always available under a
- *   domain-qualified namespace (e.g. Agent_AgentAction) so
+ *   domain-qualified namespace (e.g. Contract_Contract) so
  *   collisions (multiple "Policy" schemas) remain reachable.
  * - Generated from schemas at build time; re-run `npm run build`
  *   after schema changes, and verify the fingerprint matches
- *   chassis `fingerprint_schemas.py`.
+ *   `node scripts/fingerprint-schemas.mjs`.
  */
 // --- Bare top-level re-exports (collision-free names only) ---
 export type { Adr } from './adr';

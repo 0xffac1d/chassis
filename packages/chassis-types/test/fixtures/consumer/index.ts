@@ -1,8 +1,10 @@
 /**
  * Minimal consumer: proves @chassis/types resolves and declarations are usable.
+ * Canary file — if dist is rebuilt against a schema set that drops Contract,
+ * this fails before publish.
  */
-import type { AgentAction } from '@chassis/types';
-import type { Agent_AgentAction } from '@chassis/types';
+import type { Contract } from '@chassis/types';
+import type { Contract_Contract } from '@chassis/types';
 
-export type DemoBare = AgentAction;
-export type DemoNamespaced = Agent_AgentAction.AgentAction;
+export type DemoBare = Contract;
+export type DemoNamespaced = Contract_Contract.Contract;
