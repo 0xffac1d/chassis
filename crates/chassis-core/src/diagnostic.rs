@@ -4,6 +4,10 @@ use std::sync::LazyLock;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Diagnostic {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
     #[serde(rename = "ruleId")]
     pub rule_id: String,
     pub severity: String,

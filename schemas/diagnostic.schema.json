@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "$id": "https://chassis.dev/schemas/diagnostics/diagnostic.schema.json",
   "title": "Chassis diagnostic",
   "description": "Structured, agent-routable diagnostic emitted by Chassis gates, validators, and drift checks. Every finding surfaced via --json conforms to this schema. The ruleId + violated.convention pair binds the diagnostic to an ADR; the fix.applicability enum tells an agent whether to auto-apply.",
@@ -12,6 +12,16 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Logical verifier or command surface that emitted this diagnostic (e.g. chassis validate, chassis diff, chassis exempt). Required for Wave 2+ emitters per ADR-0018."
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable string naming what the finding is about — contract path, exemption id, claim id, or other scoped id. Wave 2+ emitters populate per ADR-0018; may align with location.path when file-scoped."
+    },
     "ruleId": {
       "type": "string",
       "description": "Stable identifier for the rule this diagnostic violates. Format: DOMAIN-NNN (e.g. CHASSIS-001, GATE-EXPORT-03). Must resolve to an ADR whose enforces[].rule == ruleId.",
@@ -90,7 +100,7 @@
     },
     "detail": {
       "type": "object",
-      "description": "Free-form structured extension. Gate-specific fields live here (e.g. baseline counts, affected item lists)."
+      "description": "Structured, rule-specific machine payload (ADR-0018). Prefer this over ad hoc top-level keys — e.g. diff fields removed, exemption ids, kind-specific coordinates."
     }
   },
   "definitions": {
