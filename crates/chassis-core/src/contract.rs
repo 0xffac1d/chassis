@@ -28,7 +28,7 @@ pub struct Contract {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub drift: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub debt: Option<Vec<crate::metadata::debt_item::DebtItem>>,
+    pub debt: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generated: Option<bool>,
     pub invariants: Vec<serde_json::Value>,

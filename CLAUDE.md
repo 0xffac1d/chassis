@@ -6,7 +6,7 @@ This project was extracted from a prior codebase ("Chassis"). Audit determined ~
 
 - `schemas/` — 8 canonical JSON Schemas. The contract schema is currently loose (74 fields, 6 required); the rewrite will tighten it via a kind-discriminated `oneOf`.
 - `crates/chassis-core/` — Rust types + JSON Schema validators. Compiles on Rust ≥ 1.85.
-- `packages/chassis-types/` — TypeScript types extracted from the prior `@chassis/types` codegen output. Build scripts disabled pending rewire.
+- `packages/chassis-types/` — TypeScript types extracted from the prior `@chassis/types` codegen output.
 - `reference/python-cli/` — original Python implementations for semantic reference only. **`mcp_server.py` is the highest-priority study target** — the rewrite's primary integration is an MCP server.
 - `reference/schemas-extended/` — schemas for component / api / data / service / event / state. Reference for designing kind-discriminated subschemas.
 - `reference/artifacts/release-gate.example.json` — shape of the attestation artifact the rewrite should produce.

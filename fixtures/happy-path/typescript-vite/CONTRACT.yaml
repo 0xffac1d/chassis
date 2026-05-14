@@ -1,0 +1,13 @@
+name: "typescript-vite"
+kind: package
+purpose: "TypeScript + Vite happy-path fixture exercising contract validation against a real frontend package layout."
+status: stable
+since: "0.1.0"
+invariants:
+  - id: typescript-vite.tsc-clean
+    text: "tsc --noEmit completes without errors"
+  - id: typescript-vite.vite-builds
+    text: "vite build produces a dist/ artifact"
+edge_cases:
+  - id: typescript-vite.no-tests-yet
+    text: "Fixture intentionally ships without a test suite to keep scope minimal"

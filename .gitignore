@@ -1,9 +1,12 @@
 target/
 node_modules/
-dist/
 *.pyc
 __pycache__/
 .DS_Store
 *.tsbuildinfo
 .idea/
 .vscode/
+
+# dist/ is a build artifact except inside chassis-types where it's the deliverable.
+dist/
+!packages/chassis-types/dist/

@@ -4,6 +4,16 @@
 
 pub type RuleId = &'static str;
 
+/// Structural validator over a JSON-shaped value.
+pub trait Validator {
+    /// Error returned on validation failure.
+    type Error;
+
+    /// Validate `value`, returning `Ok(())` on success.
+    fn validate(&self, value: &serde_json::Value) -> Result<(), Self::Error>;
+}
+
+
 /// Validation error. Carries the offending rule id, a static summary
 /// message, and (when the real compiler is wired in) a rendered
 /// `jsonschema` error trail for diagnostics.
@@ -46,7 +56,7 @@ pub struct StaticValidator {
 /// Enable **`feature = "validation"`** on `chassis-runtime` to use this type.
 pub struct CanonicalMetadataContractValidator;
 
-impl chassis_runtime_api::Validator for CanonicalMetadataContractValidator {
+impl Validator for CanonicalMetadataContractValidator {
     type Error = ValidationError;
 
     fn validate(&self, value: &serde_json::Value) -> Result<(), Self::Error> {
@@ -104,7 +114,6 @@ impl StaticValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chassis_runtime_api::Validator;
     use std::path::PathBuf;
 
     const OBJ_SCHEMA: &str = r#"{
@@ -138,9 +147,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn canonical_validator_accepts_repo_contract_yaml() {
-        let contract_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/happy-path/rust-minimal/CONTRACT.yaml");
+        let contract_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/happy-path/rust-minimal/CONTRACT.yaml");
         let raw = std::fs::read_to_string(contract_path).expect("CONTRACT.yaml");
         let value: serde_json::Value = serde_yaml::from_str(&raw).expect("parse CONTRACT.yaml");
         CanonicalMetadataContractValidator
