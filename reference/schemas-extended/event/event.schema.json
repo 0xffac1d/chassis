@@ -111,7 +111,7 @@
   },
   "$defs": {
     "FieldDefinition": {
-      "$ref": "../common/field-definition.schema.json"
+      "$ref": "../../../schemas/field-definition.schema.json"
     },
     "Retention": {
       "type": "object",
@@ -157,17 +157,48 @@
       "source": "auth-service",
       "payload": {
         "fields": [
-          {"name": "user_id", "type": "string", "required": true, "description": "Stable account ID (UUIDv7)."},
-          {"name": "signup_source", "type": "string", "required": true, "description": "Campaign or referral code."},
-          {"name": "email_verified", "type": "boolean", "required": true, "description": "Whether email was verified at signup time."}
+          {
+            "name": "user_id",
+            "type": "string",
+            "required": true,
+            "description": "Stable account ID (UUIDv7)."
+          },
+          {
+            "name": "signup_source",
+            "type": "string",
+            "required": true,
+            "description": "Campaign or referral code."
+          },
+          {
+            "name": "email_verified",
+            "type": "boolean",
+            "required": true,
+            "description": "Whether email was verified at signup time."
+          }
         ]
       },
-      "delivery": {"guarantee": "at-least-once", "ordering": "per-key", "partitionKey": "user_id"},
-      "retention": {"ttl": "30d"},
-      "consumers": ["analytics-service", "crm-sync"],
-      "idempotency": {"keyField": "user_id", "deduplicationWindow": "24h"},
+      "delivery": {
+        "guarantee": "at-least-once",
+        "ordering": "per-key",
+        "partitionKey": "user_id"
+      },
+      "retention": {
+        "ttl": "30d"
+      },
+      "consumers": [
+        "analytics-service",
+        "crm-sync"
+      ],
+      "idempotency": {
+        "keyField": "user_id",
+        "deduplicationWindow": "24h"
+      },
       "schema_version": "1.0.0",
-      "tags": ["user", "lifecycle", "auth"]
+      "tags": [
+        "user",
+        "lifecycle",
+        "auth"
+      ]
     }
   ]
 }

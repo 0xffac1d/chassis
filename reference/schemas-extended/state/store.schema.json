@@ -90,7 +90,7 @@
   },
   "$defs": {
     "FieldDefinition": {
-      "$ref": "../common/field-definition.schema.json"
+      "$ref": "../../../schemas/field-definition.schema.json"
     },
     "ActionDefinition": {
       "type": "object",

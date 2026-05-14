@@ -16,19 +16,19 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 | `crates/chassis-core/` | builds, tested | Rust types + `StaticValidator` + `CanonicalMetadataContractValidator`. `cargo check` + `cargo test` both clean on Rust ≥ 1.85 (verified on 1.95). 4 unit tests pass. |
 | `packages/chassis-types/` | builds | TypeScript `.d.ts` generated from the 8 canonical schemas via `json-schema-to-typescript`. `dist/` is committed; rebuild with `npm run build`. |
 | `fixtures/happy-path/` | valid | `rust-minimal` and `typescript-vite`. The `rust-minimal` CONTRACT.yaml is exercised by `chassis-core`'s integration test. |
-| `fixtures/adversarial/` | reference | `invalid-schema` (intentionally fails validation), `illegal-layout` (intentionally fails layout rules — there is no layout validator yet, so this is forward-pointing) |
-| `fixtures/brownfield-messy/` | reference | Realistic untidy starting point for future `chassis doctor`-style commands |
+| `fixtures/adversarial/` | reference | `invalid-schema` — intentionally fails validation (exercised by `chassis-core`'s negative-fixture test) |
 | `docs/adr/` | active | New ADRs for this project. Currently: ADR-0001 (scope + positioning). |
 | `docs/STABLE-IDS.md`, `docs/ASSURANCE-LADDER.md` | active | Load-bearing vocabulary docs |
 | `reference/python-cli/` | reference only | Original Python implementations; semantic spec for the Rust/TS implementations to come. **`mcp_server.py` is the highest-priority study target** — the primary integration path forward is an MCP server. |
 | `reference/schemas-extended/` | reference | Original schemas for component / api / data / service / event / state — design input for kind-discriminated subschemas |
 | `reference/adrs-original/` | reference | 32 historical ADRs. Reference only; re-author as new ADRs in `docs/adr/` if still binding. |
 | `reference/artifacts/release-gate.example.json` | reference | Shape of the attestation artifact this project should produce |
-| `reference/docs-original/` | reference | Documentation from the prior Chassis project (AGENTS, DECISIONS, PROTOCOL, OBJECTIVES-REGISTRY, ROADMAP). Do not rely on any command, path, or decision here without verifying against the current tree. |
+| `reference/docs-original/` | reference | Historical and process docs (AGENTS, DECISIONS, PROTOCOL, OBJECTIVES-REGISTRY, ROADMAP from the prior project; HISTORY and CONTRACT-SCHEMA-LOOSENESS-SURVEY from this project's setup). Do not rely on any command, path, or decision here without verifying against the current tree. |
+| `reference/fixtures-deferred/` | reference | `illegal-layout` and `brownfield-messy` — fixtures awaiting machinery that doesn't exist yet (layout validator, `chassis bootstrap`). Move back to `fixtures/` when their enforcers land. |
 
 ## Contract schema status
 
-`schemas/contract.schema.json` is intentionally loose right now: 7 required fields, 74 total properties. The plan is to tighten it via a `kind`-discriminated `oneOf` against the subschemas in `reference/schemas-extended/`. See `docs/CONTRACT-SCHEMA-LOOSENESS-SURVEY.md`. This is the largest single piece of upcoming schema work.
+`schemas/contract.schema.json` is intentionally loose right now: 7 required fields, 74 total properties. The plan is to tighten it via a `kind`-discriminated `oneOf` against the subschemas in `reference/schemas-extended/`. See `reference/docs-original/CONTRACT-SCHEMA-LOOSENESS-SURVEY.md`. This is the largest single piece of upcoming schema work.
 
 ## Assurance ladder MVP
 
@@ -61,4 +61,4 @@ Per ADR-0001, the project does not use the word "runtime" in user-facing copy un
 
 ## History
 
-`docs/HISTORY.md` is the narrative of how the tree got into its current shape (salvage extraction + compile-blocker fixup). Describes what was done; not a backlog.
+`reference/docs-original/HISTORY.md` is the narrative of how the tree got into its current shape (salvage extraction + compile-blocker fixup). Describes what was done; not a backlog.
