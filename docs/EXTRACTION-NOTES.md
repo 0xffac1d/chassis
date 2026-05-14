@@ -63,3 +63,21 @@ Phase7: spec line for rust-minimal/invalid-schema fixtures was malformed in sour
 Phase7: missing fixtures/happy-path/rust-minimal/CONTRACT.yaml
 Phase7: rust-minimal fixture has no CONTRACT.yaml (only fixture.yaml — a fixture descriptor). The validators.rs test path 'fixtures/happy-path/rust-minimal/CONTRACT.yaml' does NOT resolve. Leaving #[ignore] in place (deviates from Phase 7 instruction to remove it). User must add CONTRACT.yaml to the fixture during the rewrite before enabling that test.
 Phase8: .gitignore (as specified) contains 'dist/' which will exclude packages/chassis-types/dist from git — but that dir was deliberately copied. If git-tracking dist is desired, add '!packages/chassis-types/dist/' override or remove 'dist/' from .gitignore.
+
+=== Verification sweep ===
+
+-- JSON validity --
+
+-- File-count sanity --
+Rust files: 13
+Canonical schemas: 8
+Reference schemas: 13
+Python reference: 11
+Fixtures: 6
+
+-- Git state --
+335ec60 Initial salvage extraction from Chassis
+git status -s:
+ M docs/EXTRACTION-NOTES.md
+
+Note: 13 Rust files includes 3 in target/ (build artifacts excluded from git). Source files in chassis-core/src: 10
