@@ -1,0 +1,14 @@
+{
+  "name": "@chassis/ts-types-consumer-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@chassis/types": "file:../../.."
+  },
+  "devDependencies": {
+    "typescript": "~5.4.5"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

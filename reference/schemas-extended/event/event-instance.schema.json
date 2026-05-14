@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis event instance (CloudEvents-aligned)",
+  "description": "Schema for an actual event message flowing through the system. Aligns with CloudEvents v1.0 required attributes (specversion, id, type, source) plus Chassis extensions (aggregateId, version, metadata). This is the message shape; event.schema.json is the type contract.",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "type",
+    "source",
+    "time",
+    "data"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specversion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "CloudEvents spec version"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique event ID (UUID recommended)"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Event type identifier matching an event contract's eventId"
+    },
+    "source": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Origin of the event (service URI or module ID)"
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datacontenttype": {
+      "type": "string",
+      "default": "application/json"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Subject of the event in context of source (e.g., resource ID)"
+    },
+    "data": {
+      "description": "Event payload. Shape defined by the event type contract."
+    },
+    "aggregateId": {
+      "type": "string",
+      "description": "Domain aggregate this event belongs to (for event sourcing)"
+    },
+    "aggregateType": {
+      "type": "string",
+      "description": "Aggregate type name"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Aggregate version (for optimistic concurrency)"
+    },
+    "metadata": {
+      "$ref": "#/$defs/EventMetadata"
+    }
+  },
+  "$defs": {
+    "EventMetadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "correlationId": {
+          "type": "string",
+          "description": "Shared across a request/saga chain"
+        },
+        "causationId": {
+          "type": "string",
+          "description": "ID of the event that caused this one"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Who or what triggered this event"
+        },
+        "traceId": {
+          "type": "string",
+          "description": "Distributed trace ID (W3C Trace Context)"
+        }
+      }
+    }
+  }
+}

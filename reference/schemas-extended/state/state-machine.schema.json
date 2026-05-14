@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis state machine definition",
+  "description": "Reusable statechart contract for any domain object with a lifecycle. Aligns with XState v5 machine definitions and W3C SCXML concepts. States, events, transitions, guards, and actions are declared up front — the implementation fills them in.",
+  "type": "object",
+  "required": [
+    "id",
+    "initial",
+    "states"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Machine identifier"
+    },
+    "description": {
+      "type": "string"
+    },
+    "initial": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Initial state name (must exist in states)"
+    },
+    "context": {
+      "type": "object",
+      "description": "Shape of the machine's extended state (data that travels with the state)",
+      "additionalProperties": true
+    },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/StateNode"
+      },
+      "description": "State name → state node mapping"
+    },
+    "guards": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Guard name → description mapping (implementation is language-specific)"
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Action name → description mapping"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "experimental",
+        "stable",
+        "deprecated"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "StateNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "atomic",
+            "compound",
+            "parallel",
+            "final",
+            "history"
+          ],
+          "default": "atomic"
+        },
+        "on": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Transition"
+          },
+          "description": "Event name → transition mapping"
+        },
+        "entry": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Action(s) executed on entering this state"
+        },
+        "exit": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Action(s) executed on leaving this state"
+        },
+        "initial": {
+          "type": "string",
+          "description": "Initial child state (for compound states)"
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/StateNode"
+          },
+          "description": "Child states (for compound/parallel)"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "Transition": {
+      "description": "A single state transition — target state, optional guard condition, and optional actions.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Simple target state name"
+        },
+        {
+          "type": "object",
+          "required": [
+            "target"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "guard": {
+              "type": "string",
+              "description": "Named guard condition that must be true"
+            },
+            "actions": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "description": "Named action(s) to execute on this transition"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

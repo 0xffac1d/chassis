@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis feature flag definition",
+  "description": "Defines a feature flag — a runtime toggle for progressive rollout, A/B testing, or kill switches.",
+  "type": "object",
+  "required": [
+    "flagId",
+    "description",
+    "status",
+    "type",
+    "defaultValue",
+    "targeting",
+    "metrics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "flagId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ]
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "boolean",
+        "string",
+        "number",
+        "json"
+      ]
+    },
+    "defaultValue": {
+      "description": "Value when the flag is off or not targeted (any JSON type)"
+    },
+    "targeting": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TargetingRule"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "owner": {
+      "type": "string"
+    },
+    "expiration": {
+      "type": "string",
+      "minLength": 1,
+      "format": "date"
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "Condition": {
+      "type": "object",
+      "required": [
+        "attribute",
+        "operator",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attribute": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "description": "Right-hand value for the condition (any JSON type)"
+        }
+      }
+    },
+    "TargetingRule": {
+      "type": "object",
+      "required": [
+        "description",
+        "conditions",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "value": {
+          "description": "Flag value when this rule matches (any JSON type)"
+        },
+        "percentage": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    }
+  }
+}

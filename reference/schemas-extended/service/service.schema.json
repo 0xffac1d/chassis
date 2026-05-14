@@ -1,0 +1,317 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.1.0",
+  "title": "Chassis service boundary contract",
+  "description": "Defines a service boundary — a deployable unit that exposes an interface and has operational characteristics. v1.1 adds optional deployment hint object (P1.5).",
+  "type": "object",
+  "required": [
+    "serviceId",
+    "description",
+    "status",
+    "protocol",
+    "endpoints",
+    "consumes",
+    "produces",
+    "resilience",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "serviceId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "experimental",
+        "stable",
+        "deprecated"
+      ]
+    },
+    "protocol": {
+      "type": "string",
+      "enum": [
+        "rest",
+        "grpc",
+        "graphql",
+        "websocket",
+        "message-queue",
+        "internal"
+      ]
+    },
+    "endpoints": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "consumes": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "produces": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "auth": {
+      "$ref": "#/$defs/ServiceAuth"
+    },
+    "resilience": {
+      "$ref": "#/$defs/Resilience"
+    },
+    "healthCheck": {
+      "$ref": "#/$defs/HealthCheck"
+    },
+    "sla": {
+      "$ref": "#/$defs/Sla"
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional deploy topology hints; pair with `resilience` / `sla` for ops depth (P1.5).",
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ServiceAuth": {
+      "type": "object",
+      "required": [
+        "methods",
+        "internalOnly"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "internalOnly": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "CircuitBreaker": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "threshold",
+        "window",
+        "recoveryTime"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "window": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recoveryTime": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RetryPolicy": {
+      "type": "object",
+      "required": [
+        "maxAttempts",
+        "backoff",
+        "maxDelay"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "backoff": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxDelay": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Bulkhead": {
+      "type": "object",
+      "required": [
+        "maxConcurrent",
+        "queueSize"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "maxConcurrent": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "queueSize": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Resilience": {
+      "type": "object",
+      "required": [
+        "timeout"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "circuitBreaker": {
+          "$ref": "#/$defs/CircuitBreaker"
+        },
+        "retry": {
+          "$ref": "#/$defs/RetryPolicy"
+        },
+        "timeout": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bulkhead": {
+          "$ref": "#/$defs/Bulkhead"
+        }
+      }
+    },
+    "HealthCheck": {
+      "type": "object",
+      "required": [
+        "path",
+        "interval",
+        "timeout",
+        "unhealthyThreshold"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "interval": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unhealthyThreshold": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "SlaLatency": {
+      "type": "object",
+      "required": [
+        "p50",
+        "p95",
+        "p99"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "p50": {
+          "type": "string",
+          "minLength": 1
+        },
+        "p95": {
+          "type": "string",
+          "minLength": 1
+        },
+        "p99": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Sla": {
+      "type": "object",
+      "required": [
+        "availability",
+        "latency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "type": "string",
+          "minLength": 1
+        },
+        "latency": {
+          "$ref": "#/$defs/SlaLatency"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "serviceId": "auth-service",
+      "description": "Issues and validates session tokens for all internal services. Stateless; scales horizontally.",
+      "status": "stable",
+      "protocol": "grpc",
+      "endpoints": ["IssueToken", "ValidateToken", "RotateKey"],
+      "consumes": ["user-store"],
+      "produces": ["auth.token-issued", "auth.key-rotated"],
+      "auth": {"methods": ["mtls"], "internalOnly": true},
+      "resilience": {
+        "circuitBreaker": {"enabled": true, "threshold": 0.5, "window": "1m", "recoveryTime": "30s"},
+        "retry": {"maxAttempts": 3, "backoff": "exponential", "maxDelay": "5s"},
+        "timeout": "2s",
+        "bulkhead": {"maxConcurrent": 100, "queueSize": 50}
+      },
+      "healthCheck": {"path": "/health", "interval": "10s", "timeout": "1s", "unhealthyThreshold": 3},
+      "sla": {
+        "availability": "99.95%",
+        "latency": {"p50": "5ms", "p95": "20ms", "p99": "50ms"}
+      },
+      "tags": ["auth", "security", "internal"]
+    }
+  ]
+}

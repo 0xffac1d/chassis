@@ -1,0 +1,1198 @@
+{
+  "canonical_topology_count": 6,
+  "canonical_topology_source": "config/chassis.topology-fallback.yaml",
+  "commands": [
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/python_import_safety_suite.py",
+        "--json-out",
+        "/mnt/C/chassis/ARTIFACTS/chassis/python-import-safety.json",
+        "--md-out",
+        "/mnt/C/chassis/ARTIFACTS/chassis/python-import-safety.md"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/python_import_safety_suite.py --json-out /mnt/C/chassis/ARTIFACTS/chassis/python-import-safety.json --md-out /mnt/C/chassis/ARTIFACTS/chassis/python-import-safety.md",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/validate_termination_suite.py",
+        "--json-out",
+        "/mnt/C/chassis/ARTIFACTS/chassis/validate-termination.json",
+        "--md-out",
+        "/mnt/C/chassis/ARTIFACTS/chassis/validate-termination.md"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/validate_termination_suite.py --json-out /mnt/C/chassis/ARTIFACTS/chassis/validate-termination.json --md-out /mnt/C/chassis/ARTIFACTS/chassis/validate-termination.md",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "build",
+        "--wheel",
+        "--outdir",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/wheel",
+        "/mnt/C/chassis"
+      ],
+      "exit_code": 0,
+      "note": "primary wheel build; falls back to `pip wheel` if `build` is not installed",
+      "shell": "/usr/bin/python3 -m build --wheel --outdir /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/wheel /mnt/C/chassis",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "-m",
+        "venv",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 -m venv /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/pip",
+        "install",
+        "--disable-pip-version-check",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/wheel/chassis_cli-0.1.0-py3-none-any.whl"
+      ],
+      "exit_code": 0,
+      "shell": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/pip install --disable-pip-version-check /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/wheel/chassis_cli-0.1.0-py3-none-any.whl",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis",
+        "--help"
+      ],
+      "exit_code": 0,
+      "shell": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis --help",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis",
+        "quickstart",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer"
+      ],
+      "exit_code": 0,
+      "shell": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis quickstart /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis",
+        "validate",
+        "--repo-root",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer"
+      ],
+      "exit_code": 0,
+      "shell": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis validate --repo-root /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis",
+        "quickstart",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer-idem-parent/external-consumer"
+      ],
+      "exit_code": 0,
+      "shell": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/venv/bin/chassis quickstart /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer-idem-parent/external-consumer",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "diff",
+        "-r",
+        "--brief",
+        "--exclude",
+        "bootstrap-report.json",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer",
+        "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer-idem-parent/external-consumer"
+      ],
+      "exit_code": 0,
+      "shell": "diff -r --brief --exclude bootstrap-report.json /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer /tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer-idem-parent/external-consumer",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/tests/fixture_matrix.py",
+        "--mode",
+        "wheel",
+        "--work-dir",
+        "/tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/tests/fixture_matrix.py --mode wheel --work-dir /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "validate",
+        "--repo-root",
+        "/tmp/chassis-standalone-gate-ht38incc/strict/strict-strict-valid",
+        "--profile",
+        "strict"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis validate --repo-root /tmp/chassis-standalone-gate-ht38incc/strict/strict-strict-valid --profile strict",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "validate",
+        "--repo-root",
+        "/tmp/chassis-standalone-gate-ht38incc/strict/strict-strict-invalid",
+        "--profile",
+        "strict"
+      ],
+      "exit_code": 1,
+      "note": "strict-strict negative fixture: rc!=0 is the expected outcome",
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis validate --repo-root /tmp/chassis-standalone-gate-ht38incc/strict/strict-strict-invalid --profile strict",
+      "status": "expected_fail"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "codegen",
+        "--check",
+        "--lang",
+        "rust"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis codegen --check --lang rust",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "cargo",
+        "check",
+        "--manifest-path",
+        "/mnt/C/chassis/crates/Cargo.toml",
+        "-p",
+        "chassis-schemas",
+        "--all-targets"
+      ],
+      "exit_code": 0,
+      "shell": "cargo check --manifest-path /mnt/C/chassis/crates/Cargo.toml -p chassis-schemas --all-targets",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "cargo",
+        "package",
+        "--manifest-path",
+        "/mnt/C/chassis/crates/chassis-schemas/Cargo.toml",
+        "--allow-dirty",
+        "--no-verify"
+      ],
+      "exit_code": 0,
+      "shell": "cargo package --manifest-path /mnt/C/chassis/crates/chassis-schemas/Cargo.toml --allow-dirty --no-verify",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "node",
+        "/mnt/C/chassis/codegen/ts-types/scripts/verify-fingerprint.mjs"
+      ],
+      "exit_code": 0,
+      "shell": "node /mnt/C/chassis/codegen/ts-types/scripts/verify-fingerprint.mjs",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "npm",
+        "pack",
+        "--dry-run",
+        "--json"
+      ],
+      "exit_code": 0,
+      "shell": "npm pack --dry-run --json",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "npm",
+        "pack",
+        "--json",
+        "--pack-destination",
+        "/tmp/chassis-standalone-gate-ht38incc/generated-artifacts/npm-pack"
+      ],
+      "exit_code": 0,
+      "shell": "npm pack --json --pack-destination /tmp/chassis-standalone-gate-ht38incc/generated-artifacts/npm-pack",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "npm",
+        "init",
+        "-y"
+      ],
+      "exit_code": 0,
+      "shell": "npm init -y",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "npm",
+        "install",
+        "--no-audit",
+        "--no-fund",
+        "/tmp/chassis-standalone-gate-ht38incc/generated-artifacts/npm-pack/chassis-types-0.1.0.tgz"
+      ],
+      "exit_code": 0,
+      "shell": "npm install --no-audit --no-fund /tmp/chassis-standalone-gate-ht38incc/generated-artifacts/npm-pack/chassis-types-0.1.0.tgz",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/claims.py",
+        "validate",
+        "--repo-root",
+        "/mnt/C/chassis"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/claims.py validate --repo-root /mnt/C/chassis",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/gates/release_public_surface_audit.py",
+        "--json"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/gates/release_public_surface_audit.py --json",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "--help"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis --help",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "schema-version-check",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis schema-version-check --quiet",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "support-matrix",
+        "--check"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis support-matrix --check",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "bootstrap",
+        "/tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer",
+        "--skip-post-checks"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis bootstrap /tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer --skip-post-checks",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "validate",
+        "--repo-root",
+        "/tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis validate --repo-root /tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "codegen",
+        "--check"
+      ],
+      "exit_code": 0,
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis codegen --check",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/usr/bin/python3",
+        "/mnt/C/chassis/scripts/chassis/scripts/fingerprint_schemas.py"
+      ],
+      "exit_code": 0,
+      "shell": "/usr/bin/python3 /mnt/C/chassis/scripts/chassis/scripts/fingerprint_schemas.py",
+      "status": "pass"
+    },
+    {
+      "argv": [
+        "/mnt/C/chassis/scripts/chassis/chassis",
+        "--help"
+      ],
+      "exit_code": 2,
+      "note": "CHASSIS_ROOT pointed at a non-Chassis directory; rc!=0 is the expected outcome",
+      "shell": "/mnt/C/chassis/scripts/chassis/chassis --help",
+      "status": "expected_fail"
+    }
+  ],
+  "commit": "bf349e9",
+  "consumer_fixture": {
+    "status": "pass",
+    "summary": "0 error(s), 0 warning(s)"
+  },
+  "distribution": {
+    "label": "Standalone source checkout RC",
+    "npm": {
+      "pack_dry_run_status": "pass",
+      "pack_install_smoke_status": "pass",
+      "package": "@chassis/types",
+      "published": false,
+      "registry_install": false,
+      "status": "locally_packable_but_unpublished"
+    },
+    "python": {
+      "package": "chassis-cli",
+      "published": false,
+      "registry_install": false,
+      "status": "locally_packable_but_unpublished",
+      "wheel_smoke_status": "pass"
+    },
+    "registry_install_claims": false,
+    "rust": {
+      "check_status": "pass",
+      "package": "chassis-schemas",
+      "package_status": "pass",
+      "published": false,
+      "registry_install": false,
+      "status": "source_checkout_only"
+    }
+  },
+  "elapsed_ms": 18945,
+  "fixture_manifest": "scripts/chassis/gates/fixtures/standalone-release/fixtures.yaml",
+  "gate_version": "1.0.0",
+  "git_commit_full": "bf349e93cf9d9bfa663b217f9030b93b0672e431",
+  "groups": [
+    {
+      "details": {
+        "missing_required_files": []
+      },
+      "elapsed_ms": 18940,
+      "findings": [],
+      "id": "required-ci-scripts",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Required CI / release scripts present"
+    },
+    {
+      "details": {
+        "log_tail": "OK: python import safety (6 probes, 0 shadow hits)",
+        "report": {
+          "failures": [],
+          "ok": true,
+          "probes": [
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-S",
+                "-c",
+                "print('ok')"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 4,
+              "name": "site-disabled-print@.",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "ok",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-c",
+                "print('ok')"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 5,
+              "name": "default-print@.",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "ok",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-c",
+                "import json, os, site, profile; print(profile.__file__)"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 10,
+              "name": "import-profile@.",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "/usr/lib/python3.14/profile.py",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-S",
+                "-c",
+                "print('ok')"
+              ],
+              "cwd": "/mnt/C/chassis/scripts/chassis",
+              "elapsed_ms": 4,
+              "name": "site-disabled-print@scripts/chassis",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "ok",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-c",
+                "print('ok')"
+              ],
+              "cwd": "/mnt/C/chassis/scripts/chassis",
+              "elapsed_ms": 6,
+              "name": "default-print@scripts/chassis",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "ok",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "-c",
+                "import json, os, site, profile; print(profile.__file__)"
+              ],
+              "cwd": "/mnt/C/chassis/scripts/chassis",
+              "elapsed_ms": 11,
+              "name": "import-profile@scripts/chassis",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "/usr/lib/python3.14/profile.py",
+              "timed_out": false
+            }
+          ],
+          "profile_module_path": "/usr/lib/python3.14/profile.py",
+          "repo_root": "/mnt/C/chassis",
+          "shadow_hits": [],
+          "stdlib_path": "/usr/lib/python3.14",
+          "warnings": []
+        },
+        "runner_rc": 0
+      },
+      "elapsed_ms": 18940,
+      "findings": [],
+      "id": "python-import-safety",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Python import safety (preflight)"
+    },
+    {
+      "details": {
+        "log_tail": "OK: validate termination suite (6 cases \u00d7 2 commands)",
+        "report": {
+          "commands": [
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/no-manifests"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 113,
+              "name": "no-manifests:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 0 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/no-manifests"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 61,
+              "name": "no-manifests:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 0 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/one-valid-contract"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 125,
+              "name": "one-valid-contract:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/one-valid-contract"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 72,
+              "name": "one-valid-contract:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/some/fixtures/nested-fixtures"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 124,
+              "name": "nested-fixtures:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/some/fixtures/nested-fixtures"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 71,
+              "name": "nested-fixtures:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/some/temp/temp-path-fixture"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 128,
+              "name": "temp-path-fixture:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/some/temp/temp-path-fixture"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 79,
+              "name": "temp-path-fixture:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/rust-minimal"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 118,
+              "name": "rust-minimal:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 0 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/rust-minimal"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 60,
+              "name": "rust-minimal:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 0 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/mnt/C/chassis/scripts/chassis/chassis",
+                "validate",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/external-consumer"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 126,
+              "name": "external-consumer:dispatcher",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/python3",
+                "/mnt/C/chassis/scripts/chassis/validate_metadata.py",
+                "--repo-root",
+                "/tmp/chassis-validate-term-fk07pedi/external-consumer"
+              ],
+              "cwd": "/mnt/C/chassis",
+              "elapsed_ms": 74,
+              "name": "external-consumer:validate_metadata",
+              "rc": 0,
+              "stderr_tail": "",
+              "stdout_tail": "Checked 1 CONTRACT.yaml and 0 chassis.unit.yaml.\nProfile: standard\nIssues: 0 error(s), 0 warning(s).\n\nJSON Schema references:\n  - /mnt/C/chassis/schemas/metadata/contract.schema.json\n  - /mnt/C/chassis/schemas/metadata/chassis-unit.schema.json",
+              "timed_out": false
+            }
+          ],
+          "failures": [],
+          "ok": true,
+          "timings": [
+            {
+              "case": "no-manifests",
+              "command": "dispatcher",
+              "seconds": 0.11350781298824586
+            },
+            {
+              "case": "no-manifests",
+              "command": "validate_metadata",
+              "seconds": 0.061457806994440034
+            },
+            {
+              "case": "one-valid-contract",
+              "command": "dispatcher",
+              "seconds": 0.1252475530054653
+            },
+            {
+              "case": "one-valid-contract",
+              "command": "validate_metadata",
+              "seconds": 0.07287833200825844
+            },
+            {
+              "case": "nested-fixtures",
+              "command": "dispatcher",
+              "seconds": 0.1249374449980678
+            },
+            {
+              "case": "nested-fixtures",
+              "command": "validate_metadata",
+              "seconds": 0.07167771899548825
+            },
+            {
+              "case": "temp-path-fixture",
+              "command": "dispatcher",
+              "seconds": 0.1284301220002817
+            },
+            {
+              "case": "temp-path-fixture",
+              "command": "validate_metadata",
+              "seconds": 0.07939530900330283
+            },
+            {
+              "case": "rust-minimal",
+              "command": "dispatcher",
+              "seconds": 0.11811681400286034
+            },
+            {
+              "case": "rust-minimal",
+              "command": "validate_metadata",
+              "seconds": 0.060652222004137
+            },
+            {
+              "case": "external-consumer",
+              "command": "dispatcher",
+              "seconds": 0.12654806599311996
+            },
+            {
+              "case": "external-consumer",
+              "command": "validate_metadata",
+              "seconds": 0.07495306400232948
+            }
+          ],
+          "warnings": []
+        },
+        "runner_rc": 0
+      },
+      "elapsed_ms": 18864,
+      "findings": [],
+      "id": "validate-termination",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Validate termination (preflight)"
+    },
+    {
+      "details": {
+        "skipped": true
+      },
+      "elapsed_ms": 16914,
+      "findings": [],
+      "id": "vendor-wheel-tags",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Vendor wheelhouse Python tags"
+    },
+    {
+      "details": {
+        "cli_help_rc": 0,
+        "external_repo": "/tmp/chassis-standalone-gate-ht38incc/wheel-smoke/external-consumer",
+        "offline": false,
+        "pip_install_args": [],
+        "release_pip_env_keys": [],
+        "vendor_dir": null,
+        "wheel": "chassis_cli-0.1.0-py3-none-any.whl",
+        "wheel_python": "/usr/bin/python3"
+      },
+      "elapsed_ms": 16914,
+      "findings": [],
+      "id": "python-wheel-smoke",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Python package smoke"
+    },
+    {
+      "details": {
+        "matrix_failed": 0,
+        "matrix_passed": 9,
+        "matrix_verdict": "pass",
+        "offline": false,
+        "runner_log_tail": "Processing /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work/.matrix-scratch/wheel-install/wheel/chassis_cli-0.1.0-py3-none-any.whl\nCollecting jinja2>=3.1 (from chassis-cli==0.1.0)\n  Using cached jinja2-3.1.6-py3-none-any.whl.metadata (2.9 kB)\nCollecting jsonschema>=4.21 (from chassis-cli==0.1.0)\n  Using cached jsonschema-4.26.0-py3-none-any.whl.metadata (7.6 kB)\nCollecting pyyaml>=6.0 (from chassis-cli==0.1.0)\n  Using cached pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)\nCollecting referencing>=0.30 (from chassis-cli==0.1.0)\n  Using cached referencing-0.37.0-py3-none-any.whl.metadata (2.8 kB)\nCollecting MarkupSafe>=2.0 (from jinja2>=3.1->chassis-cli==0.1.0)\n  Using cached markupsafe-3.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)\nCollecting attrs>=22.2.0 (from jsonschema>=4.21->chassis-cli==0.1.0)\n  Using cached attrs-26.1.0-py3-none-any.whl.metadata (8.8 kB)\nCollecting jsonschema-specifications>=2023.03.6 (from jsonschema>=4.21->chassis-cli==0.1.0)\n  Using cached jsonschema_specifications-2025.9.1-py3-none-any.whl.metadata (2.9 kB)\nCollecting rpds-py>=0.25.0 (from jsonschema>=4.21->chassis-cli==0.1.0)\n  Using cached rpds_py-0.30.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.1 kB)\nUsing cached jinja2-3.1.6-py3-none-any.whl (134 kB)\nUsing cached jsonschema-4.26.0-py3-none-any.whl (90 kB)\nUsing cached attrs-26.1.0-py3-none-any.whl (67 kB)\nUsing cached jsonschema_specifications-2025.9.1-py3-none-any.whl (18 kB)\nUsing cached markupsafe-3.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (23 kB)\nUsing cached pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (794 kB)\nUsing cached referencing-0.37.0-py3-none-any.whl (26 kB)\nUsing cached rpds_py-0.30.0-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (382 kB)\nInstalling collected packages: rpds-py, pyyaml, MarkupSafe, attrs, referencing, jinja2, jsonschema-specifications, jsonschema, chassis-cli\n\nSuccessfully installed MarkupSafe-3.0.3 attrs-26.1.0 chassis-cli-0.1.0 jinja2-3.1.6 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 pyyaml-6.0.3 referencing-0.37.0 rpds-py-0.30.0\n>>> [wheel] matrix_harness --cli /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work/.matrix-scratch/wheel-install/venv/bin/chassis --fixtures-dir /mnt/C/chassis/tests/consumer-fixtures ...\nmatrix verdict: pass\nartifact: /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work/mode-wheel/harness-work/.chassis/consumer-matrix.json\n\nmatrix artifact: /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work/.chassis/fixture-matrix.json\nmatrix report  : /tmp/chassis-standalone-gate-ht38incc/matrix/fixture-matrix-work/.chassis/fixture-matrix.md\nverdict        : PASS",
+        "runner_rc": 0,
+        "vendor_dir": null
+      },
+      "elapsed_ms": 12577,
+      "findings": [],
+      "id": "fixture-matrix",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Consumer fixture matrix (wheel)"
+    },
+    {
+      "details": {
+        "matrix": [
+          {
+            "actual": "pass",
+            "expected": "pass",
+            "id": "strict-valid",
+            "rc": 0
+          },
+          {
+            "actual": "fail",
+            "expected": "fail",
+            "id": "strict-invalid",
+            "rc": 1
+          }
+        ]
+      },
+      "elapsed_ms": 3876,
+      "findings": [],
+      "id": "strict-enforcement",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Strict-profile enforcement"
+    },
+    {
+      "details": {
+        "cargo_check_rc": 0,
+        "cargo_check_status": "pass",
+        "cargo_package_rc": 0,
+        "cargo_package_status": "pass",
+        "npm_pack_dry_run_status": "pass",
+        "npm_pack_files": [
+          "LICENSE",
+          "README.md",
+          "dist/agent/agent-action.d.ts",
+          "dist/agent/agent-audit-log.d.ts",
+          "dist/agent/agent-context.d.ts",
+          "dist/agent/agent-policy.d.ts",
+          "dist/api/api-response.d.ts",
+          "dist/api/endpoint.d.ts",
+          "dist/api/error-response.d.ts",
+          "dist/app/app-lock.d.ts",
+          "dist/app/app.d.ts",
+          "dist/architecture/architecture-graph.d.ts",
+          "dist/architecture/architecture-unit.d.ts",
+          "dist/architecture/impact-report.d.ts",
+          "dist/architecture/policy.d.ts",
+          "dist/architecture/relationship.d.ts",
+          "dist/architecture/repository-graph.d.ts",
+          "dist/architecture/runtime-evidence-batch.d.ts",
+          "dist/architecture/workflow.d.ts",
+          "dist/capability/capability-fingerprint.d.ts",
+          "dist/claim/registry.d.ts",
+          "dist/coherence/authority-index.d.ts",
+          "dist/coherence/integration-compatibility-result.d.ts",
+          "dist/coherence/repository-coherence-report.d.ts",
+          "dist/common/field-definition.d.ts",
+          "dist/common/tag-ontology.d.ts",
+          "dist/component/component.d.ts",
+          "dist/config/chassis-config.d.ts",
+          "dist/config/feature-flag.d.ts",
+          "dist/config/schema-registry.d.ts",
+          "dist/data/entity.d.ts",
+          "dist/data/migration.d.ts",
+          "dist/decision/adr.d.ts",
+          "dist/diagnostics/diagnostic.d.ts",
+          "dist/diagnostics/doctor-report.d.ts",
+          "dist/diagnostics/migration-report.d.ts",
+          "dist/domain/blueprint.d.ts",
+          "dist/domain/canonical-snapshot.d.ts",
+          "dist/domain/capability-bundle.d.ts",
+          "dist/domain/capability.d.ts",
+          "dist/domain/composition-intent.d.ts",
+          "dist/domain/composition-version.d.ts",
+          "dist/domain/data-contract.d.ts",
+          "dist/domain/error-boundary.d.ts",
+          "dist/domain/lifecycle.d.ts",
+          "dist/domain/module.d.ts",
+          "dist/domain/page.d.ts",
+          "dist/domain/permission.d.ts",
+          "dist/domain/prop-schema.d.ts",
+          "dist/domain/registry-entry.d.ts",
+          "dist/domain/route.d.ts",
+          "dist/domain/slot.d.ts",
+          "dist/event/event-instance.d.ts",
+          "dist/event/event.d.ts",
+          "dist/exemption/registry.d.ts",
+          "dist/index.d.ts",
+          "dist/index.js",
+          "dist/marketplace/package.d.ts",
+          "dist/marketplace/provenance.d.ts",
+          "dist/marketplace/publish-request.d.ts",
+          "dist/marketplace/search-result.d.ts",
+          "dist/marketplace/signature.d.ts",
+          "dist/metadata/chassis-unit.d.ts",
+          "dist/metadata/contract.d.ts",
+          "dist/metadata/debt-item.d.ts",
+          "dist/metadata/system-contract.d.ts",
+          "dist/objective/objective-registry.d.ts",
+          "dist/objective/objective.d.ts",
+          "dist/observability/alert.d.ts",
+          "dist/observability/evaluation.d.ts",
+          "dist/observability/governance-policy.d.ts",
+          "dist/observability/log.d.ts",
+          "dist/observability/metric.d.ts",
+          "dist/observability/telemetry-common.d.ts",
+          "dist/observability/trace.d.ts",
+          "dist/plugin/plugin-hook.d.ts",
+          "dist/plugin/plugin-permissions.d.ts",
+          "dist/plugin/plugin-sandbox.d.ts",
+          "dist/plugin/plugin.d.ts",
+          "dist/policy/doc-graph.d.ts",
+          "dist/policy/layout.d.ts",
+          "dist/policy/pack-lock.d.ts",
+          "dist/policy/pack.d.ts",
+          "dist/policy/responsible-system.d.ts",
+          "dist/scaffold/placeholder.d.ts",
+          "dist/scaffold/template.d.ts",
+          "dist/service/service.d.ts",
+          "dist/skill/skill.d.ts",
+          "dist/state/effect.d.ts",
+          "dist/state/state-machine.d.ts",
+          "dist/state/store.d.ts",
+          "dist/structure/crate-structure.d.ts",
+          "dist/structure/module.d.ts",
+          "dist/structure/structure-config.d.ts",
+          "dist/structure/typescript-package-structure.d.ts",
+          "fingerprint.sha256",
+          "package.json",
+          "scripts/canonicalize.mjs",
+          "scripts/fingerprint-schemas.mjs",
+          "scripts/gen-types.mjs",
+          "scripts/verify-fingerprint.mjs"
+        ],
+        "npm_pack_install_status": "pass",
+        "npm_pack_status": "pass",
+        "npm_pack_tarball": "chassis-types-0.1.0.tgz",
+        "rust_codegen_check_rc": 0,
+        "ts_fingerprint_rc": 0
+      },
+      "elapsed_ms": 3620,
+      "findings": [],
+      "id": "generated-artifacts",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Generated artifacts"
+    },
+    {
+      "details": {
+        "experimental": true,
+        "napi_name": "@chassis/runtime-experimental",
+        "napi_path": "crates/_experimental/chassis-runtime-napi",
+        "napi_private": true,
+        "standalone_quickstart_refs": []
+      },
+      "elapsed_ms": 1477,
+      "findings": [],
+      "id": "runtime-package-posture",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Runtime package posture"
+    },
+    {
+      "details": {
+        "counts": {
+          "canonical_topology_count": 6,
+          "canonical_topology_source": "config/chassis.topology-fallback.yaml",
+          "docs_scanned": 408,
+          "missing_local_links": 0,
+          "release_evidence_mismatches": 0,
+          "stale_absolute_paths": 0,
+          "stale_tools_chassis": 0,
+          "topology_mismatches": 0
+        },
+        "release_evidence": {
+          "artifact": "ARTIFACTS/chassis/standalone-release-gate.json",
+          "commit": "70da7db",
+          "sha256": "da45e3db3ba867122bf0b3f6674e53b8f9ab619dc1a8e5244f26e0c0041e2744",
+          "started_at": "2026-05-11T04:33:11Z",
+          "verdict": "pass"
+        },
+        "release_evidence_mismatches": []
+      },
+      "elapsed_ms": 1477,
+      "findings": [],
+      "id": "docs-consistency",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Docs consistency"
+    },
+    {
+      "details": {
+        "log_tail": "      \"finding\": {\n        \"line\": 27,\n        \"message\": \"unresolved TBD/example placeholder in public release surface\",\n        \"path\": \"docs/chassis/guides/schema-migrations/_template.md\",\n        \"remediation\": \"Replace placeholders with release-ready values or add a narrow fixture/template/migration allowlist entry with a reason.\",\n        \"rule\": \"placeholder-token\",\n        \"text\": \"# example\"\n      },\n      \"reason\": \"Migration guide template intentionally includes an example section heading for maintainers to replace in copied migration notes.\"\n    },\n    {\n      \"allowlist_id\": \"schema-migration-template-example-heading\",\n      \"finding\": {\n        \"line\": 33,\n        \"message\": \"unresolved TBD/example placeholder in public release surface\",\n        \"path\": \"docs/chassis/guides/schema-migrations/_template.md\",\n        \"remediation\": \"Replace placeholders with release-ready values or add a narrow fixture/template/migration allowlist entry with a reason.\",\n        \"rule\": \"placeholder-token\",\n        \"text\": \"# example\"\n      },\n      \"reason\": \"Migration guide template intentionally includes an example section heading for maintainers to replace in copied migration notes.\"\n    }\n  ],\n  \"docs\": \"docs/chassis/guides/release-standalone-gate.md#public-surface-allowlist\",\n  \"findings\": [],\n  \"gate\": \"release-public-surface-audit\",\n  \"public_files_scanned\": 402,\n  \"status\": \"pass\",\n  \"summary\": \"0 error(s), 2 allowlisted finding(s), 402 public file(s) scanned\"\n}",
+        "report": {
+          "allowlisted": [
+            {
+              "allowlist_id": "schema-migration-template-example-heading",
+              "finding": {
+                "line": 27,
+                "message": "unresolved TBD/example placeholder in public release surface",
+                "path": "docs/chassis/guides/schema-migrations/_template.md",
+                "remediation": "Replace placeholders with release-ready values or add a narrow fixture/template/migration allowlist entry with a reason.",
+                "rule": "placeholder-token",
+                "text": "# example"
+              },
+              "reason": "Migration guide template intentionally includes an example section heading for maintainers to replace in copied migration notes."
+            },
+            {
+              "allowlist_id": "schema-migration-template-example-heading",
+              "finding": {
+                "line": 33,
+                "message": "unresolved TBD/example placeholder in public release surface",
+                "path": "docs/chassis/guides/schema-migrations/_template.md",
+                "remediation": "Replace placeholders with release-ready values or add a narrow fixture/template/migration allowlist entry with a reason.",
+                "rule": "placeholder-token",
+                "text": "# example"
+              },
+              "reason": "Migration guide template intentionally includes an example section heading for maintainers to replace in copied migration notes."
+            }
+          ],
+          "docs": "docs/chassis/guides/release-standalone-gate.md#public-surface-allowlist",
+          "findings": [],
+          "gate": "release-public-surface-audit",
+          "public_files_scanned": 402,
+          "status": "pass",
+          "summary": "0 error(s), 2 allowlisted finding(s), 402 public file(s) scanned"
+        },
+        "runner_rc": 0
+      },
+      "elapsed_ms": 1302,
+      "findings": [],
+      "id": "release-public-surface-audit",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Public release surface audit"
+    },
+    {
+      "details": {
+        "checked": [
+          "scripts/chassis/chassis",
+          "scripts/chassis/gates/agent-hygiene.sh",
+          "scripts/chassis/gates/agent-projection-coverage.sh",
+          "scripts/chassis/gates/agent-tell.sh",
+          "scripts/chassis/gates/claim-drift.sh",
+          "scripts/chassis/gates/commit-msg-hook.sh",
+          "scripts/chassis/gates/completeness.sh",
+          "scripts/chassis/gates/decomposition.sh",
+          "scripts/chassis/gates/doc-binding.sh",
+          "scripts/chassis/gates/metadata-completeness.sh",
+          "scripts/chassis/gates/panic-budget.sh",
+          "scripts/chassis/gates/posture-audit.sh",
+          "scripts/chassis/gates/process-ratio.sh",
+          "scripts/chassis/gates/release-gate.sh",
+          "scripts/chassis/gates/surface-wiring.sh",
+          "scripts/chassis/gates/tag-guard.sh",
+          "scripts/chassis/refresh-runtime-evidence.sh",
+          "scripts/ci/chassis-contract-diff.sh",
+          "scripts/ci/run-commit-gates.sh",
+          "scripts/ci/check-strict-ci-pass-throughs.sh",
+          "scripts/ci/final-export-manifest.sh",
+          "scripts/ci/release-gate.sh",
+          "scripts/ci/run-pytest-all.sh",
+          "scripts/ci/smoke-install.sh",
+          "scripts/ci/standalone-release-gate.sh"
+        ],
+        "missing_executable_bit": []
+      },
+      "elapsed_ms": 1129,
+      "findings": [],
+      "id": "permissions",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Executable-bit check"
+    },
+    {
+      "details": {
+        "external_consumer": "/tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer",
+        "negative_bad_root_rc": 2,
+        "negative_bad_root_stderr": [
+          "chassis: CHASSIS_ROOT does not point at a Chassis distribution: /tmp/chassis-standalone-gate-ht38incc/root-sep/not-chassis",
+          "",
+          "Expected to find:",
+          "  /tmp/chassis-standalone-gate-ht38incc/root-sep/not-chassis/schemas/metadata/contract.schema.json"
+        ],
+        "outside_cwd": "/tmp/chassis-standalone-gate-ht38incc/root-sep/unrelated-cwd",
+        "probes": [
+          {
+            "command": [
+              "chassis",
+              "schema-version-check",
+              "--quiet"
+            ],
+            "rc": 0,
+            "summary": ""
+          },
+          {
+            "command": [
+              "chassis",
+              "support-matrix",
+              "--check"
+            ],
+            "rc": 0,
+            "summary": "support-matrix --check: OK"
+          },
+          {
+            "command": [
+              "chassis",
+              "bootstrap",
+              "/tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer",
+              "--skip-post-checks"
+            ],
+            "rc": 0,
+            "summary": "  [create] skills/chassis-metadata/SKILL.md"
+          },
+          {
+            "command": [
+              "chassis",
+              "validate",
+              "--repo-root",
+              "/tmp/chassis-standalone-gate-ht38incc/root-sep/external-consumer"
+            ],
+            "rc": 0,
+            "summary": "WARN[CHASSIS-VALIDATE-SEMANTICS] CONTRACT.yaml: CONTRACT.yaml: edge_cases[0] appears to be an unreplaced placeholder: 'TODO: describe how the system behaves when inputs violate expected shape. Replace after review.'"
+          },
+          {
+            "command": [
+              "chassis",
+              "codegen",
+              "--check"
+            ],
+            "rc": 0,
+            "summary": "codegen-check OK"
+          },
+          {
+            "command": [
+              "python3",
+              "scripts/chassis/scripts/fingerprint_schemas.py"
+            ],
+            "rc": 0,
+            "summary": "6b10878818d6d708f0a190fd873628ae02b54fb2a1451caef0d0a9064be5ea3e"
+          }
+        ]
+      },
+      "elapsed_ms": 1129,
+      "findings": [],
+      "id": "root-separation",
+      "status": "pass",
+      "summary": "0 error(s), 0 warning(s)",
+      "title": "Root separation (CHASSIS_ROOT)"
+    }
+  ],
+  "missing_required_files": [],
+  "package_smoke": {
+    "status": "pass",
+    "summary": "0 error(s), 0 warning(s)"
+  },
+  "pip_mode": {
+    "offline": false,
+    "vendor_dir": null
+  },
+  "sha256": "4c7972e3e931f7de6653e85a4ac45e4ba5b71d48bbaafb0dbae73677f44467dd",
+  "started_at": "2026-05-11T04:41:03Z",
+  "timestamp": "2026-05-11T04:41:03Z",
+  "tool_versions": {
+    "cargo": "cargo 1.91.1 (ea2d97820 2025-10-10)",
+    "chassis-dispatcher": "scripts/chassis/chassis",
+    "git": "git version 2.54.0",
+    "node": "v22.16.0",
+    "npm": "10.9.2",
+    "pip": "pip 26.1.1 from /usr/lib/python3.14/site-packages/pip (python 3.14)",
+    "pnpm": "10.33.0",
+    "python": "Python 3.14.4",
+    "rustc": "rustc 1.91.1 (ed61e7d7e 2025-11-07)"
+  },
+  "verdict": "pass",
+  "working_tree_dirty": false
+}

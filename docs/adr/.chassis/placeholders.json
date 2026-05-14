@@ -1,0 +1,22 @@
+{
+  "placeholders": [
+    {
+      "id": "adr.context",
+      "description": "Decision context and forces.",
+      "severity": "must",
+      "resolved": false
+    },
+    {
+      "id": "adr.decision",
+      "description": "The decision being recorded.",
+      "severity": "must",
+      "resolved": false
+    },
+    {
+      "id": "adr.consequences",
+      "description": "Expected consequences and tradeoffs.",
+      "severity": "must",
+      "resolved": false
+    }
+  ]
+}

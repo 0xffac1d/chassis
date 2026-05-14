@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "$id": "https://chassis.dev/schemas/decision/adr.schema.json",
+  "title": "Chassis ADR (Architecture Decision Record) frontmatter",
+  "description": "Frontmatter for an ADR file. ADRs live under docs/adr/ (or docs/chassis/decisions/) as Markdown with a YAML frontmatter block at the top. The frontmatter validates against this schema; the prose below is free-form. ADR `enforces` entries bind stable rule IDs to this decision; the binding-link gate (Milestone A.5) ensures every diagnostic.ruleId resolves to an ADR whose enforces[].rule matches.",
+  "type": "object",
+  "required": ["id", "title", "status", "date"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ADR-\\d{4,}$",
+      "description": "Stable identifier. Format: ADR-NNNN with 4+ digits (e.g. ADR-0001, ADR-0123). Referenced by diagnostic.violated.convention."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "One-line title of the decision."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "accepted", "deprecated", "superseded"],
+      "description": "Lifecycle. A diagnostic binding to a superseded/deprecated ADR emits a `stale-ADR-binding` warning."
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date of status change."
+    },
+    "enforces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule"],
+        "additionalProperties": false,
+        "properties": {
+          "rule": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+            "description": "Stable ruleId that this ADR authoritatively defines (matches diagnostic.ruleId pattern)."
+          },
+          "description": {
+            "type": "string",
+            "description": "Optional one-line hint of what the rule checks."
+          }
+        }
+      },
+      "description": "Stable rule IDs authoritatively defined by this ADR. The binding-link gate fails on diagnostic.ruleId values that don't resolve to any ADR's enforces[] entry."
+    },
+    "applies_to": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Path globs the decision applies to (e.g. `crates/**`, `schemas/metadata/*.json`). Agents use this to scope ADRs relevant to the file they're editing."
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^ADR-\\d{4,}$"
+      },
+      "description": "ADR IDs this decision replaces. Superseded ADRs automatically flip to status: superseded by the `chassis adr validate` tool."
+    },
+    "superseded_by": {
+      "type": "string",
+      "pattern": "^ADR-\\d{4,}$",
+      "description": "Filled when status=superseded."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "examples": [
+    {
+      "id": "ADR-0042",
+      "title": "Minimal valid ADR (no enforces, no supersedes)",
+      "status": "accepted",
+      "date": "2026-04-19"
+    },
+    {
+      "id": "ADR-0011",
+      "title": "Diagnostic ruleId stability discipline",
+      "status": "accepted",
+      "date": "2026-04-19",
+      "enforces": [
+        {"rule": "DIAGNOSTIC-RULEID-ORPHAN", "description": "ruleId emitted by a gate must resolve to some ADR's enforces[]"},
+        {"rule": "DIAGNOSTIC-RULEID-GENERIC-USED", "description": "warns on use of *-GENERIC fallback ruleIds"},
+        {"rule": "DIAGNOSTIC-RULEID-MALFORMED", "description": "ruleId does not match the canonical pattern"}
+      ],
+      "applies_to": ["scripts/chassis/gates/**", "schemas/diagnostics/*.json"],
+      "tags": ["governance", "diagnostics"]
+    },
+    {
+      "id": "ADR-0008",
+      "title": "Schema versioning policy (replaces ad-hoc version notes)",
+      "status": "accepted",
+      "date": "2026-04-19",
+      "supersedes": ["ADR-0003"],
+      "enforces": [
+        {"rule": "SCHEMA-VERSION-MISSING"},
+        {"rule": "SCHEMA-VERSION-MALFORMED"}
+      ],
+      "applies_to": ["schemas/**/*.schema.json"]
+    }
+  ]
+}

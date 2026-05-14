@@ -1,0 +1,7 @@
+[package]
+name = "rust-minimal"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal Rust fixture for Chassis consumer matrix."
+
+[dependencies]

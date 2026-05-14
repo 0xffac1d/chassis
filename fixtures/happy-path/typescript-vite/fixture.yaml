@@ -1,0 +1,22 @@
+name: typescript-vite
+description: "TypeScript Vite-style consumer with package.json + tsconfig.json + src/."
+category: positive
+bootstrap:
+  mode: standard
+  languages: [typescript]
+  agent_rules: claude
+  ci: github
+  pre_commit: true
+expected:
+  bootstrap: pass
+  validate: warn
+  coverage_metadata: fail
+  coherence: pass
+  context_bundle: pass
+  idempotency: pass
+timeouts:
+  bootstrap: 30
+  validate: 10
+  coverage_metadata: 10
+  coherence: 10
+  context_bundle: 10

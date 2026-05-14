@@ -1,0 +1,24 @@
+name: brownfield-messy
+description: "Intentionally incomplete mixed Rust + Python + package.json tree. Validates the metadata-only (advisory) brownfield path."
+category: positive
+bootstrap:
+  mode: metadata-only
+  languages: [rust, python]
+  agent_rules: claude
+  ci: github
+  pre_commit: true
+expected:
+  bootstrap: pass
+  # metadata-only mode writes no CONTRACT.yaml templates, so validate sees
+  # zero manifests and returns a clean pass (no placeholder warnings).
+  validate: pass
+  coverage_metadata: fail
+  coherence: pass
+  context_bundle: pass
+  idempotency: pass
+timeouts:
+  bootstrap: 30
+  validate: 10
+  coverage_metadata: 10
+  coherence: 10
+  context_bundle: 10

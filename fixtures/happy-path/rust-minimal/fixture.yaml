@@ -1,0 +1,17 @@
+name: rust-minimal
+description: "Smallest-possible Rust adoption path: Cargo.toml + src/."
+category: positive
+init:
+  profile: standard
+  languages: rust
+  ci: none
+  pre_commit: false
+matrix:
+  blueprint_plan:
+    name: generic-module
+    module_name: Fixture
+  goldens:
+    - path: Cargo.toml
+      contains: "[package]"
+    - path: config/chassis.config.yaml
+      contains: "rust"

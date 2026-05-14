@@ -1,0 +1,256 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis state store contract",
+  "description": "Defines a state store — a managed piece of application state (client-side store, server-side session, cache layer).",
+  "type": "object",
+  "required": [
+    "storeId",
+    "description",
+    "status",
+    "scope",
+    "shape",
+    "actions",
+    "selectors",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "storeId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "experimental",
+        "stable",
+        "deprecated"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "global",
+        "page",
+        "session",
+        "component",
+        "request"
+      ]
+    },
+    "shape": {
+      "type": "object",
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDefinition"
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ActionDefinition"
+      }
+    },
+    "selectors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SelectorDefinition"
+      }
+    },
+    "persistence": {
+      "$ref": "#/$defs/Persistence"
+    },
+    "sync": {
+      "$ref": "#/$defs/Sync"
+    },
+    "optimistic": {
+      "$ref": "#/$defs/OptimisticConfig"
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "FieldDefinition": {
+      "$ref": "../common/field-definition.schema.json"
+    },
+    "ActionDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input": {
+          "type": "string"
+        },
+        "async": {
+          "type": "boolean",
+          "default": false
+        },
+        "sideEffects": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "SelectorDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "description",
+        "returns"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "returns": {
+          "type": "string",
+          "minLength": 1
+        },
+        "memoized": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "Persistence": {
+      "type": "object",
+      "required": [
+        "strategy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "localStorage",
+            "sessionStorage",
+            "indexedDB",
+            "server",
+            "url"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "serialize": {
+          "type": "string"
+        },
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Sync": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "strategy",
+        "conflictResolution"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "broadcast",
+            "poll",
+            "websocket",
+            "sse"
+          ]
+        },
+        "conflictResolution": {
+          "type": "string",
+          "enum": [
+            "last-write-wins",
+            "merge",
+            "manual"
+          ]
+        }
+      }
+    },
+    "OptimisticConfig": {
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this store supports optimistic updates"
+        },
+        "maxPendingOperations": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Queue limit — reject new mutations when full"
+        },
+        "rollbackStrategy": {
+          "type": "string",
+          "enum": [
+            "revert-to-confirmed",
+            "replay-remaining",
+            "manual"
+          ],
+          "default": "revert-to-confirmed",
+          "description": "How to recover when a pending operation fails"
+        },
+        "retryFailedOperations": {
+          "type": "boolean",
+          "default": false
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3
+        }
+      }
+    }
+  }
+}

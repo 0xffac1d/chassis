@@ -1,0 +1,173 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis event / message contract",
+  "description": "Defines an event or message — something that happened in the system that other parts may react to.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "description",
+    "status",
+    "source",
+    "payload",
+    "delivery",
+    "consumers",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "experimental",
+        "stable",
+        "deprecated"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "fields"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FieldDefinition"
+          }
+        }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "required": [
+        "guarantee",
+        "ordering"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "guarantee": {
+          "type": "string",
+          "enum": [
+            "at-most-once",
+            "at-least-once",
+            "exactly-once"
+          ]
+        },
+        "ordering": {
+          "type": "string",
+          "enum": [
+            "none",
+            "per-key",
+            "total"
+          ]
+        },
+        "partitionKey": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "retention": {
+      "$ref": "#/$defs/Retention"
+    },
+    "consumers": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "idempotency": {
+      "$ref": "#/$defs/EventIdempotency"
+    },
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "FieldDefinition": {
+      "$ref": "../common/field-definition.schema.json"
+    },
+    "Retention": {
+      "type": "object",
+      "required": [
+        "ttl"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ttl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxEvents": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "EventIdempotency": {
+      "type": "object",
+      "required": [
+        "keyField",
+        "deduplicationWindow"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "keyField": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deduplicationWindow": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "eventId": "user-signed-up",
+      "description": "Emitted exactly once when a new user account is created and the welcome email has been sent.",
+      "status": "stable",
+      "source": "auth-service",
+      "payload": {
+        "fields": [
+          {"name": "user_id", "type": "string", "required": true, "description": "Stable account ID (UUIDv7)."},
+          {"name": "signup_source", "type": "string", "required": true, "description": "Campaign or referral code."},
+          {"name": "email_verified", "type": "boolean", "required": true, "description": "Whether email was verified at signup time."}
+        ]
+      },
+      "delivery": {"guarantee": "at-least-once", "ordering": "per-key", "partitionKey": "user_id"},
+      "retention": {"ttl": "30d"},
+      "consumers": ["analytics-service", "crm-sync"],
+      "idempotency": {"keyField": "user_id", "deduplicationWindow": "24h"},
+      "schema_version": "1.0.0",
+      "tags": ["user", "lifecycle", "auth"]
+    }
+  ]
+}

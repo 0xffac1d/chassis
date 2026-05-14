@@ -1,0 +1,20 @@
+version: "1.0.0"
+installed_components: []
+project:
+  language: rust
+  languages:
+    - rust
+  language_roots: []
+  source_roots:
+    - "src"
+  ignore:
+    - ".git"
+    - "target"
+  enforce_schemas: true
+  domain_instance_roots: []
+structure_validation:
+  product_key: "fixture-illegal-layout"
+  package_name_prefix: ""
+  internal_dep_prefixes:
+    - "chassis-"
+  forbid_crate_directory_prefix: true

@@ -1,0 +1,23 @@
+version: "1"
+defaults:
+  severity: deny
+  description: "minimal consumer layout policy for negative fixture"
+  skip_directories: []
+exemptions: []
+paths:
+  - path: "/"
+    kind: directory
+    description: "Repository root"
+    allowed_files:
+      - README.md
+      - CONTRACT.yaml
+      - DECISIONS.md
+    allowed_directories:
+      - config
+    forbidden_patterns:
+      - "TODO*"
+  - path: "/config/"
+    kind: directory
+    allowed_files:
+      - chassis.config.yaml
+      - chassis.layout.yaml

@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "$id": "https://chassis.dev/schemas/diagnostics/diagnostic.schema.json",
+  "title": "Chassis diagnostic",
+  "description": "Structured, agent-routable diagnostic emitted by Chassis gates, validators, and drift checks. Every finding surfaced via --json conforms to this schema. The ruleId + violated.convention pair binds the diagnostic to an ADR; the fix.applicability enum tells an agent whether to auto-apply.",
+  "type": "object",
+  "required": [
+    "ruleId",
+    "severity",
+    "message"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "ruleId": {
+      "type": "string",
+      "description": "Stable identifier for the rule this diagnostic violates. Format: DOMAIN-NNN (e.g. CHASSIS-001, GATE-EXPORT-03). Must resolve to an ADR whose enforces[].rule == ruleId.",
+      "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warning", "info"],
+      "description": "error = hard-fail in non-advisory mode; warning = visible but non-blocking; info = observation only."
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable one-line summary. Keep under 160 characters; detail belongs in detail."
+    },
+    "violated": {
+      "type": "object",
+      "description": "Link to the convention (ADR) this diagnostic enforces. Required when ruleId is bound to an ADR.",
+      "additionalProperties": false,
+      "required": ["convention"],
+      "properties": {
+        "convention": {
+          "type": "string",
+          "description": "ADR id (e.g. ADR-0007). The ADR's enforces[] array must include the ruleId.",
+          "pattern": "^ADR-\\d{4,}$"
+        }
+      }
+    },
+    "docs": {
+      "type": "string",
+      "format": "uri",
+      "description": "Stable anchor URL pointing at prose explaining the rule. Typically a fragment-linked docs/chassis/guides/*.md or an ADR file."
+    },
+    "fix": {
+      "type": "object",
+      "description": "Optional remediation hint. When applicability='automatic', the patch field should be populated; this is validated separately by the binding-link gate rather than in JSON Schema (Draft-07 if/then/else is forbidden by schemas/portability rules for cross-language compatibility).",
+      "additionalProperties": false,
+      "required": ["applicability"],
+      "properties": {
+        "applicability": {
+          "type": "string",
+          "enum": ["automatic", "suggested", "manual-only"],
+          "description": "automatic = tool can apply without human review; suggested = tool proposes, human confirms; manual-only = requires human judgment."
+        },
+        "description": {
+          "type": "string",
+          "description": "Short natural-language description of the fix."
+        },
+        "patch": {
+          "type": "string",
+          "description": "Optional unified-diff or script fragment implementing the fix. Should be populated when applicability=automatic."
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "description": "Where the violation lives. Path is always required; range is optional.",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative POSIX path."
+        },
+        "range": {
+          "type": "object",
+          "description": "Optional byte/line range. start <= end.",
+          "additionalProperties": false,
+          "required": ["start"],
+          "properties": {
+            "start": {"$ref": "#/definitions/position"},
+            "end": {"$ref": "#/definitions/position"}
+          }
+        }
+      }
+    },
+    "detail": {
+      "type": "object",
+      "description": "Free-form structured extension. Gate-specific fields live here (e.g. baseline counts, affected item lists)."
+    }
+  },
+  "definitions": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line"],
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number."
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based column number."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "ruleId": "DECOMPOSITION-LOC-FILE-CAP",
+      "severity": "error",
+      "message": "src/handlers/checkout.rs has 1452 lines; cap is 800."
+    },
+    {
+      "ruleId": "BINDING-LINK-ORPHAN-RULE",
+      "severity": "error",
+      "message": "ruleId 'NAMING-RUST-FN-CAMEL' emitted by [naming-rust] does not resolve to any ADR's enforces[]",
+      "violated": {"convention": "ADR-0001"},
+      "docs": "https://chassis.dev/docs/adr/ADR-0001-gate-diagnostic-contract.md",
+      "fix": {
+        "applicability": "manual-only",
+        "description": "Either add the rule to an ADR's enforces[] array or rename the emitting site to use a registered ruleId."
+      },
+      "location": {
+        "path": "scripts/chassis/gates/naming_rust.py",
+        "range": {"start": {"line": 87, "column": 5}, "end": {"line": 87, "column": 42}}
+      }
+    },
+    {
+      "ruleId": "POSTURE-AUDIT-FIELD-MISSING-DEFAULT",
+      "severity": "warning",
+      "message": "config/chassis/posture.toml is missing posture.default for 'security.tls_enforce'",
+      "violated": {"convention": "ADR-0010"},
+      "fix": {
+        "applicability": "automatic",
+        "description": "Add posture.default = true under [security.tls_enforce]",
+        "patch": "[security.tls_enforce]\ndefault = true\n"
+      },
+      "location": {"path": "config/chassis/posture.toml"},
+      "detail": {"field": "security.tls_enforce", "missing_keys": ["default"]}
+    }
+  ]
+}

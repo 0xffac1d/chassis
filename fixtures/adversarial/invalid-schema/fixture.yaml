@@ -1,0 +1,9 @@
+name: invalid-schema
+description: "CONTRACT.yaml violates the metadata schema."
+category: negative
+skip_init: true
+matrix:
+  expect:
+    validate: fail
+    audit: fail
+    audit_json_parseable: true

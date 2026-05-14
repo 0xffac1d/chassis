@@ -1,0 +1,13 @@
+# Intentionally broken CONTRACT.yaml for the chassis consumer fixture matrix.
+# The standalone gate asserts `chassis validate` exits non-zero on this tree.
+name: "invalid-schema-negative"
+kind: not-a-real-kind
+purpose: "Negative fixture: several required fields missing, additionalProperties present, kind value not permitted by the metadata schema."
+status: stable
+# `since` intentionally omitted — violates `required` constraint.
+unexpected_field_one: true
+unexpected_field_two:
+  nested: value
+
+invariants:
+  - text: "Missing id and structured form — fails schema validation."

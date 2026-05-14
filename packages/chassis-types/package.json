@@ -1,0 +1,34 @@
+{
+  "name": "@chassis/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript type definitions for chassis JSON schemas",
+  "license": "MIT OR Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "scripts/",
+    "fingerprint.sha256",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/gen-types.mjs && node scripts/fingerprint-schemas.mjs",
+    "prepublishOnly": "npm run build && node scripts/verify-fingerprint.mjs",
+    "test": "node test/pack-includes-dist.test.mjs && node test/consumer-typecheck.test.mjs",
+    "typecheck": "npm install --no-audit --no-fund --prefix test/fixtures/consumer && npm run typecheck --prefix test/fixtures/consumer"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15",
+    "typescript": "^5.4"
+  }
+}

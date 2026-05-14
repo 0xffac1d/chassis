@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.1.0",
+  "$id": "https://chassis.dev/schemas/exemption/registry.schema.json",
+  "title": "Chassis exemption registry",
+  "description": "Time-bounded waiver registry for Chassis findings. Each entry grants a narrowly-scoped, owner-accountable, expiring exemption for a specific rule (or finding id). Audit suppresses a finding only when an entry is **active**, scope-matched, and not expired. Expired or invalid entries become audit findings of their own. Wildcard / global scopes require an explicit `allow_global: true` and fail strict mode unless the registry-level `allow_global: true` is set. Schema bumped to 1.1 for lifecycle fields (`status`, `severity_override`, `linked_issue`, `created_at`/`expires_at`, `path`, `rule_id`, `finding_id`).",
+  "type": "object",
+  "required": ["version", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "enum": [1, 2],
+      "description": "Registry schema major. 1 = legacy field names (rule, scope, created, expires). 2 = lifecycle fields (rule_id, path/scope, created_at, expires_at, status). Both are accepted; v2 is recommended for new entries."
+    },
+    "quota": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_max": {"type": "integer", "default": 25, "minimum": 0},
+        "per_file_max": {"type": "integer", "default": 1, "minimum": 0}
+      }
+    },
+    "allow_global": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, individual entries may use scope wildcards (`*`, `**`, repository-root '/'). Strict profile still rejects global entries unless this flag and the per-entry `allow_global: true` are both set."
+    },
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/entry"}
+    }
+  },
+  "definitions": {
+    "entry": {
+      "type": "object",
+      "required": ["id", "reason", "owner"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "anyOf": [
+            {"required": ["rule_id"]},
+            {"required": ["finding_id"]},
+            {"required": ["rule"]}
+          ]
+        },
+        {
+          "anyOf": [
+            {"required": ["path"]},
+            {"required": ["scope"]}
+          ]
+        },
+        {
+          "anyOf": [
+            {"required": ["created_at"]},
+            {"required": ["created"]}
+          ]
+        },
+        {
+          "anyOf": [
+            {"required": ["expires_at"]},
+            {"required": ["expires"]}
+          ]
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^EX-\\d{4}-\\d{4}$",
+          "description": "Format EX-YYYY-NNNN. Must be unique within the registry."
+        },
+        "rule": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "description": "Legacy alias for `rule_id` (v1 field name)."
+        },
+        "rule_id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$",
+          "description": "Rule identifier this exemption suppresses. Either `rule_id` or `finding_id` must be set."
+        },
+        "finding_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Specific finding instance id (preferred when targeting one finding). Either `rule_id` or `finding_id` must be set."
+        },
+        "scope": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+          ],
+          "description": "Repo-relative file path or glob (legacy alias for `path`)."
+        },
+        "path": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1}
+          ],
+          "description": "Repo-relative file path or glob (preferred). Either `path` or `scope` must be set."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 40,
+          "description": "Why this waiver is needed. Minimum 40 chars prevents drive-by 'todo later' suppressions."
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Email or handle accountable for resolving the waiver."
+        },
+        "ticket": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Legacy alias for `linked_issue`."
+        },
+        "linked_issue": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional issue tracker reference (URL or 'PROJ-123'). Strongly recommended."
+        },
+        "adr": {
+          "type": "string",
+          "pattern": "^ADR-\\d{4,}$",
+          "description": "Optional ADR id that defines the rule being exempted."
+        },
+        "created": {
+          "type": "string",
+          "format": "date",
+          "description": "Legacy alias for `created_at`."
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO date the exemption was opened. Either `created_at` or `created` must be set."
+        },
+        "expires": {
+          "type": "string",
+          "format": "date",
+          "description": "Legacy alias for `expires_at`."
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO date after which the exemption no longer suppresses findings. Either `expires_at` or `expires` must be set. Maximum: created+90 days (enforced by `chassis exemptions add`)."
+        },
+        "severity_override": {
+          "type": "string",
+          "enum": ["info", "warning", "error"],
+          "description": "Optional. When set, the suppressed finding is downgraded to this severity instead of dropped, so it remains visible in reports without failing."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "expired", "revoked"],
+          "default": "active",
+          "description": "Lifecycle state. `active` participates in suppression; `expired` is informational only and surfaces as an `expired_exemptions` audit entry; `revoked` is retained as historical evidence and never suppresses."
+        },
+        "allow_global": {
+          "type": "boolean",
+          "default": false,
+          "description": "Per-entry opt-in for wildcard / global scopes. Required when path/scope contains `*`, `**`, or matches the repository root. Strict profile additionally requires the registry-level `allow_global: true`."
+        }
+      }
+    }
+  },
+  "examples": [
+    {"version": 1, "entries": []},
+    {
+      "version": 2,
+      "quota": {"total_max": 25, "per_file_max": 1},
+      "entries": [
+        {
+          "id": "EX-2026-0001",
+          "rule_id": "PANIC-BUDGET-HARD-ZERO",
+          "path": "crates/legacy-sql-driver/src/parser.rs",
+          "reason": "Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked in CHASSIS-142 with 60-day target.",
+          "linked_issue": "CHASSIS-142",
+          "owner": "platform-team@docs.invalid",
+          "created_at": "2026-04-01",
+          "expires_at": "2026-06-30",
+          "adr": "ADR-0009",
+          "status": "active"
+        }
+      ]
+    }
+  ]
+}

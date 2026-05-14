@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis API response envelope",
+  "description": "Discriminated union wrapping every API response. Clients switch on `status` to handle success or error uniformly. Maps to Result<T, E> in Rust, neverthrow in TypeScript, OneOf in C#.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "status",
+        "data"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "success"
+        },
+        "data": {
+          "description": "Response payload — resource, resource array, or scalar."
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        },
+        "pagination": {
+          "$ref": "#/$defs/Pagination"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "status",
+        "error"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "error"
+        },
+        "error": {
+          "$ref": "#/$defs/StandardApiError"
+        },
+        "meta": {
+          "$ref": "#/$defs/ResponseMeta"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "ResponseMeta": {
+      "type": "object",
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Correlation ID for tracing"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "apiVersion": {
+          "type": "string",
+          "description": "Date-based API version (e.g., 2026-04-01)"
+        },
+        "deprecationWarning": {
+          "type": "string",
+          "description": "Present when using a deprecated API version"
+        }
+      }
+    },
+    "Pagination": {
+      "type": "object",
+      "required": [
+        "style",
+        "defaultPageSize",
+        "maxPageSize"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "style": {
+          "type": "string",
+          "enum": [
+            "cursor",
+            "offset",
+            "keyset",
+            "page-number"
+          ]
+        },
+        "defaultPageSize": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxPageSize": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "StandardApiError": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Machine-readable error code"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable error message"
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599,
+          "description": "HTTP status code"
+        },
+        "details": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          }
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean",
+          "default": false
+        },
+        "retryAfter": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errorCategory": {
+          "type": "string",
+          "enum": [
+            "validation",
+            "authentication",
+            "authorization",
+            "not_found",
+            "conflict",
+            "rate_limit",
+            "business_logic",
+            "infrastructure",
+            "timeout",
+            "internal"
+          ],
+          "description": "Fixed taxonomy for machine dispatch. AI agents switch on this, not on freetext message."
+        },
+        "suggestedAction": {
+          "type": "string",
+          "enum": [
+            "retry",
+            "retry_with_backoff",
+            "fix_input",
+            "refresh_credentials",
+            "reduce_payload",
+            "use_fallback",
+            "escalate_to_human",
+            "abort"
+          ],
+          "description": "Machine-readable recovery instruction for automated clients and AI agents."
+        },
+        "recoveryHint": {
+          "type": "string",
+          "description": "Natural-language hint for LLM-based agents. E.g., 'The email field must be unique. Try querying existing users first.'"
+        },
+        "docUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to documentation for this error type."
+        },
+        "degradedFallback": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "fallbackEndpoint": {
+              "type": "string",
+              "format": "uri-reference"
+            },
+            "fallbackData": {
+              "description": "Cached or default data to use when primary fails"
+            }
+          },
+          "description": "Graceful degradation path when the primary operation fails."
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecoveryLink"
+          },
+          "description": "HATEOAS-style links for programmatic recovery (retry endpoint, status page, fallback)."
+        }
+      }
+    },
+    "ErrorDetail": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RecoveryLink": {
+      "type": "object",
+      "required": [
+        "rel",
+        "href"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rel": {
+          "type": "string",
+          "enum": [
+            "retry",
+            "status",
+            "documentation",
+            "fallback",
+            "upgrade"
+          ],
+          "description": "Link relation type"
+        },
+        "href": {
+          "type": "string",
+          "format": "uri-reference"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "PATCH"
+          ],
+          "default": "GET"
+        }
+      }
+    }
+  }
+}

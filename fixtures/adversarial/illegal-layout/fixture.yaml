@@ -1,0 +1,8 @@
+name: fixture-illegal-layout
+description: "Root TODO.md violates repository layout policy (forbidden basename)."
+category: negative
+skip_init: true
+matrix:
+  expect:
+    layout_check: fail
+    validate: pass

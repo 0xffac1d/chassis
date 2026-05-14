@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis effect definition",
+  "description": "Typed side effect for state transitions, workflows, and sagas (P1.3).",
+  "type": "object",
+  "required": [
+    "id",
+    "kind"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "http",
+        "emit",
+        "navigate",
+        "storage",
+        "timer",
+        "custom"
+      ]
+    },
+    "target": {
+      "type": "string"
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "idempotent": {
+      "type": "boolean"
+    },
+    "rollbackOf": {
+      "type": "string"
+    }
+  }
+}

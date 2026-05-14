@@ -1,0 +1,12 @@
+name: "fixture-illegal-layout"
+kind: module
+purpose: "Negative fixture: forbidden TODO.md at repo root."
+status: draft
+since: "0.1.0"
+assurance_level: declared
+invariants:
+  - id: fixture.placeholder
+    text: "Placeholder invariant for schema shape."
+edge_cases: []
+depends_on: []
+tags: [fixture]

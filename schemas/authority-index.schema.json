@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.0.0",
+  "title": "Chassis authority index",
+  "description": "Optional repo-local sidecar listing verification and invalidation rules for manifests and IR. Does not replace JSON Schema validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chassis_authority_index_version", "entries"],
+  "properties": {
+    "chassis_authority_index_version": {
+      "type": "string",
+      "enum": ["1.0.0"]
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "authority_class",
+          "freshness_status",
+          "verified_at",
+          "verified_by",
+          "derived_from",
+          "invalidation_triggers"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Repo-relative path to CONTRACT.yaml, chassis.unit.yaml, or architecture graph."
+          },
+          "authority_class": {
+            "type": "string",
+            "enum": [
+              "verified_contract",
+              "verified_unit",
+              "architecture_ir",
+              "inferred_manifest",
+              "generated_artifact",
+              "prose_doc"
+            ]
+          },
+          "freshness_status": {
+            "type": "string",
+            "enum": ["fresh", "stale", "unknown"]
+          },
+          "verified_at": {
+            "type": "string",
+            "description": "RFC 3339 timestamp of last human verification."
+          },
+          "verified_by": {
+            "type": "string",
+            "description": "Actor id or role (opaque string)."
+          },
+          "derived_from": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Upstream paths or IR ids this summary was derived from."
+          },
+          "invalidation_triggers": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Repo-relative globs; if any matching file is newer than verified_at, tooling SHOULD mark stale."
+          }
+        }
+      }
+    }
+  }
+}

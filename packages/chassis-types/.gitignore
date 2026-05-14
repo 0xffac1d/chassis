@@ -1,0 +1,9 @@
+# NOTE: dist/ is intentionally committed.
+# The package is consumed from a vendored Chassis checkout via file: dependency,
+# which resolves `main: dist/index.js` / `types: dist/index.d.ts` at install time
+# (no npm publish step runs). A committed dist/ keeps fresh clones usable without
+# a build, and a chassis CI drift gate (codegen-ts-types job) fails the build if
+# the committed output diverges from regenerating against the source schemas.
+node_modules/
+test/fixtures/consumer/node_modules/
+

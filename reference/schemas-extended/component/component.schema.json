@@ -1,0 +1,453 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.1.0",
+  "title": "Chassis UI component contract",
+  "description": "Defines the contract for a UI component in any framework (React, Vue, Svelte, native, server-rendered). v1.1 adds optional designSystem hooks (P1.4).",
+  "type": "object",
+  "required": [
+    "componentId",
+    "label",
+    "kind",
+    "status",
+    "props",
+    "events",
+    "slots",
+    "states",
+    "accessibility",
+    "dependencies",
+    "tags"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "componentId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "presentational",
+        "container",
+        "layout",
+        "form",
+        "navigation",
+        "feedback",
+        "data-display",
+        "overlay"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "experimental",
+        "stable",
+        "deprecated"
+      ]
+    },
+    "props": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PropDefinition"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EventDefinition"
+      }
+    },
+    "slots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SlotDefinition"
+      }
+    },
+    "states": {
+      "type": "object",
+      "required": [
+        "loading",
+        "error",
+        "empty"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "loading": {
+          "$ref": "#/$defs/StateStrategy"
+        },
+        "error": {
+          "$ref": "#/$defs/StateStrategy"
+        },
+        "empty": {
+          "$ref": "#/$defs/StateStrategy"
+        },
+        "disabled": {
+          "type": "object",
+          "required": [
+            "supported"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "supported": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "accessibility": {
+      "$ref": "#/$defs/Accessibility"
+    },
+    "responsive": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ResponsiveRule"
+      }
+    },
+    "theme": {
+      "$ref": "#/$defs/Theme"
+    },
+    "dependencies": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tags": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "string"
+      }
+    },
+    "designSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional design-system hooks (P1.4): token refs, variant matrix, a11y evidence links.",
+      "properties": {
+        "tokenRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "variantMatrix": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "a11yEvidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "not": {
+          "enum": [
+            "componentId", "label", "kind", "description", "status", "props",
+            "events", "slots", "states", "accessibility", "responsive",
+            "theme", "dependencies", "tags", "designSystem", "extensions"
+          ]
+        }
+      },
+      "additionalProperties": {
+        "type": "object"
+      },
+      "description": "Namespaced custom component metadata. Extension keys must not collide with reserved component fields, and each value must be an object."
+    }
+  },
+  "patternProperties": {
+    "^x-[A-Za-z0-9_.-]+$": {
+      "type": "object",
+      "description": "Vendor extension namespace. Values must be objects and are ignored by Chassis tooling."
+    }
+  },
+  "$defs": {
+    "PropDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-zA-Z0-9]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "enum",
+            "object",
+            "array",
+            "function",
+            "node",
+            "any"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "default": {
+          "description": "Default value when the prop is optional (any JSON type)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enumValues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "validation": {
+          "type": "string"
+        }
+      }
+    },
+    "EventDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "payload",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bubbles": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "SlotDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "accepts": {
+          "type": "string"
+        }
+      }
+    },
+    "StateStrategy": {
+      "type": "object",
+      "required": [
+        "supported",
+        "strategy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "supported": {
+          "type": "boolean"
+        },
+        "strategy": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "KeyboardInteraction": {
+      "type": "object",
+      "required": [
+        "key",
+        "action"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Accessibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "aria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keyboard": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KeyboardInteraction"
+          }
+        },
+        "screenReader": {
+          "type": "string"
+        },
+        "focusManagement": {
+          "type": "string"
+        }
+      }
+    },
+    "ResponsiveRule": {
+      "type": "object",
+      "required": [
+        "breakpoint",
+        "behavior"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "breakpoint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "VariantDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Theme": {
+      "type": "object",
+      "required": [
+        "tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/VariantDefinition"
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "componentId": "primary-button",
+      "label": "Primary Button",
+      "kind": "presentational",
+      "description": "Single-purpose call-to-action button. Replaces all ad-hoc <button class=primary> across the app.",
+      "status": "stable",
+      "props": [
+        {"name": "label", "type": "string", "required": true, "description": "Visible button text."},
+        {"name": "onClick", "type": "function", "required": true, "description": "Handler invoked on click and on Enter/Space."},
+        {"name": "loading", "type": "boolean", "required": false, "default": false, "description": "Shows spinner; suppresses onClick."},
+        {"name": "size", "type": "enum", "required": false, "default": "md", "description": "Sizing token.", "enumValues": ["sm", "md", "lg"]}
+      ],
+      "events": [
+        {"name": "click", "payload": "MouseEvent", "description": "Fired on activation by mouse, keyboard, or touch.", "bubbles": true}
+      ],
+      "slots": [
+        {"name": "icon", "description": "Optional leading icon.", "required": false, "accepts": "Icon"}
+      ],
+      "states": {
+        "loading": {"supported": true, "strategy": "spinner-replace-label"},
+        "error": {"supported": false, "strategy": "n/a — buttons do not own error state"},
+        "empty": {"supported": false, "strategy": "n/a"},
+        "disabled": {"supported": true}
+      },
+      "accessibility": {
+        "role": "button",
+        "aria": ["aria-busy when loading", "aria-disabled when disabled"],
+        "keyboard": [
+          {"key": "Enter", "action": "activate"},
+          {"key": "Space", "action": "activate"}
+        ],
+        "focusManagement": "Visible focus ring; respects prefers-reduced-motion."
+      },
+      "responsive": [
+        {"breakpoint": "sm", "behavior": "full-width below 640px"}
+      ],
+      "theme": {
+        "tokens": ["color.primary", "spacing.md", "radius.sm"],
+        "variants": [{"name": "tone", "values": ["solid", "outline", "ghost"]}]
+      },
+      "dependencies": ["icon"],
+      "tags": ["button", "form"]
+    }
+  ]
+}
