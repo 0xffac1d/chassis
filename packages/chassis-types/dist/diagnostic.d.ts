@@ -8,6 +8,14 @@
  */
 export interface Diagnostic {
   /**
+   * Logical verifier or command surface that emitted this diagnostic (e.g. chassis validate, chassis diff, chassis exempt). Required for Wave 2+ emitters per ADR-0018.
+   */
+  source?: string;
+  /**
+   * Stable string naming what the finding is about — contract path, exemption id, claim id, or other scoped id. Wave 2+ emitters populate per ADR-0018; may align with location.path when file-scoped.
+   */
+  subject?: string;
+  /**
    * Stable identifier for the rule this diagnostic violates. Format: DOMAIN-NNN (e.g. CHASSIS-001, GATE-EXPORT-03). Must resolve to an ADR whose enforces[].rule == ruleId.
    */
   ruleId: string;
@@ -66,7 +74,7 @@ export interface Diagnostic {
     };
   };
   /**
-   * Free-form structured extension. Gate-specific fields live here (e.g. baseline counts, affected item lists).
+   * Structured, rule-specific machine payload (ADR-0018). Prefer this over ad hoc top-level keys — e.g. diff fields removed, exemption ids, kind-specific coordinates.
    */
   detail?: {};
 }
