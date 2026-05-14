@@ -42,7 +42,7 @@ function walkSchemas(dir) {
   return out;
 }
 
-// Convert "agent-action" -> "AgentAction"
+// Convert "exemption-registry" -> "ExemptionRegistry"
 function toPascalCase(name) {
   return name
     .split(/[-_]/)
@@ -52,7 +52,7 @@ function toPascalCase(name) {
 }
 
 // Derive the top-level TypeScript identifier for a schema file.
-// agent-action.schema.json -> AgentAction
+// exemption-registry.schema.json -> ExemptionRegistry
 function topLevelName(schemaPath) {
   const base = basename(schemaPath).replace(/\.schema\.json$/, '');
   return toPascalCase(base);
@@ -83,7 +83,7 @@ async function main() {
 
     // json-schema-to-typescript picks the top-level name from $id first,
     // then title, then the name we pass. We want file-name-derived names
-    // (AgentAction) so the exported API is predictable from the schema
+    // (ExemptionRegistry) so the exported API is predictable from the schema
     // path — strip both $id and title from the local copy before compile.
     // The on-disk schema is unchanged; the fingerprint script re-reads
     // from disk so this mutation does not affect the fingerprint.
@@ -120,7 +120,7 @@ async function main() {
     // resolved by the namespace form.
     //
     // Namespace identifier: "<domain>_<name>" (both PascalCase), e.g.
-    // agent-action under agent/ becomes `Agent_AgentAction`.
+    // contract.schema.json becomes `Contract_Contract`.
     const importPath = './' + relNoExt;
     const domain = relNoExt.split('/')[0];
     const namespaceName = toPascalCase(domain) + '_' + typeName;
@@ -161,13 +161,13 @@ async function main() {
     ' *',
     ' * Barrel re-exporting every generated schema type.',
     ' * - Bare names: top-level schema types with a globally unique name',
-    ' *   (e.g. AgentAction, ApiResponse). Use `import { AgentAction }`.',
+    ' *   (e.g. Contract, Diagnostic). Use `import { Contract }`.',
     ' * - Namespaced: every schema module is always available under a',
-    ' *   domain-qualified namespace (e.g. Agent_AgentAction) so',
+    ' *   domain-qualified namespace (e.g. Contract_Contract) so',
     ' *   collisions (multiple "Policy" schemas) remain reachable.',
     ' * - Generated from schemas at build time; re-run `npm run build`',
     ' *   after schema changes, and verify the fingerprint matches',
-    ' *   chassis `fingerprint_schemas.py`.',
+    ' *   `node scripts/fingerprint-schemas.mjs`.',
     ' */',
     '',
   ].join('\n');

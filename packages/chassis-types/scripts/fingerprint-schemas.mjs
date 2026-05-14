@@ -1,16 +1,11 @@
 #!/usr/bin/env node
-// Reproduce /scripts/chassis/scripts/fingerprint_schemas.py byte-for-byte.
+// Compute a SHA-256 fingerprint over the canonical chassis schemas.
 //
-// Behavior:
 //   - Walks <repo-root>/schemas/**/*.schema.json in sorted order.
-//   - Extracts the drift-relevant subset (_canonical_subject in python).
-//   - Canonicalizes each subset (RFC 8785 JCS-shaped), SHA-256 it.
+//   - Canonicalizes each (RFC 8785 JCS-shaped), SHA-256 each.
 //   - Builds {version:1, kind:"chassis-schemas-manifest", count, entries}.
 //   - Canonicalizes the manifest, SHA-256 it — that's the fingerprint.
 //   - Writes fingerprint.sha256 next to package.json.
-//
-// The hash MUST match `python3 scripts/chassis/scripts/fingerprint_schemas.py`
-// bit-for-bit. If it doesn't, the JS port is wrong.
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -60,7 +55,7 @@ function canonicalSubject(content) {
 function repoRoot() {
   const env = process.env.CHASSIS_REPO_ROOT;
   if (env && env.length > 0) return env;
-  // package lives at <repo>/codegen/ts-types/
+  // package lives at <repo>/packages/chassis-types/
   const here = fileURLToPath(new URL('.', import.meta.url));
   return join(here, '..', '..', '..');
 }
