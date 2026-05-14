@@ -1,8 +1,8 @@
 # Deferred fixtures
 
-These fixtures presuppose machinery this project does not (yet) have:
+Fixtures that presuppose machinery this project does not yet have.
 
-- `illegal-layout/` — needs a directory-layout validator. Its `config/chassis.layout.yaml` describes a policy schema with no current enforcer. Move back to `fixtures/adversarial/` if/when a layout validator lands.
-- `brownfield-messy/` — needs a `chassis bootstrap` CLI in `metadata-only` mode (deliberately dropped during salvage). Move back to `fixtures/` if/when brownfield-onboarding is reimplemented.
+- `illegal-layout/` — needs a directory-layout validator. Promote to `fixtures/adversarial/` when a layout checker lands.
+- `brownfield-messy/` — needs `chassis bootstrap --mode metadata-only`. Promote to `fixtures/` when brownfield-onboarding is implemented.
 
-**Not driven by any test.** Design reference for future work.
+Not driven by any current test.

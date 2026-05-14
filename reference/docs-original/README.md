@@ -6,11 +6,11 @@ Reference material only — these files do not describe how this project works o
 
 The codebase this repo was extracted from.
 
-- **AGENTS.original.md** — Canonical AI-agent instructions for the original Chassis. Documents commands (`chassis validate-all`, `release-gate`, etc.) and ~50 guides that no longer exist here.
-- **DECISIONS.original.md** — Distribution-level design rationale: standalone vs full-product scope split, codegen tree policy, baseline philosophy. Useful background; this project's scope is narrower (Rust + TypeScript only, see ADR-0001).
-- **PROTOCOL.original.md** — Protocol versioning and a **source-of-truth precedence model** (runtime behavior > passing tests > CONTRACT invariants > DECISIONS prose). The precedence model is worth re-authoring as a new doc once equivalent infrastructure exists here.
-- **OBJECTIVES-REGISTRY.original.md** — How the original objective registry (`config/chassis.objectives.yaml`) worked. No equivalent in this project yet.
-- **ROADMAP.original.md** — The original assurance-ladder roadmap. Documents the `declared → coherent → verified → enforced → observed` ladder that this project inherits (see `docs/ASSURANCE-LADDER.md` and ADR-0001).
+- **AGENTS.md** — Canonical AI-agent instructions for the original Chassis. Documents commands (`chassis validate-all`, `release-gate`, etc.) and ~50 guides that no longer exist here.
+- **DECISIONS.md** — Distribution-level design rationale: standalone vs full-product scope split, codegen tree policy, baseline philosophy. Useful background; this project's scope is narrower (Rust + TypeScript only, see ADR-0001).
+- **PROTOCOL.md** — Protocol versioning and a **source-of-truth precedence model** (runtime behavior > passing tests > CONTRACT invariants > DECISIONS prose). The precedence model is worth re-authoring as a new doc once equivalent infrastructure exists here.
+- **OBJECTIVES-REGISTRY.md** — How the original objective registry (`config/chassis.objectives.yaml`) worked. No equivalent in this project yet.
+- **ROADMAP.md** — The original assurance-ladder roadmap. Documents the `declared → coherent → verified → enforced → observed` ladder that this project inherits (see `docs/ASSURANCE-LADDER.md` and ADR-0001).
 
 ## Process notes from this project's setup
 
