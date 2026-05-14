@@ -1,6 +1,6 @@
 # Stable identifier conventions
 
-The load-bearing intellectual asset of the original Chassis. Preserve verbatim in the rewrite — these are the IDs that bind contracts, code, tests, ADRs, and exemptions together.
+The IDs that bind contracts, code, tests, ADRs, and exemptions together. These conventions are load-bearing: claim IDs in particular are stable across edits — the prose of an invariant may change, the ID does not.
 
 ## Rule IDs
 Format: `^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$`
@@ -10,7 +10,7 @@ Every diagnostic `ruleId` must resolve to an ADR's `enforces[].rule` entry.
 ## Claim IDs (invariants, edge_cases)
 Format: `^[a-z][a-z0-9_.-]*$` — kebab-case, dot-namespaced.
 Examples: `standalone.vendor-neutral`, `cli.repo-root-resolution`, `auth.no-anon-write`.
-Used by `test_linkage.claim_id` to bind tests to invariants. **Stable across rewrites** — the prose of an invariant may change, the ID does not.
+Used by `test_linkage.claim_id` to bind tests to invariants.
 
 ## ADR IDs
 Format: `ADR-NNNN` (4+ digits zero-padded).
