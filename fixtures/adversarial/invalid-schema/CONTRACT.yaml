@@ -1,13 +1,18 @@
 # Intentionally broken CONTRACT.yaml for the chassis consumer fixture matrix.
-# The standalone gate asserts `chassis validate` exits non-zero on this tree.
+# Canonical validation must exit non-zero with schema errors mentioning required and/or enum constraints.
 name: "invalid-schema-negative"
-kind: not-a-real-kind
-purpose: "Negative fixture: several required fields missing, additionalProperties present, kind value not permitted by the metadata schema."
+kind: library
+version: "0.1.0"
+purpose: "Negative fixture combining a forbidden assurance_level enum value, missing library exports, extra unexpected properties, and malformed invariant rows."
 status: stable
-# `since` intentionally omitted — violates `required` constraint.
+since: "0.1.0"
+assurance_level: not-a-real-rung
+owner: chassis-fixtures
 unexpected_field_one: true
 unexpected_field_two:
   nested: value
 
 invariants:
-  - text: "Missing id and structured form — fails schema validation."
+  - text: "Missing stable id — violates structured claim requirements."
+
+edge_cases: []

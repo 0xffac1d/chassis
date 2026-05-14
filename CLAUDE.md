@@ -17,7 +17,7 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 | `packages/chassis-types/` | builds | TypeScript `.d.ts` generated from the 8 canonical schemas via `json-schema-to-typescript`. `dist/` is committed; rebuild with `npm run build`. |
 | `fixtures/happy-path/` | valid | `rust-minimal` and `typescript-vite`. The `rust-minimal` CONTRACT.yaml is exercised by `chassis-core`'s integration test. |
 | `fixtures/adversarial/` | reference | `invalid-schema` — intentionally fails validation (exercised by `chassis-core`'s negative-fixture test) |
-| `docs/adr/` | active | New ADRs for this project. Currently: ADR-0001 (scope + positioning). |
+| `docs/adr/` | active | ADRs: ADR-0001 scope; ADR-0002 ladder; ADR-0003 claims; ADR-0004 exemptions; ADR-0005 annotations; ADR-0008 schema semver; ADR-0011 rule IDs; ADR-0015 fingerprint; ADR-0016 deferrals. |
 | `docs/STABLE-IDS.md`, `docs/ASSURANCE-LADDER.md` | active | Load-bearing vocabulary docs |
 | `reference/python-cli/` | reference only | Original Python implementations; semantic spec for the Rust/TS implementations to come. **`mcp_server.py` is the highest-priority study target** — the primary integration path forward is an MCP server. |
 | `reference/schemas-extended/` | reference | Original schemas for component / api / data / service / event / state — design input for kind-discriminated subschemas |
@@ -28,7 +28,7 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 
 ## Contract schema status
 
-`schemas/contract.schema.json` is intentionally loose right now: 7 required fields, 74 total properties. The plan is to tighten it via a `kind`-discriminated `oneOf` against the subschemas in `reference/schemas-extended/`. See `reference/docs-original/CONTRACT-SCHEMA-LOOSENESS-SURVEY.md`. This is the largest single piece of upcoming schema work.
+`schemas/contract.schema.json` is **tightened**: ten universal required fields (`name`, `kind`, `purpose`, `status`, `since`, `version`, `assurance_level`, `invariants`, `edge_cases`, `owner`) plus kind-specific requirements via `oneOf` across eight kinds (`library`, `cli`, `component`, `endpoint`, `entity`, `service`, `event-stream`, `feature-flag`). Legacy kinds (`crate`, `package`, …) migrate forward by picking the closest supported kind. Claims are structured `{id, text}` only. Schema semver is `2.x` starting Wave 1; consult `docs/WAVE-PLAN.md` for deeper per-kind tightening scheduled in Wave 2.
 
 ## Assurance ladder MVP
 
@@ -53,7 +53,7 @@ Per ADR-0001, the project does not use the word "runtime" in user-facing copy un
 
 ## Immediate next work
 
-1. Tighten `schemas/contract.schema.json` to ~10 required base fields + `oneOf` discriminator on `kind`. Subschemas in `reference/schemas-extended/` are the design input.
+1. **Wave 2 — see `docs/WAVE-PLAN.md`:** contract-diff, exemption CLI, deeper kind subschemas + coherence/trace prerequisites.
 2. Stand up a TypeScript CLI scaffold under `packages/chassis-cli/` that wraps `chassis-core` (via NAPI or WASM) and exposes the planned subcommands.
 3. Implement the MCP server in TypeScript, using `reference/python-cli/mcp_server.py` as the semantic spec.
 4. Publish `chassis-core` to crates.io and `@chassis/core-types` to npm.

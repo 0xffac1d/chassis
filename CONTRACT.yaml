@@ -1,0 +1,29 @@
+name: chassis
+kind: library
+version: "0.1.0"
+purpose: "Typed metadata vocabulary and verifiable-adherence layer for spec-driven AI development."
+status: pre-alpha
+since: "0.1.0"
+assurance_level: declared
+owner: chassis maintainers
+exports:
+  - "crates/chassis-core/src/lib.rs"
+  - "packages/chassis-types/dist/index.d.ts"
+invariants:
+  - id: chassis.schemas-self-contained
+    text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."
+  - id: chassis.tests-green
+    text: "cargo test and npm test both pass on every commit to master."
+  - id: chassis.fingerprint-matches
+    text: "packages/chassis-types/fingerprint.sha256 matches a fresh recomputation over schemas/."
+  - id: chassis.contract-schema-kind-discriminated
+    text: "schemas/contract.schema.json remains kind-discriminated with explicit required slices per supported kind."
+  - id: chassis.adr-frontmatter-valid
+    text: "Every docs/adr/*.md frontmatter validates against schemas/adr.schema.json."
+  - id: chassis.no-silent-assurance-demotion
+    text: "Assurance ladder demotions remain logged once attestation tooling lands (ADR-0002)."
+edge_cases:
+  - id: chassis.adversarial-fixture-rejected
+    text: "fixtures/adversarial/invalid-schema/CONTRACT.yaml fails canonical validation with at least one 'required' or 'enum' error."
+  - id: chassis.reference-python-non-canonical
+    text: "reference/python-cli remains semantic reference only until the TypeScript MCP server ships."

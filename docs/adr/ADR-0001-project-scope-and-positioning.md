@@ -39,5 +39,5 @@ The audit also identified Spec Kit (github/spec-kit) as the dominant adjacent pr
 
 - Distribution targets: `chassis-core` to crates.io, `@chassis/core-types` (renamed from `@chassis/types`) to npm, plus a Spec Kit extension package on day one.
 - The 32 historical ADRs in `reference/adrs-original/` are reference material only. Re-author any that still bind this project as new ADRs starting from ADR-0002.
-- The five-rung assurance ladder MVP ships with `declared` and `verified` only; the other three rungs require additional infrastructure and are deferred.
+- The five-rung assurance ladder MVP ships with `declared` only until trace and test-linkage infrastructure lands; higher rungs require additional infrastructure and are deferred (see ADR-0002).
 - Any future scope expansion to additional languages requires a superseding ADR.

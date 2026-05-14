@@ -1,8 +1,3703 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.0.1",
+  "version": "2.0.0",
+  "$id": "https://chassis.dev/schemas/contract.schema.json",
   "title": "Module CONTRACT",
-  "description": "Machine-readable metadata for a code module (CONTRACT.yaml), optimized for discovery and validation. Optional keys support application-layer manifests (component, endpoint, entity, service, event, store, feature-flag) aligned with schemas/component, schemas/api, schemas/data, schemas/service, schemas/event, schemas/state, schemas/config.",
+  "description": "Machine-readable metadata for a code module (CONTRACT.yaml). Kind-discriminated contracts align with reference/schemas-extended/ slices.",
+  "allOf": [
+    {
+      "type": "object",
+      "required": [
+        "name",
+        "kind",
+        "purpose",
+        "status",
+        "since",
+        "version",
+        "assurance_level",
+        "owner",
+        "invariants",
+        "edge_cases"
+      ]
+    },
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "library"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "exports"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "cli"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "entrypoint": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Primary executable entry (path from repo root or package root)."
+            },
+            "argsSummary": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable synopsis of CLI arguments."
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "argsSummary",
+            "entrypoint"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "component"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "ui_taxonomy": {
+              "type": "string",
+              "enum": [
+                "presentational",
+                "container",
+                "layout",
+                "form",
+                "navigation",
+                "feedback",
+                "data-display",
+                "overlay"
+              ],
+              "description": "UI taxonomy for component contracts (distinct from CONTRACT.kind)."
+            },
+            "props": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "description": "Structured UI metadata is intentionally open until Wave 2 narrows component slices; prefer referencing design-system tokens over ad hoc maps.",
+                "required": [
+                  "description"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "description": "Structured UI metadata is intentionally open until Wave 2 narrows component slices; prefer referencing design-system tokens over ad hoc maps.",
+                "required": [
+                  "description"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "slots": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "description": "Structured UI metadata is intentionally open until Wave 2 narrows component slices; prefer referencing design-system tokens over ad hoc maps.",
+                "required": [
+                  "description"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "states": {
+              "type": "object",
+              "required": [
+                "loading",
+                "error",
+                "empty"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "loading": {
+                  "type": "object",
+                  "required": [
+                    "supported",
+                    "strategy"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "error": {
+                  "type": "object",
+                  "required": [
+                    "supported",
+                    "strategy"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "empty": {
+                  "type": "object",
+                  "required": [
+                    "supported",
+                    "strategy"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    },
+                    "strategy": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "disabled": {
+                  "type": "object",
+                  "required": [
+                    "supported"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "supported": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            },
+            "accessibility": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "keyboardShortcuts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "key",
+                      "action"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "action": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "screenReaderNotes": {
+                  "type": "string"
+                }
+              }
+            },
+            "dependencies": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "responsive": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "description": "Structured UI metadata is intentionally open until Wave 2 narrows component slices; prefer referencing design-system tokens over ad hoc maps.",
+                "required": [
+                  "description"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            },
+            "theme": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "tokens": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "accessibility",
+            "dependencies",
+            "events",
+            "props",
+            "slots",
+            "states",
+            "ui_taxonomy"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "endpoint"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "auth": {
+              "type": "object",
+              "required": [
+                "required",
+                "methods"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "required": {
+                  "type": "boolean"
+                },
+                "methods": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "request": {
+              "type": "object",
+              "required": [
+                "headers",
+                "pathParams",
+                "queryParams"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "headers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "description"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "default": true
+                      }
+                    }
+                  }
+                },
+                "pathParams": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "description"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "default": true
+                      }
+                    }
+                  }
+                },
+                "queryParams": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "description"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "type": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "required": {
+                        "type": "boolean",
+                        "default": true
+                      }
+                    }
+                  }
+                },
+                "body": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "contentType": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "schemaRef": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "response": {
+              "type": "object",
+              "required": [
+                "success",
+                "errors"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "success": {
+                  "type": "object",
+                  "required": [
+                    "statusCode",
+                    "description"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "statusCode": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 599
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "schemaRef": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "code",
+                      "description"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "description": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "auth",
+            "method",
+            "path",
+            "request",
+            "response"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "entity"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/fieldDefinition"
+              }
+            },
+            "relationships": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "kind",
+                  "target"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "has_one",
+                      "has_many",
+                      "belongs_to",
+                      "many_to_many"
+                    ]
+                  },
+                  "target": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "foreignKey": {
+                    "type": "string"
+                  },
+                  "cascade": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "delete",
+                      "nullify",
+                      "restrict"
+                    ],
+                    "default": "none"
+                  }
+                }
+              }
+            },
+            "indexes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "fields"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "fields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "unique": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "timestamps": {
+              "type": "object",
+              "required": [
+                "createdAt",
+                "updatedAt",
+                "deletedAt"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "createdAt": {
+                  "type": "boolean"
+                },
+                "updatedAt": {
+                  "type": "boolean"
+                },
+                "deletedAt": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "versioning": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "strategy": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "optimistic",
+                    "event-sourced"
+                  ]
+                }
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "fields",
+            "indexes",
+            "relationships",
+            "timestamps"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "service"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "protocol": {
+              "type": "string",
+              "enum": [
+                "rest",
+                "grpc",
+                "graphql",
+                "websocket",
+                "message-queue",
+                "internal"
+              ]
+            },
+            "endpoints": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "consumes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "produces": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "resilience": {
+              "type": "object",
+              "required": [
+                "timeout"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "timeout": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "retry": {
+                  "type": "object",
+                  "required": [
+                    "maxAttempts"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "maxAttempts": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                },
+                "notes": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "consumes",
+            "endpoints",
+            "produces",
+            "protocol",
+            "resilience"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "event-stream"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "payload": {
+              "type": "object",
+              "required": [
+                "fields"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/fieldDefinition"
+                  }
+                }
+              }
+            },
+            "delivery": {
+              "type": "object",
+              "required": [
+                "guarantee",
+                "ordering"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "guarantee": {
+                  "type": "string",
+                  "enum": [
+                    "at-most-once",
+                    "at-least-once",
+                    "exactly-once"
+                  ]
+                },
+                "ordering": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "per-key",
+                    "total"
+                  ]
+                },
+                "partitionKey": {
+                  "type": "string"
+                }
+              }
+            },
+            "consumers": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "consumers",
+            "delivery",
+            "payload",
+            "source"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "feature-flag"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "purpose": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 500
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "experimental",
+                "stable",
+                "deprecated",
+                "active",
+                "archived",
+                "inferred",
+                "superseded",
+                "pre-alpha"
+              ]
+            },
+            "since": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "assurance_level": {
+              "type": "string",
+              "enum": [
+                "declared",
+                "coherent",
+                "verified",
+                "enforced",
+                "observed"
+              ]
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "edge_cases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_linkage": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            },
+            "superseded_by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "linked_objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "minLength": 3
+              }
+            },
+            "ring": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared inputs (name/description rows); optional schemaRef ties rows to JSON Schema."
+            },
+            "outputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "schemaRef": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "description": "Structured declared outputs."
+            },
+            "exports": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "drift": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "skip_exports": {
+                  "type": "boolean"
+                },
+                "language": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "typescript",
+                    "rust",
+                    "none"
+                  ]
+                },
+                "ignore_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "package_layer": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tier": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "debt": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "owner": {
+                    "type": "string"
+                  },
+                  "remediation": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "generated": {
+              "type": "boolean"
+            },
+            "rationale": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "test_linkage": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "claim_id",
+                  "test_file"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "claim_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "test_file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "validation_method": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "runtime-assertion",
+                      "monitor",
+                      "manual"
+                    ]
+                  },
+                  "confidence": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "medium",
+                      "high"
+                    ]
+                  }
+                }
+              }
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "depends_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "depended_by": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "architecture_system": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
+            },
+            "extensions": {
+              "type": "object",
+              "description": "Namespaced extensions; keys must not collide with chassis top-level reserved names.",
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1
+              },
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "boolean",
+                "string",
+                "number",
+                "json"
+              ],
+              "description": "Flag value type."
+            },
+            "defaultValue": {
+              "description": "Default flag value when targeting misses (any JSON type)."
+            },
+            "targeting": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "description"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "attribute",
+                        "operator"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "attribute": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "operator": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "value": {}
+                      }
+                    }
+                  },
+                  "value": {},
+                  "percentage": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              }
+            },
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "expiration": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "patternProperties": {
+            "^x-[A-Za-z0-9_.-]+$": {
+              "type": "object",
+              "description": "Vendor extension namespace. Values must be objects."
+            }
+          },
+          "required": [
+            "kind",
+            "defaultValue",
+            "metrics",
+            "targeting",
+            "type"
+          ]
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "fieldDefinition": {
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "description"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "float",
+            "boolean",
+            "datetime",
+            "uuid",
+            "json",
+            "enum",
+            "text",
+            "binary"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": true
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false
+        },
+        "indexed": {
+          "type": "boolean",
+          "default": false
+        },
+        "default": {},
+        "validation": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enumValues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sensitive": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  },
   "type": "object",
   "required": [
     "name",
@@ -10,1030 +3705,10 @@
     "purpose",
     "status",
     "since",
+    "version",
+    "assurance_level",
+    "owner",
     "invariants",
     "edge_cases"
-  ],
-  "properties": {
-    "name": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Human-readable module name"
-    },
-    "kind": {
-      "type": "string",
-      "enum": [
-        "package",
-        "module",
-        "hook",
-        "component",
-        "service",
-        "utility",
-        "type",
-        "schema",
-        "crate",
-        "provider",
-        "op",
-        "class",
-        "constant",
-        "tooling",
-        "endpoint",
-        "entity",
-        "event",
-        "store",
-        "feature-flag",
-        "adapter",
-        "library",
-        "server",
-        "application",
-        "cli",
-        "macro",
-        "test"
-      ],
-      "description": "Logical classification of the module"
-    },
-    "purpose": {
-      "type": "string",
-      "minLength": 10,
-      "maxLength": 500,
-      "description": "What this module does and why it exists"
-    },
-    "status": {
-      "type": "string",
-      "enum": [
-        "draft",
-        "experimental",
-        "stable",
-        "deprecated",
-        "active",
-        "archived",
-        "inferred",
-        "superseded"
-      ],
-      "description": "Lifecycle; active|archived are for feature-flag manifests; inferred = brownfield placeholder requiring human review; superseded = replaced by another contract (see superseded_by)"
-    },
-    "superseded_by": {
-      "$comment": "AR-11: semantic rule that superseded_by is required when status=superseded lives in tools/metadata_semantics.py",
-      "type": "string",
-      "minLength": 1,
-      "description": "Path or name of the contract that supersedes this one. Required when status is superseded."
-    },
-    "since": {
-      "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "Semver when this module was introduced"
-    },
-    "assurance_level": {
-      "type": "string",
-      "enum": [
-        "declared",
-        "coherent",
-        "verified",
-        "enforced",
-        "observed",
-        "attestation_only"
-      ],
-      "description": "Epistemic assurance tier for this manifest (optional). declared = schema-valid only; coherent = passes coherence; verified = linked tests/eval; enforced = runtime gates; observed = production evidence; attestation_only = human/process attestation without automated verification hooks. See docs/chassis/ROADMAP.md."
-    },
-    "linked_objectives": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "pattern": "^[a-z][a-z0-9_.-]*$",
-        "minLength": 3
-      },
-      "description": "Stable objective ids from config/chassis.objectives.yaml — traceability from module contract to product objectives"
-    },
-    "ring": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 10,
-      "description": "Build roadmap ring number (0 = foundation, higher = depends on lower rings). Used by chassis map to show ring column. Omit if not part of a ringed build roadmap."
-    },
-    "owner": {
-      "type": "string",
-      "description": "Team or person responsible"
-    },
-    "inputs": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Declared inputs (shape described in prose or nested keys; language-specific validation is downstream)"
-    },
-    "outputs": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Declared outputs"
-    },
-    "exports": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "description": "Public export names or glob patterns for drift tooling"
-    },
-    "drift": {
-      "type": "object",
-      "description": "Optional policy for chassis drift tooling (export/test/metadata checks)",
-      "additionalProperties": false,
-      "properties": {
-        "skip_exports": {
-          "type": "boolean",
-          "description": "Skip export surface checks (internal modules)"
-        },
-        "language": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "typescript",
-            "rust",
-            "csharp",
-            "python",
-            "none"
-          ],
-          "description": "Force language adapter; auto selects from sources under the manifest directory; none for non-language trees (e.g. bash-only tooling)"
-        },
-        "ignore_paths": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Glob patterns relative to the module directory excluded from API scans (e.g. generated sources)"
-        },
-        "package_layer": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Monorepo package layer key for @chassis/* dependency ordering in chassis drift (preferred over tier)"
-        },
-        "tier": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Legacy alias for package_layer; prefer package_layer for new contracts"
-        }
-      }
-    },
-    "debt": {
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/DebtItem"
-      },
-      "description": "Technical-debt items tracked as metadata (often generated by brownfield inference)."
-    },
-    "generated": {
-      "type": "boolean",
-      "description": "True if this module's source files are auto-generated (codegen output, vendored copies, build artifacts). When true, chassis orphans suppresses missing-metadata warnings and chassis drift skips export surface checks. Set on the generator's output directory, not the generator itself."
-    },
-    "invariants": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "object",
-            "required": [
-              "text"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 120,
-                "pattern": "^[a-z][a-z0-9_.-]*$",
-                "description": "Stable machine id for this invariant (use in test_linkage.claim_id); optional during migration from string-only claims"
-              },
-              "text": {
-                "type": "string",
-                "minLength": 1
-              },
-              "test_linkage": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Legacy per-invariant test paths (prefer top-level test_linkage with claim_id)"
-              }
-            }
-          }
-        ]
-      },
-      "minItems": 1,
-      "description": "Assumptions that must always hold. Each item is either a plain string or an object with text, optional stable id, and optional inline test_linkage."
-    },
-    "edge_cases": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "object",
-            "required": [
-              "text"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string",
-                "minLength": 2,
-                "maxLength": 120,
-                "pattern": "^[a-z][a-z0-9_.-]*$"
-              },
-              "text": {
-                "type": "string",
-                "minLength": 1
-              },
-              "test_linkage": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        ]
-      },
-      "description": "Edge cases with expected behavior (string or object with stable id + text)"
-    },
-    "rationale": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "description": "Structured design rationale: WHY this module exists and key tradeoffs made. Consumed by agent-context as structured data (not freeform DECISIONS.md prose). Each entry is a complete sentence stating a reason or tradeoff. These are informational context, not behavioral constraints — invariants are the constraints."
-    },
-    "test_linkage": {
-      "type": "array",
-      "description": "Optional evidence linking invariants and edge_cases to their validation artifacts. Consumed by coverage-contracts to upgrade from keyword heuristics.",
-      "items": {
-        "type": "object",
-        "required": [
-          "claim_id",
-          "test_file"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "claim_id": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Stable id of an invariant or edge_case (preferred), or legacy excerpt of claim text unique within this contract"
-          },
-          "test_file": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Relative path to the test file that validates this claim"
-          },
-          "validation_method": {
-            "type": "string",
-            "enum": [
-              "test",
-              "runtime-assertion",
-              "monitor",
-              "manual"
-            ],
-            "description": "How this claim is validated"
-          },
-          "confidence": {
-            "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
-            "description": "Confidence that the test_file actually validates the claim (not just co-located)"
-          }
-        }
-      }
-    },
-    "caveats": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "depends_on": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "depended_by": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "props": {
-      "type": "array",
-      "description": "Component prop definitions (component contracts)"
-    },
-    "events": {
-      "type": "array",
-      "description": "Component event definitions"
-    },
-    "slots": {
-      "type": "array",
-      "description": "Component slot definitions"
-    },
-    "states": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Loading, error, empty, optional disabled strategies"
-    },
-    "accessibility": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "ARIA, keyboard, focus, screen reader notes"
-    },
-    "responsive": {
-      "type": "array",
-      "description": "Breakpoint behavior rules"
-    },
-    "theme": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Design tokens and variants"
-    },
-    "dependencies": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Other components or services consumed"
-    },
-    "i18n": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Externalized string keys and locale notes"
-    },
-    "method": {
-      "type": "string",
-      "description": "HTTP or logical API method"
-    },
-    "path": {
-      "type": "string",
-      "description": "URL pattern or operation name"
-    },
-    "auth": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Authentication and scopes"
-    },
-    "request": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Headers, path, query, body"
-    },
-    "response": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Success and error response shapes"
-    },
-    "rateLimit": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Rate limit policy"
-    },
-    "cache": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Cache strategy and TTL"
-    },
-    "idempotency": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Idempotency key behavior"
-    },
-    "pagination": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Pagination style and limits"
-    },
-    "fields": {
-      "type": "array",
-      "description": "Entity or payload fields"
-    },
-    "relationships": {
-      "type": "array",
-      "description": "Entity relationships"
-    },
-    "indexes": {
-      "type": "array",
-      "description": "Entity indexes"
-    },
-    "timestamps": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "createdAt, updatedAt, deletedAt flags"
-    },
-    "versioning": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Optimistic or event-sourced versioning"
-    },
-    "protocol": {
-      "type": "string",
-      "description": "Service protocol (rest, grpc, …)"
-    },
-    "endpoints": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Referenced endpoint contract ids"
-    },
-    "consumes": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Upstream service ids"
-    },
-    "produces": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Emitted event ids"
-    },
-    "resilience": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Timeouts, retries, circuit breaker, bulkhead"
-    },
-    "healthCheck": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Health probe configuration"
-    },
-    "sla": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Availability and latency targets"
-    },
-    "source": {
-      "type": "string",
-      "description": "Emitting service or module (events)"
-    },
-    "payload": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Event payload shape"
-    },
-    "delivery": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Delivery guarantees and ordering"
-    },
-    "consumers": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Subscribers (events)"
-    },
-    "scope": {
-      "type": "string",
-      "description": "Store scope (global, page, …)"
-    },
-    "shape": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Store state fields"
-    },
-    "actions": {
-      "type": "array",
-      "description": "Store actions / mutations"
-    },
-    "selectors": {
-      "type": "array",
-      "description": "Store selectors"
-    },
-    "persistence": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Persistence strategy"
-    },
-    "sync": {
-      "type": "object",
-      "additionalProperties": true,
-      "description": "Multi-client sync"
-    },
-    "type": {
-      "type": "string",
-      "description": "Feature flag value type (boolean, string, number, json)"
-    },
-    "defaultValue": {
-      "description": "Default flag or configuration value (any JSON/YAML type)"
-    },
-    "targeting": {
-      "type": "array",
-      "description": "Feature flag targeting rules"
-    },
-    "metrics": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "Metrics or events tied to flag evaluation"
-    },
-    "expiration": {
-      "type": "string",
-      "description": "Review or removal date (often ISO 8601 date)"
-    },
-    "todos": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "description",
-          "priority"
-        ],
-        "additionalProperties": false,
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "priority": {
-            "type": "string",
-            "enum": [
-              "critical",
-              "high",
-              "medium",
-              "low"
-            ]
-          },
-          "created": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "architecture_system": {
-      "type": "string",
-      "description": "Architecture-unit ID (from architecture-graph.yaml) that this module projects. Links the contract to the architecture IR for drift detection.",
-      "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)*$"
-    },
-    "inference": {
-      "type": "object",
-      "description": "Optional adoption/infer tooling metadata: separates guessed fields from intentional defaults (does not assert correctness of the contract body).",
-      "additionalProperties": false,
-      "properties": {
-        "method": {
-          "type": "string",
-          "description": "Inference method used (e.g. brownfield-bootstrap, manual, codegen)"
-        },
-        "tool": {
-          "type": "string",
-          "description": "Generator identifier (e.g. chassis-infer)"
-        },
-        "adapter": {
-          "type": "string",
-          "enum": [
-            "typescript",
-            "rust",
-            "csharp",
-            "python",
-            "generic"
-          ],
-          "description": "Which adapter produced the manifest"
-        },
-        "generated_at": {
-          "type": "string",
-          "description": "ISO-8601 timestamp when inference ran"
-        },
-        "confidence": {
-          "type": "string",
-          "enum": [
-            "low",
-            "medium",
-            "high"
-          ],
-          "description": "Heuristic confidence; high only after human verification (promotion_stage=verified)."
-        },
-        "promotion_stage": {
-          "type": "string",
-          "enum": [
-            "draft",
-            "reviewed",
-            "verified"
-          ],
-          "description": "Brownfield promotion pipeline for inferred manifests."
-        },
-        "provenance_tier": {
-          "type": "string",
-          "enum": [
-            "inferred",
-            "evidence_backed_inferred",
-            "verified"
-          ],
-          "description": "Roll-up of field_source: how much of the manifest is evidence-backed vs inferred."
-        },
-        "field_confidence": {
-          "type": "object",
-          "description": "Optional 0..1 heuristic per field name (aligned with field_source).",
-          "additionalProperties": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 1
-          }
-        },
-        "contradictions": {
-          "type": "array",
-          "description": "Internal consistency issues detected at inference time (empty when clean).",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "code",
-              "detail"
-            ],
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "detail": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "field_source": {
-          "type": "object",
-          "description": "Map of CONTRACT field names to provenance: inferred (from code), placeholder (stub), confirmed (intentional default)",
-          "additionalProperties": {
-            "type": "string",
-            "enum": [
-              "inferred",
-              "placeholder",
-              "confirmed",
-              "evidence_backed",
-              "verified"
-            ]
-          }
-        },
-        "field_evidence": {
-          "type": "object",
-          "description": "Per-field evidence chains: maps field names to arrays of evidence items that back each field's provenance tier. Lets consumers trace exactly why a field has its confidence level.",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true,
-              "required": [
-                "kind"
-              ],
-              "properties": {
-                "kind": {
-                  "type": "string"
-                },
-                "path": {
-                  "type": "string"
-                },
-                "detail": {
-                  "type": "string"
-                },
-                "confidence": {
-                  "type": "number",
-                  "minimum": 0,
-                  "maximum": 1
-                }
-              }
-            }
-          }
-        },
-        "evidence_depth": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Count of critical fields with at least one evidence item carrying confidence >= 0.6. Higher values indicate stronger evidence backing."
-        },
-        "evidence": {
-          "type": "object",
-          "description": "Optional provenance buckets keyed by logical field (purpose, exports, depends_on, ...).",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true,
-              "required": [
-                "kind"
-              ],
-              "properties": {
-                "kind": {
-                  "type": "string",
-                  "enum": [
-                    "source_file",
-                    "import",
-                    "symbol",
-                    "comment",
-                    "manifest",
-                    "docstring",
-                    "pattern",
-                    "state_api",
-                    "corroboration",
-                    "use_statement",
-                    "package_reference",
-                    "project_reference",
-                    "using_statement"
-                  ]
-                },
-                "path": {
-                  "type": "string"
-                },
-                "symbol": {
-                  "type": "string"
-                },
-                "excerpt": {
-                  "type": "string"
-                },
-                "detail": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        "notes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "Ambiguity warnings (e.g. mixed language, generated code, duplicate names)"
-        },
-        "reviewer_acknowledgments": {
-          "type": "array",
-          "description": "Recorded human promotion steps (reviewed / verified). Coherence treats verified without a matching acknowledgment as a policy gap.",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "reviewer",
-              "stage",
-              "at"
-            ],
-            "properties": {
-              "reviewer": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Reviewer id (email, handle, or team)"
-              },
-              "stage": {
-                "type": "string",
-                "enum": [
-                  "reviewed",
-                  "verified"
-                ]
-              },
-              "at": {
-                "type": "string",
-                "description": "ISO-8601 timestamp when the acknowledgment was recorded"
-              }
-            }
-          }
-        }
-      }
-    },
-    "chassis": {
-      "type": "object",
-      "description": "Downstream crate taxonomy: machine-readable classification mirrored in CRATE.md (see docs/chassis/guides/crate-classification.md). Optional in repos that do not consume this extension.",
-      "additionalProperties": false,
-      "required": [
-        "classification_tag",
-        "schema_version"
-      ],
-      "properties": {
-        "classification_tag": {
-          "type": "string",
-          "enum": [
-            "interface",
-            "facade",
-            "implementation",
-            "stub",
-            "binary",
-            "tests"
-          ],
-          "description": "Structural role for harness and coverage policy"
-        },
-        "schema_version": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Bump when chassis metadata semantics change for this manifest"
-        }
-      }
-    },
-    "extensions": {
-      "type": "object",
-      "propertyNames": {
-        "not": {
-          "enum": [
-            "name",
-            "kind",
-            "purpose",
-            "status",
-            "superseded_by",
-            "since",
-            "assurance_level",
-            "linked_objectives",
-            "ring",
-            "owner",
-            "inputs",
-            "outputs",
-            "exports",
-            "drift",
-            "debt",
-            "generated",
-            "invariants",
-            "edge_cases",
-            "rationale",
-            "test_linkage",
-            "caveats",
-            "depends_on",
-            "depended_by",
-            "tags",
-            "props",
-            "events",
-            "slots",
-            "states",
-            "accessibility",
-            "responsive",
-            "theme",
-            "dependencies",
-            "i18n",
-            "method",
-            "path",
-            "auth",
-            "request",
-            "response",
-            "rateLimit",
-            "cache",
-            "idempotency",
-            "pagination",
-            "fields",
-            "relationships",
-            "indexes",
-            "timestamps",
-            "versioning",
-            "protocol",
-            "endpoints",
-            "consumes",
-            "produces",
-            "resilience",
-            "healthCheck",
-            "sla",
-            "source",
-            "payload",
-            "delivery",
-            "consumers",
-            "scope",
-            "shape",
-            "actions",
-            "selectors",
-            "persistence",
-            "sync",
-            "type",
-            "defaultValue",
-            "targeting",
-            "metrics",
-            "expiration",
-            "todos",
-            "architecture_system",
-            "inference",
-            "chassis",
-            "extensions"
-          ]
-        }
-      },
-      "additionalProperties": {
-        "type": "object"
-      },
-      "description": "Namespaced custom metadata. Extension keys must not collide with Chassis-reserved top-level fields, and each extension value must be an object. Use this for internal classification; prefer CONTRACT.yaml top-level fields for anything Chassis tooling must read."
-    }
-  },
-  "patternProperties": {
-    "^x-[A-Za-z0-9_.-]+$": {
-      "type": "object",
-      "description": "Vendor extension namespace. Values must be objects and are ignored by Chassis tooling."
-    }
-  },
-  "additionalProperties": false,
-  "examples": [
-    {
-      "name": "minimal-module",
-      "kind": "module",
-      "purpose": "Smallest valid CONTRACT.yaml. String-form invariants and edge_cases (legacy form, still accepted).",
-      "status": "draft",
-      "since": "0.1.0",
-      "invariants": [
-        "This is the only invariant"
-      ],
-      "edge_cases": [
-        "Behaviour when input is empty: returns empty result"
-      ]
-    },
-    {
-      "name": "rate-limiter",
-      "kind": "module",
-      "purpose": "Token-bucket rate limiter with monotonic-clock refill. Enforces per-key request budgets.",
-      "status": "stable",
-      "since": "0.3.0",
-      "assurance_level": "verified",
-      "owner": "platform-services",
-      "invariants": [
-        {
-          "id": "bucket.never-exceeds-capacity",
-          "text": "available tokens always in [0, capacity]"
-        },
-        {
-          "id": "refill.monotonic-clock",
-          "text": "refill uses monotonic clock; wall-clock jumps never grant or revoke tokens"
-        }
-      ],
-      "edge_cases": [
-        {
-          "id": "cost.zero-allowed",
-          "text": "cost=0 is a no-op probe; returns Allowed without consuming tokens"
-        }
-      ],
-      "depends_on": [],
-      "tags": [
-        "rate-limiter",
-        "middleware"
-      ],
-      "test_linkage": [
-        {
-          "claim_id": "bucket.never-exceeds-capacity",
-          "test_file": "tests/test_capacity.rs",
-          "validation_method": "test",
-          "confidence": "high"
-        }
-      ]
-    },
-    {
-      "name": "feature-flag.dark-launch-checkout",
-      "kind": "feature-flag",
-      "purpose": "Dark-launch flag for the rewritten checkout flow. Default off; rolls forward by % weight.",
-      "status": "active",
-      "since": "1.4.0",
-      "type": "boolean",
-      "defaultValue": false,
-      "owner": "checkout-team",
-      "invariants": [
-        {
-          "id": "flag.default-off",
-          "text": "defaultValue is false until rollout begins"
-        }
-      ],
-      "edge_cases": [
-        {
-          "id": "flag.eval-failure",
-          "text": "evaluation failure falls back to defaultValue, not an exception"
-        }
-      ],
-      "expiration": "2026-12-31"
-    }
-  ],
-  "$defs": {
-    "DebtItem": {
-      "type": "object",
-      "additionalProperties": true,
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "severity": {
-          "type": "string",
-          "enum": [
-            "low",
-            "medium",
-            "high",
-            "critical"
-          ]
-        },
-        "owner": {
-          "type": "string"
-        },
-        "remediation": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "id",
-        "description"
-      ]
-    }
-  }
+  ]
 }

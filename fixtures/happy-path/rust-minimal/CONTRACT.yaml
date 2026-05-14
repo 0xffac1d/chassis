@@ -1,8 +1,12 @@
 name: "rust-minimal"
-kind: crate
+kind: library
+version: "0.1.0"
 purpose: "Smallest-possible Rust adoption fixture used to validate the canonical contract schema and the chassis-core CanonicalMetadataContractValidator."
 status: stable
 since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+exports: []
 invariants:
   - id: rust-minimal.compiles
     text: "src/main.rs compiles under the host Rust toolchain"

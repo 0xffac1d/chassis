@@ -1,8 +1,13 @@
 name: "typescript-vite"
-kind: package
+kind: library
+version: "0.1.0"
 purpose: "TypeScript + Vite happy-path fixture exercising contract validation against a real frontend package layout."
 status: stable
 since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+exports:
+  - "src/main.ts"
 invariants:
   - id: typescript-vite.tsc-clean
     text: "tsc --noEmit completes without errors"

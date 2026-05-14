@@ -1,42 +1,61 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Contract {
+/// Parsed CONTRACT.yaml document (`kind` discriminates the payload).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind")]
+pub enum Contract {
+    #[serde(rename = "library")]
+    Library(LibraryContract),
+    #[serde(rename = "cli")]
+    Cli(CliContract),
+    #[serde(rename = "component")]
+    Component(ComponentContract),
+    #[serde(rename = "endpoint")]
+    Endpoint(EndpointContract),
+    #[serde(rename = "entity")]
+    Entity(EntityContract),
+    #[serde(rename = "service")]
+    Service(ServiceContract),
+    #[serde(rename = "event-stream")]
+    EventStream(EventStreamContract),
+    #[serde(rename = "feature-flag")]
+    FeatureFlag(FeatureFlagContract),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContractBase {
     pub name: String,
-    pub kind: String,
     pub purpose: String,
     pub status: String,
+    pub since: String,
+    pub version: String,
+    pub assurance_level: String,
+    pub owner: String,
+    pub invariants: Vec<Claim>,
+    pub edge_cases: Vec<Claim>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub superseded_by: Option<String>,
-    pub since: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assurance_level: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_objectives: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ring: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub owner: Option<String>,
+    pub inputs: Option<Vec<IoDescriptor>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub inputs: Option<serde_json::Value>,
+    pub outputs: Option<Vec<IoDescriptor>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub outputs: Option<serde_json::Value>,
+    pub drift: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exports: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub drift: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub debt: Option<Vec<serde_json::Value>>,
+    pub debt: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub generated: Option<bool>,
-    pub invariants: Vec<serde_json::Value>,
-    pub edge_cases: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rationale: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub test_linkage: Option<Vec<serde_json::Value>>,
+    pub test_linkage: Option<Vec<Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caveats: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,109 +65,117 @@ pub struct Contract {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub props: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub events: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub slots: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub states: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub accessibility: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub responsive: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub dependencies: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub i18n: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub method: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub auth: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub request: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "rateLimit")]
-    pub rate_limit: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cache: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub idempotency: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pagination: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fields: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub relationships: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub indexes: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamps: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub versioning: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub endpoints: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub consumes: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub produces: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resilience: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "healthCheck")]
-    pub health_check: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sla: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub delivery: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub consumers: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub scope: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shape: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub actions: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selectors: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub persistence: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sync: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "type")]
-    pub r#type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "defaultValue")]
-    pub default_value: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub targeting: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metrics: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub expiration: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub todos: Option<Vec<serde_json::Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub architecture_system: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub inference: Option<serde_json::Value>,
+    pub extensions: Option<BTreeMap<String, Value>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Claim {
+    pub id: String,
+    pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub chassis: Option<serde_json::Value>,
+    pub test_linkage: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IoDescriptor {
+    pub name: String,
+    pub description: String,
+    #[serde(rename = "schemaRef", skip_serializing_if = "Option::is_none")]
+    pub schema_ref: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibraryContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub exports: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CliContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub entrypoint: String,
+    #[serde(rename = "argsSummary")]
+    pub args_summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComponentContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    #[serde(rename = "ui_taxonomy")]
+    pub ui_taxonomy: String,
+    pub props: Vec<Value>,
+    pub events: Vec<Value>,
+    pub slots: Vec<Value>,
+    pub states: Value,
+    pub accessibility: Value,
+    pub dependencies: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub extensions: Option<std::collections::BTreeMap<String, serde_json::Value>>,
+    pub responsive: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndpointContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub method: String,
+    pub path: String,
+    pub auth: Value,
+    pub request: Value,
+    pub response: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub fields: Vec<Value>,
+    pub relationships: Vec<Value>,
+    pub indexes: Vec<Value>,
+    pub timestamps: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub versioning: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub protocol: String,
+    pub endpoints: Vec<String>,
+    pub consumes: Vec<String>,
+    pub produces: Vec<String>,
+    pub resilience: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventStreamContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    pub source: String,
+    pub payload: Value,
+    pub delivery: Value,
+    pub consumers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeatureFlagContract {
+    #[serde(flatten)]
+    pub base: ContractBase,
+    #[serde(rename = "type")]
+    pub flag_type: String,
+    #[serde(rename = "defaultValue")]
+    pub default_value: Value,
+    pub targeting: Vec<Value>,
+    pub metrics: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration: Option<String>,
 }
 
 static SCHEMA_STR: &str = include_str!("../../../schemas/contract.schema.json");
@@ -158,11 +185,17 @@ static COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
     jsonschema::validator_for(&schema).expect("invalid JSON Schema")
 });
 
-/// Validate a JSON value against `metadata/contract.schema.json`.
+/// Validate then deserialize into [`Contract`] (kind-discriminated).
 pub fn validate_metadata_contract(instance: &Value) -> Result<(), Vec<String>> {
     let errors: Vec<String> = COMPILED
         .iter_errors(instance)
         .map(|e| e.to_string())
         .collect();
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+
+    serde_json::from_value::<Contract>(instance.clone())
+        .map_err(|e| vec![format!("contract deserialize after schema validation: {e}")])
+        .map(drop)
 }
