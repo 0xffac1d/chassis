@@ -7,20 +7,25 @@ use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use crate::diagnostic::Severity;
 
 use super::{
-    add, codeowners::Codeowners, id_matches_grammar, list, remove, rule_id, sweep, verify,
-    Diagnostic, Exemption, ListFilter, Registry, MAX_LIFETIME_DAYS,
+    add, codeowners::Codeowners, id_matches_grammar, list, registry_parse_str_with_diagnostics,
+    remove, rule_id, sweep, verify, Diagnostic, Exemption, ExemptionStatus, ListFilter, Registry,
+    MAX_LIFETIME_DAYS,
 };
 use crate::exemption::validate_exemption_registry;
 
 fn fixtures_root() -> PathBuf {
     // CARGO_MANIFEST_DIR -> crates/chassis-core
     let crate_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    crate_root.parent().unwrap().parent().unwrap().join("fixtures/exempt")
+    crate_root
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("fixtures/exempt")
 }
 
 fn read(path: &Path) -> String {
-    std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e))
+    std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {}", path.display(), e))
 }
 
 fn read_optional(path: &Path) -> Option<String> {
@@ -74,7 +79,8 @@ fn at(y: i32, m: u32, d: u32) -> DateTime<Utc> {
 fn sample_entry(id: &str) -> Exemption {
     Exemption {
         id: id.to_string(),
-        rule_id: "CH-DIFF-CLAIM-REMOVED".to_string(),
+        rule_id: Some("CH-DIFF-CLAIM-REMOVED".to_string()),
+        finding_id: None,
         reason: "Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked in CHASSIS-142.".to_string(),
         owner: "platform-team@docs.invalid".to_string(),
         created_at: date(2026, 4, 1),
@@ -83,6 +89,9 @@ fn sample_entry(id: &str) -> Exemption {
         codeowner_acknowledgments: vec![],
         linked_issue: None,
         adr: None,
+        status: ExemptionStatus::Active,
+        severity_override: None,
+        allow_global: None,
     }
 }
 
@@ -106,7 +115,12 @@ fn exemption_id_must_match_grammar() {
 fn add_accepts_well_formed_entry() {
     let registry = Registry::empty();
     let entry = sample_entry("EX-2026-0001");
-    let result = add(registry, entry.clone(), at(2026, 4, 15), &Codeowners::empty());
+    let result = add(
+        registry,
+        entry.clone(),
+        at(2026, 4, 15),
+        &Codeowners::empty(),
+    );
     let reg = result.expect("well-formed entry should accept");
     assert_eq!(reg.entries.len(), 1);
     assert_eq!(reg.entries[0].id, "EX-2026-0001");
@@ -137,10 +151,8 @@ fn add_rejects_quota_breach() {
 
 #[test]
 fn add_rejects_missing_codeowner_signoff() {
-    let codeowners = Codeowners::parse(
-        "crates/legacy-sql-driver/** @platform-team @security-team\n",
-    )
-    .unwrap();
+    let codeowners =
+        Codeowners::parse("crates/legacy-sql-driver/** @platform-team @security-team\n").unwrap();
     let registry = Registry::empty();
     let mut entry = sample_entry("EX-2026-0003");
     entry.codeowner_acknowledgments = vec!["@platform-team".to_string()];
@@ -216,7 +228,7 @@ fn list_filters_by_rule_and_path() {
     let mut registry = Registry::empty();
     for (n, rid) in [(1, "CH-DIFF-CLAIM-REMOVED"), (2, "CH-DIFF-OWNER-CHANGED")] {
         let mut entry = sample_entry(&format!("EX-2026-{:04}", n));
-        entry.rule_id = rid.to_string();
+        entry.rule_id = Some(rid.to_string());
         entry.paths = vec![format!("crates/foo/src/{}.rs", n)];
         registry = add(registry, entry, at(2026, 4, 15), &Codeowners::empty()).unwrap();
     }
@@ -296,25 +308,24 @@ fn verify_flags_expired_still_present() {
 
 #[test]
 fn codeowners_last_match_wins() {
-    let owners = Codeowners::parse(
-        "* @global-team\ndocs/** @docs-team\ndocs/api/** @api-team\n",
-    )
-    .unwrap();
+    let owners =
+        Codeowners::parse("* @global-team\ndocs/** @docs-team\ndocs/api/** @api-team\n").unwrap();
     assert_eq!(owners.owners_for("README.md"), vec!["@global-team"]);
     assert_eq!(owners.owners_for("docs/guide.md"), vec!["@docs-team"]);
-    assert_eq!(owners.owners_for("docs/api/openapi.yaml"), vec!["@api-team"]);
+    assert_eq!(
+        owners.owners_for("docs/api/openapi.yaml"),
+        vec!["@api-team"]
+    );
 }
 
 #[test]
 fn codeowners_union_across_paths() {
-    let owners = Codeowners::parse(
-        "crates/foo/** @foo-team\ncrates/bar/** @bar-team\n",
-    )
-    .unwrap();
-    let required = owners.required_owners(&vec![
+    let owners = Codeowners::parse("crates/foo/** @foo-team\ncrates/bar/** @bar-team\n").unwrap();
+    let paths = [
         "crates/foo/src/lib.rs".to_string(),
         "crates/bar/src/lib.rs".to_string(),
-    ]);
+    ];
+    let required = owners.required_owners(&paths);
     assert_eq!(required, vec!["@foo-team", "@bar-team"]);
 }
 
@@ -347,6 +358,107 @@ fn registry_round_trips_through_schema() {
         .unwrap_or_else(|errs| panic!("registry failed schema: {:?}", errs));
 }
 
+// ---------- Revoked / wildcard / lifecycle extensions ----------
+
+#[test]
+fn revoked_entry_does_not_consume_quota_slot() {
+    let mut registry = Registry::empty();
+    for n in 1..=24_u32 {
+        let entry = sample_entry(&format!("EX-2026-{:04}", n));
+        registry = add(registry, entry, at(2026, 4, 15), &Codeowners::empty()).unwrap();
+    }
+    let mut revoked = sample_entry("EX-2026-0998");
+    revoked.status = ExemptionStatus::Revoked;
+    registry = add(registry, revoked, at(2026, 4, 15), &Codeowners::empty())
+        .expect("revoked should not occupy an active-cap slot");
+
+    registry = add(
+        registry,
+        sample_entry("EX-2026-0999"),
+        at(2026, 4, 15),
+        &Codeowners::empty(),
+    )
+    .expect("25th active should fit under cap alongside revoked retention");
+
+    let errs = add(
+        registry,
+        sample_entry("EX-2026-0997"),
+        at(2026, 4, 15),
+        &Codeowners::empty(),
+    )
+    .expect_err("26th simultaneous active slot must breach cap");
+    assert!(
+        errs.iter().any(|d| d.rule_id == rule_id::QUOTA_EXCEEDED),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn add_accepts_finding_id_without_rule_id() {
+    let registry = Registry::empty();
+    let mut e = sample_entry("EX-2026-5001");
+    e.rule_id = None;
+    e.finding_id = Some("FIND-CH-REMOTE-042".into());
+    add(registry, e, at(2026, 4, 15), &Codeowners::empty()).expect("finding_id-only exemption");
+}
+
+#[test]
+fn add_rejects_wildcard_path_without_allow_global_opt_in() {
+    let registry = Registry::empty();
+    let mut e = sample_entry("EX-2026-5002");
+    e.paths = vec!["**/generated/**".into()];
+    let errs = add(registry, e, at(2026, 4, 15), &Codeowners::empty()).expect_err("global opt-in");
+    assert!(
+        errs.iter()
+            .any(|d| d.rule_id == rule_id::GLOBAL_WITHOUT_OPT_IN),
+        "{errs:?}"
+    );
+}
+
+#[test]
+fn legacy_aliases_emit_info_via_parse_helper() {
+    let raw = r#"{
+      "version": 2,
+      "entries": [
+        {
+          "id": "EX-2026-5003",
+          "reason": "Vendored upstream parser uses unwrap() on tokenizer state; rewrite tracked.",
+          "owner": "team@invalid",
+          "rule": "CH-DIFF-CLAIM-REMOVED",
+          "scope": "crates/old/**",
+          "created": "2026-04-01",
+          "expires": "2026-06-01"
+        }
+      ]
+    }"#;
+    let (_reg, diags) = registry_parse_str_with_diagnostics(raw).unwrap();
+    assert!(
+        diags.iter().any(|d| d.rule_id == rule_id::LEGACY_ALIAS),
+        "{diags:?}"
+    );
+}
+
+#[test]
+fn verify_flags_explicit_expired_status() {
+    let mut registry = Registry::empty();
+    let mut entry = sample_entry("EX-2026-8888");
+    entry.expires_at = date(2027, 12, 31);
+    entry.status = ExemptionStatus::Expired;
+    registry.entries.push(entry);
+    let diags = verify(&registry, at(2026, 5, 1), &Codeowners::empty());
+    assert!(diags.iter().any(|d| d.rule_id == rule_id::EXPIRED));
+}
+
+#[test]
+fn verify_info_for_revoked_entries() {
+    let mut registry = Registry::empty();
+    let mut entry = sample_entry("EX-2026-8877");
+    entry.status = ExemptionStatus::Revoked;
+    registry.entries.push(entry);
+    let diags = verify(&registry, at(2026, 5, 1), &Codeowners::empty());
+    assert!(diags.iter().any(|d| d.rule_id == rule_id::REVOKED));
+}
+
 // ---------- Constants sanity ----------
 
 #[test]
@@ -372,9 +484,7 @@ fn fixture_driven_verify_cases() {
     let mut ran = 0usize;
     for dir in fixture_dirs() {
         let name = dir.file_name().unwrap().to_string_lossy().to_string();
-        if name.starts_with("sweep-")
-            || name.starts_with("add-")
-        {
+        if name.starts_with("sweep-") || name.starts_with("add-") {
             continue;
         }
         let registry_path = dir.join("registry.yaml");
@@ -425,13 +535,18 @@ fn fixture_driven_verify_cases() {
                         other => panic!("unknown severity {other}"),
                     },
                     "fixture {}: rule {} severity",
-                    name, want.rule_id
+                    name,
+                    want.rule_id
                 );
             }
         }
         ran += 1;
     }
-    assert!(ran > 0, "no verify fixtures discovered under {:?}", fixtures_root());
+    assert!(
+        ran > 0,
+        "no verify fixtures discovered under {:?}",
+        fixtures_root()
+    );
 }
 
 #[test]
@@ -451,15 +566,18 @@ fn fixture_driven_sweep_cases() {
         let after_json = serde_json::to_value(&after).unwrap();
         let expected_yaml: serde_yaml::Value =
             serde_yaml::from_str(&read(&dir.join("expected-after.yaml"))).unwrap();
-        let expected_json: serde_json::Value =
-            serde_json::to_value(&expected_yaml).unwrap();
+        let expected_json: serde_json::Value = serde_json::to_value(&expected_yaml).unwrap();
         let expected: Registry = serde_json::from_value(expected_json.clone()).unwrap();
         // Compare structurally via the typed Registry to ignore serialization noise.
         let after_typed: Registry = serde_json::from_value(after_json).unwrap();
         assert_eq!(after_typed, expected, "fixture {} sweep mismatch", name);
         ran += 1;
     }
-    assert!(ran > 0, "no sweep fixtures discovered under {:?}", fixtures_root());
+    assert!(
+        ran > 0,
+        "no sweep fixtures discovered under {:?}",
+        fixtures_root()
+    );
 }
 
 #[test]
@@ -484,8 +602,7 @@ fn fixture_driven_add_cases() {
             .with_timezone(&Utc);
         let result = add(registry, candidate, now, &codeowners);
         let expected_path = dir.join("expected.json");
-        let expected: serde_json::Value =
-            serde_json::from_str(&read(&expected_path)).unwrap();
+        let expected: serde_json::Value = serde_json::from_str(&read(&expected_path)).unwrap();
         let outcome = expected["outcome"].as_str().expect("outcome string");
         match outcome {
             "ok" => {
@@ -507,8 +624,10 @@ fn fixture_driven_add_cases() {
                     .iter()
                     .map(|v| v.as_str().unwrap().to_string())
                     .collect();
-                let got_rules: Vec<&str> =
-                    errs.iter().map(|d: &Diagnostic| d.rule_id.as_str()).collect();
+                let got_rules: Vec<&str> = errs
+                    .iter()
+                    .map(|d: &Diagnostic| d.rule_id.as_str())
+                    .collect();
                 for want in want_rules {
                     assert!(
                         got_rules.iter().any(|r| *r == want),
@@ -523,5 +642,9 @@ fn fixture_driven_add_cases() {
         }
         ran += 1;
     }
-    assert!(ran > 0, "no add fixtures discovered under {:?}", fixtures_root());
+    assert!(
+        ran > 0,
+        "no add fixtures discovered under {:?}",
+        fixtures_root()
+    );
 }

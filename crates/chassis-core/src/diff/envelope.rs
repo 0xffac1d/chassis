@@ -40,7 +40,14 @@ fn build(
 }
 
 pub fn breaking(rule_id: &str, subject: &str, message: String, detail: Value) -> Diagnostic {
-    build(rule_id, Severity::Error, "breaking", subject, message, detail)
+    build(
+        rule_id,
+        Severity::Error,
+        "breaking",
+        subject,
+        message,
+        detail,
+    )
 }
 
 pub fn non_breaking(rule_id: &str, subject: &str, message: String, detail: Value) -> Diagnostic {

@@ -1,7 +1,7 @@
 /**
- * Minimal consumer: proves @chassis/types resolves and declarations are usable.
+ * Minimal consumer: proves @chassis/core-types resolves and declarations are usable.
  */
-import type { Contract } from '@chassis/types';
+import type { Contract } from '@chassis/core-types';
 
 /** Concrete slice of the kind-discriminated contract union. */
 export type LibraryContract = Extract<Contract, { kind: 'library' }>;

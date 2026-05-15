@@ -21,24 +21,10 @@ pub fn kind_required_fields(kind: &str) -> Option<&'static [&'static str]> {
     Some(match kind {
         "library" => &["exports"],
         "cli" => &["argsSummary", "entrypoint"],
-        "component" => &[
-            "accessibility",
-            "dependencies",
-            "events",
-            "props",
-            "slots",
-            "states",
-            "ui_taxonomy",
-        ],
+        "component" => &["props", "events", "slots", "states"],
         "endpoint" => &["auth", "method", "path", "request", "response"],
-        "entity" => &["fields", "indexes", "relationships", "timestamps"],
-        "service" => &[
-            "consumes",
-            "endpoints",
-            "produces",
-            "protocol",
-            "resilience",
-        ],
+        "entity" => &["fields", "relationships"],
+        "service" => &["protocol", "endpoints", "consumes", "produces"],
         "event-stream" => &["consumers", "delivery", "payload", "source"],
         "feature-flag" => &["defaultValue", "metrics", "targeting", "type"],
         _ => return None,
@@ -47,17 +33,30 @@ pub fn kind_required_fields(kind: &str) -> Option<&'static [&'static str]> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+    use std::fs;
+    use std::path::Path;
+
+    use serde_json::Value;
+
     use super::*;
+
+    const UNIVERSAL_REQUIRED: &[&str] = &[
+        "name",
+        "kind",
+        "purpose",
+        "status",
+        "since",
+        "version",
+        "assurance_level",
+        "owner",
+        "invariants",
+        "edge_cases",
+    ];
 
     #[test]
     fn ladder_ordering_matches_adr_0002() {
-        let rungs = [
-            "declared",
-            "coherent",
-            "verified",
-            "enforced",
-            "observed",
-        ];
+        let rungs = ["declared", "coherent", "verified", "enforced", "observed"];
         // All 10 ordered pairs (i, j) with i < j must satisfy rank(i) < rank(j).
         for (i, a) in rungs.iter().enumerate() {
             for b in &rungs[i + 1..] {
@@ -75,6 +74,56 @@ mod tests {
     fn unknown_levels_have_no_rank() {
         assert!(ladder_rank("nonsense").is_none());
         assert!(ladder_rank("").is_none());
+    }
+
+    #[test]
+    fn kind_required_table_matches_contract_kind_schemas() {
+        let schemas_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/contract-kinds");
+        assert!(schemas_dir.is_dir(), "expected {}", schemas_dir.display());
+
+        let pairs = [
+            ("library", "library.schema.json"),
+            ("cli", "cli.schema.json"),
+            ("component", "component.schema.json"),
+            ("endpoint", "endpoint.schema.json"),
+            ("entity", "entity.schema.json"),
+            ("service", "service.schema.json"),
+            ("event-stream", "event-stream.schema.json"),
+            ("feature-flag", "feature-flag.schema.json"),
+        ];
+
+        for &(kind, fname) in &pairs {
+            let p = schemas_dir.join(fname);
+            let raw: Value = serde_json::from_reader(
+                fs::File::open(&p).unwrap_or_else(|e| panic!("open {}: {e}", p.display())),
+            )
+            .unwrap_or_else(|e| panic!("parse {}: {e}", p.display()));
+            let req = raw
+                .get("required")
+                .and_then(Value::as_array)
+                .unwrap_or_else(|| panic!("{}: missing required", p.display()));
+
+            let mut from_schema: BTreeSet<String> = BTreeSet::new();
+            for v in req {
+                let s = v.as_str().expect("required[] strings");
+                if !UNIVERSAL_REQUIRED.contains(&s) {
+                    from_schema.insert(s.to_string());
+                }
+            }
+            let tbl: BTreeSet<String> = kind_required_fields(kind)
+                .unwrap_or_else(|| panic!("no table row for kind `{kind}`"))
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect();
+
+            assert_eq!(
+                from_schema,
+                tbl,
+                "kind `{kind}` required-field slice drift vs {}",
+                p.display()
+            );
+        }
     }
 
     #[test]

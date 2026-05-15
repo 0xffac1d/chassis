@@ -57,5 +57,9 @@ pub fn validate_diagnostics_diagnostic(instance: &Value) -> Result<(), Vec<Strin
         .iter_errors(instance)
         .map(|e| e.to_string())
         .collect();
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

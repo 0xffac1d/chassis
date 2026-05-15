@@ -1,0 +1,44 @@
+name: "component-minimal"
+kind: component
+version: "0.1.0"
+purpose: "Fixture for diff: optional kind-specific fields removed only."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+props:
+  - name: "label"
+    type: "string"
+    required: true
+    description: "Button label rendered inside the component."
+  - name: "disabled"
+    type: "boolean"
+    required: false
+    description: "Disables click handling and applies visual disabled state."
+    default: false
+events:
+  - name: "click"
+    payload_schema_ref: "schemas/component-events/click.schema.json"
+    description: "Fired when the button is activated via mouse, keyboard, or touch."
+slots:
+  - name: "icon"
+    description: "Optional leading icon node."
+    required: false
+states:
+  - name: "idle"
+    transitions:
+      - "loading"
+      - "disabled"
+    description: "Default interactive state."
+  - name: "loading"
+    transitions:
+      - "idle"
+  - name: "disabled"
+    transitions:
+      - "idle"
+invariants:
+  - id: diff.optional.optional-fields-on-old
+    text: "Old contract carries optional deps/accessibility/metadata."
+edge_cases:
+  - id: diff.optional.optional-fields-note
+    text: "Removal of optional fields must not appear as REQUIRED-KIND-FIELD-REMOVED."

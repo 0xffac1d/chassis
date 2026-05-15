@@ -1,5 +1,5 @@
 {
-  "name": "@chassis/types",
+  "name": "@chassis/core-types",
   "version": "0.1.0",
   "private": true,
   "description": "TypeScript type definitions for chassis JSON schemas",
@@ -14,7 +14,10 @@
   },
   "files": [
     "dist/",
-    "scripts/",
+    "scripts/verify-fingerprint.mjs",
+    "scripts/fingerprint-schemas.mjs",
+    "scripts/canonicalize.mjs",
+    "manifest.json",
     "fingerprint.sha256",
     "LICENSE"
   ],
@@ -24,7 +27,7 @@
   "scripts": {
     "build": "node scripts/gen-types.mjs && node scripts/fingerprint-schemas.mjs",
     "prepublishOnly": "npm run build && node scripts/verify-fingerprint.mjs",
-    "test": "node test/pack-includes-dist.test.mjs && node test/consumer-typecheck.test.mjs",
+    "test": "node test/pack-includes-dist.test.mjs && node test/consumer-typecheck.test.mjs && node test/installed-package.test.mjs",
     "typecheck": "npm install --no-audit --no-fund --prefix test/fixtures/consumer && npm run typecheck --prefix test/fixtures/consumer"
   },
   "devDependencies": {

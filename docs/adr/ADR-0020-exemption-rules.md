@@ -26,6 +26,14 @@ enforces:
     description: "Error. The CODEOWNERS file could not be parsed — verification cannot proceed without a known signoff map."
   - rule: CH-EXEMPT-NOT-FOUND
     description: "Error. remove() was called with an id that no entry in the registry matches. Routing aid for downstream tools."
+  - rule: CH-EXEMPT-REVOKED
+    description: "Info. Entry has `status: revoked` — retained only as audit evidence (never participates in active suppression)."
+  - rule: CH-EXEMPT-LEGACY-ALIAS
+    description: "Info. Parsed JSON used v1 field aliases (`rule`, `scope`, `created`, `expires`, `ticket`); surfaced by `registry_parse_str_with_diagnostics`."
+  - rule: CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN
+    description: "Error. Scope uses wildcards or repo-root `/` without both registry-level `allow_global: true` and per-entry `allow_global: true`."
+  - rule: CH-EXEMPT-MISSING-RULE-OR-FINDING
+    description: "Error. Entry lacks a non-empty `rule_id`, `finding_id`, and legacy `rule`."
 applies_to:
   - "crates/chassis-core/src/exempt/**"
   - "schemas/exemption-registry.schema.json"
@@ -42,7 +50,7 @@ ADR-0004 establishes the substantive policy (90-day lifetime cap, 25 active ceil
 
 ## Decision
 
-All exemption-registry diagnostics use the `CH-EXEMPT-*` prefix. The eleven rule IDs above bind to the surfaces described in the table at `crates/chassis-core/src/exempt/mod.rs`. Severities follow the column in that table; consumers that want a stricter posture may promote a `warning` to `error` but the canonical severity is fixed per ADR-0011 immutability.
+All exemption-registry diagnostics use the `CH-EXEMPT-*` prefix. The rule IDs enumerated in ADR‑0020 `enforces[]` bind to the surfaces described in `crates/chassis-core/src/exempt/mod.rs`.
 
 ### `source` and `subject`
 
@@ -63,6 +71,9 @@ Several rules emit machine-readable detail under the schema's `detail` object:
 - `CH-EXEMPT-MISSING-CODEOWNERS` — `{ missing, required }`.
 - `CH-EXEMPT-REMOVED-BY-SWEEPER` — `{ id, ruleId, expiresAt }`.
 - `CH-EXEMPT-RULE-NOT-IN-ADR` — `{ ruleId }`.
+- `CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN` — no structured `detail` (subject=id).
+- `CH-EXEMPT-MISSING-RULE-OR-FINDING` — no structured `detail` (subject=id).
+- `CH-EXEMPT-LEGACY-ALIAS` — `{ legacyKeys: string[] }`.
 
 Other rules emit no `detail` (their `subject` and `message` already carry the routable data).
 

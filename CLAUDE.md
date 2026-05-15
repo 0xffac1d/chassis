@@ -13,7 +13,7 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 | Path | Status | Role |
 |------|--------|------|
 | `schemas/` | canonical | Base metadata schemas plus eight per-kind contract branches under `schemas/contract-kinds/` (contract parent at `schemas/contract.schema.json` v3.x). |
-| `crates/chassis-core/` | builds, tested | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier). `cargo check` + `cargo test` clean on Rust ≥ 1.85. |
+| `crates/chassis-core/` | builds, tested | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier). `cargo check` + `cargo test` clean on Rust ≥ 1.86 (`rust-toolchain.toml`). |
 | `packages/chassis-types/` | builds | TypeScript `.d.ts` generated from canonical schemas (contract + kinds + metadata) via `json-schema-to-typescript`. `dist/` is committed; rebuild with `npm run build`. |
 | `fixtures/happy-path/` | valid | One minimal contract per kind (`*-minimal`) plus `typescript-vite`; `rust-minimal` is exercised by `chassis-core` integration tests. |
 | `fixtures/adversarial/` | reference | Surgical invalid contracts per kind + `invalid-schema`; exercised by `chassis-core` validator tests. |

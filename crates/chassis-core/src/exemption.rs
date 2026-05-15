@@ -25,5 +25,9 @@ pub fn validate_exemption_registry(instance: &Value) -> Result<(), Vec<String>> 
         .iter_errors(instance)
         .map(|e| e.to_string())
         .collect();
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

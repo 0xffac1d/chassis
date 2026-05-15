@@ -1,0 +1,23 @@
+name: "service-minimal"
+kind: service
+version: "0.1.0"
+purpose: "Fixture for diff: optional kind-specific fields removed only."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+protocol: "rest"
+endpoints:
+  - "v1/contracts/validate"
+consumes:
+  - "user-store"
+produces:
+  - "contracts.validated"
+resilience:
+  timeout: "2s"
+invariants:
+  - id: service.optional.diff
+    text: "Core protocol slice intact."
+edge_cases:
+  - id: service.optional.diff-edge
+    text: "Resilience removal only."

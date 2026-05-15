@@ -7,17 +7,12 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::diagnostic::Severity;
 use super::classify::ladder_rank;
 use super::{
-    diff,
-    finding_classification,
-    Classification,
-    DiffError,
-    CH_DIFF_CLAIM_REMOVED,
-    CH_DIFF_PARSE_ERROR,
-    CH_DIFF_VERSION_BREAKING_WITHOUT_MAJOR,
+    diff, finding_classification, Classification, DiffError, CH_DIFF_CLAIM_REMOVED,
+    CH_DIFF_PARSE_ERROR, CH_DIFF_VERSION_BREAKING_WITHOUT_MAJOR,
 };
+use crate::diagnostic::Severity;
 
 fn fixtures_root() -> PathBuf {
     // CARGO_MANIFEST_DIR is chassis-core/. The fixtures live two levels up.
@@ -73,10 +68,7 @@ fn parse_expected(v: &Value) -> Expected {
                     .and_then(Value::as_str)
                     .expect("expected.findings[*].ruleId")
                     .to_string(),
-                severity: f
-                    .get("severity")
-                    .and_then(Value::as_str)
-                    .map(String::from),
+                severity: f.get("severity").and_then(Value::as_str).map(String::from),
                 classification: f
                     .get("classification")
                     .and_then(Value::as_str)
@@ -115,7 +107,11 @@ fn fixture_driven_diff_cases() {
         .filter(|p| p.is_dir())
         .collect();
     cases.sort();
-    assert!(!cases.is_empty(), "no fixture directories under {}", root.display());
+    assert!(
+        !cases.is_empty(),
+        "no fixture directories under {}",
+        root.display()
+    );
 
     let mut failures: Vec<String> = Vec::new();
 
@@ -134,8 +130,16 @@ fn fixture_driven_diff_cases() {
         if expected.parse_error {
             // For parse-error cases, old.yaml/new.yaml may be intentionally
             // malformed-as-Contract; we expect DiffError::Parse.
-            let old_v = if old_path.exists() { load_yaml(&old_path) } else { json!({}) };
-            let new_v = if new_path.exists() { load_yaml(&new_path) } else { json!({}) };
+            let old_v = if old_path.exists() {
+                load_yaml(&old_path)
+            } else {
+                json!({})
+            };
+            let new_v = if new_path.exists() {
+                load_yaml(&new_path)
+            } else {
+                json!({})
+            };
             match diff(&old_v, &new_v) {
                 Err(DiffError::Parse(_)) => {}
                 other => failures.push(format!(
@@ -146,9 +150,7 @@ fn fixture_driven_diff_cases() {
         }
 
         if !old_path.exists() || !new_path.exists() {
-            failures.push(format!(
-                "[{case_name}] missing old.yaml or new.yaml"
-            ));
+            failures.push(format!("[{case_name}] missing old.yaml or new.yaml"));
             continue;
         }
 
@@ -246,8 +248,11 @@ fn fixture_driven_diff_cases() {
             .get("strict_rule_id_set")
             .and_then(Value::as_bool)
         {
-            let expected_set: BTreeSet<String> =
-                expected.expected_findings.iter().map(|e| e.rule_id.clone()).collect();
+            let expected_set: BTreeSet<String> = expected
+                .expected_findings
+                .iter()
+                .map(|e| e.rule_id.clone())
+                .collect();
             let actual_set: BTreeSet<String> =
                 report.findings.iter().map(|d| d.rule_id.clone()).collect();
             if expected_set != actual_set {
@@ -417,5 +422,8 @@ fn diff_envelope_conforms_to_diagnostic_schema() {
             checked += 1;
         }
     }
-    assert!(checked > 0, "no diagnostics validated — fixtures may be empty");
+    assert!(
+        checked > 0,
+        "no diagnostics validated — fixtures may be empty"
+    );
 }

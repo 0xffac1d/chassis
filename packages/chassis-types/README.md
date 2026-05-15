@@ -1,75 +1,77 @@
-# @chassis/types
+# @chassis/core-types
 
-TypeScript type definitions generated from the canonical chassis JSON Schemas. Types are the only artifact — the package has no runtime surface (`require("@chassis/types")` returns `{}`).
+TypeScript type definitions generated from the canonical chassis JSON Schema tree (`schemas/**/*.schema.json`). The package ships **types only** (`require("@chassis/core-types")` resolves to `{}`; NodeNext users import types from the package specifier).
 
-**Status: pre-alpha.** Not yet published to npm. Until publication, consume via a local `file:` dependency from a vendored chassis checkout.
+**Status: pre-alpha.** Not published to npm yet. Until publication, consume via a local `file:` dependency against this directory.
 
 ## Install (local checkout)
 
 ```json
 {
   "dependencies": {
-    "@chassis/types": "file:./vendor/chassis/packages/chassis-types"
+    "@chassis/core-types": "file:./vendor/chassis/packages/chassis-types"
   }
 }
 ```
 
-`dist/` and `fingerprint.sha256` are committed, so a fresh clone is installable immediately without running `npm install && npm run build` here first.
+`dist/`, bundled `manifest.json`, and `fingerprint.sha256` are committed — a checkout is installable even before rebuilding (though developers should still run `npm run build` when schemas change).
 
 ## Install (packed tarball)
 
 ```bash
 cd packages/chassis-types
 npm pack
-# in the consumer:
-npm install --save-dev /path/to/chassis-types-0.1.0.tgz
+# consumer:
+npm install --save-dev /path/to/chassis-core-types-0.1.0.tgz
 ```
 
 ## Usage
 
 ```ts
-import type { Contract, Adr, ExemptionRegistry } from '@chassis/types';
+import type { Contract, Adr, ExemptionRegistry } from '@chassis/core-types';
 ```
 
-Every schema under `schemas/*.schema.json` in the chassis source tree produces one `.d.ts` under `dist/`. The barrel `dist/index.d.ts` re-exports all generated types.
+## What gets generated
 
-The 8 current schemas: `contract`, `adr`, `exemption-registry`, `coherence-report`, `diagnostic`, `authority-index`, `tag-ontology`, `field-definition`.
+- **16 `.d.ts` modules** mapped from matching schema paths (examples: root `schemas/contract.schema.json`, kinds under `schemas/contract-kinds/*.schema.json`, plus metadata schemas such as `diagnostic`, `adr`, etc.).
+- A barrel [`dist/index.d.ts`](dist/index.d.ts) re-exports namespaces for every leaf module and collision-free top-level aliases where names are globally unique.
 
 ## Build locally
 
 ```bash
 cd packages/chassis-types
-npm install --no-save --prefer-offline
+npm ci --prefer-offline
 npm run build
 ```
 
-The build:
-1. `scripts/gen-types.mjs` walks `<repo>/schemas/**/*.schema.json`, runs [`json-schema-to-typescript`](https://github.com/bcherny/json-schema-to-typescript) on each, and writes `dist/<name>.d.ts` plus a barrel `dist/index.d.ts`.
-2. `scripts/fingerprint-schemas.mjs` writes `fingerprint.sha256` — the SHA-256 of an RFC 8785-canonicalized manifest of the schemas tree.
+Steps:
 
-`CHASSIS_REPO_ROOT` overrides the repo-root resolution (used by the drift check, which copies this package into a temp tree).
+1. `scripts/gen-types.mjs` — walks every `*.schema.json`, runs [`json-schema-to-typescript`](https://github.com/bcherny/json-schema-to-typescript).
+2. `scripts/fingerprint-schemas.mjs` — writes **`fingerprint.sha256`** plus a canonical **`manifest.json`** used by downstream consumers (`verify-fingerprint.mjs`) when no repo `schemas/` tree is present.
 
-After regenerating, commit `dist/` and `fingerprint.sha256`.
+`CHASSIS_REPO_ROOT` overrides repo-root inference for fingerprint + codegen.
+
+After schema edits, rebuild and recommit `dist/`, `fingerprint.sha256`, and **`manifest.json`**.
 
 ## Tests
 
 From `packages/chassis-types/`:
 
 ```bash
-npm install
-npm test           # pack-manifest test + consumer-fixture typecheck
+npm ci
+npm test           # tarball manifest assertions + consumer typecheck + installed-package verifier
 npm run typecheck  # consumer fixture only (tsc --noEmit)
 ```
 
 ## Drift protection
 
-`fingerprint.sha256` lets a consumer detect schema drift between the types they installed and the chassis release they pinned to. To verify in consumer CI:
+Consumers can pin types to a schema fingerprint (ADR-0015):
 
 ```bash
-node node_modules/@chassis/types/scripts/verify-fingerprint.mjs
+node node_modules/@chassis/core-types/scripts/verify-fingerprint.mjs
 ```
 
-A mismatch means the installed types were generated from a different schema set than the chassis release in your pin — treat as a breaking-change signal.
+The script prefers a live `<repo>/schemas/**` tree (dev checkouts); published installs hash the bundled `manifest.json`.
 
 ## License
 

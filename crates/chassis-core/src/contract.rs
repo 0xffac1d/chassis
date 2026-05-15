@@ -407,15 +407,11 @@ static COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
     let schema: Value = serde_json::from_str(SCHEMA_STR).expect("invalid schema JSON");
     let mut options = jsonschema::options();
     for (uri, raw) in SUBSCHEMAS {
-        let value: Value =
-            serde_json::from_str(raw).expect("invalid embedded subschema JSON");
-        let resource =
-            Resource::from_contents(value).expect("invalid embedded subschema");
+        let value: Value = serde_json::from_str(raw).expect("invalid embedded subschema JSON");
+        let resource = Resource::from_contents(value).expect("invalid embedded subschema");
         options = options.with_resource(*uri, resource);
     }
-    options
-        .build(&schema)
-        .expect("invalid JSON Schema")
+    options.build(&schema).expect("invalid JSON Schema")
 });
 
 /// Validate then deserialize into [`Contract`] (kind-discriminated).

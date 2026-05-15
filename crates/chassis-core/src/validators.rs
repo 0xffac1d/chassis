@@ -13,7 +13,6 @@ pub trait Validator {
     fn validate(&self, value: &serde_json::Value) -> Result<(), Self::Error>;
 }
 
-
 /// Validation error. Carries the offending rule id, a static summary
 /// message, and a rendered
 /// `jsonschema` error trail for diagnostics.
@@ -58,12 +57,10 @@ impl Validator for CanonicalMetadataContractValidator {
     type Error = ValidationError;
 
     fn validate(&self, value: &serde_json::Value) -> Result<(), Self::Error> {
-        crate::contract::validate_metadata_contract(value).map_err(|errs| {
-            ValidationError {
-                rule_id: "CH-RUST-METADATA-CONTRACT",
-                message: "metadata contract schema validation failed",
-                detail: errs.join("; "),
-            }
+        crate::contract::validate_metadata_contract(value).map_err(|errs| ValidationError {
+            rule_id: "CH-RUST-METADATA-CONTRACT",
+            message: "metadata contract schema validation failed",
+            detail: errs.join("; "),
         })
     }
 }
@@ -160,7 +157,8 @@ mod tests {
 
     #[test]
     fn canonical_validator_accepts_repo_contract_yaml() {
-        let contract_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/happy-path/rust-minimal/CONTRACT.yaml");
+        let contract_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/happy-path/rust-minimal/CONTRACT.yaml");
         let raw = std::fs::read_to_string(contract_path).expect("CONTRACT.yaml");
         let value: serde_json::Value = serde_yaml::from_str(&raw).expect("parse CONTRACT.yaml");
         CanonicalMetadataContractValidator
