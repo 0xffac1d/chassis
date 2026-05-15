@@ -13,6 +13,7 @@ ed25519-dalek = { version = "2", features = ["rand_core"] }
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 globset = "0.4"
 jsonschema = { version = "0.30", default-features = false }
+pulldown-cmark = "0.10"
 rand = "0.8"
 regex = "1"
 semver = "1"
@@ -20,3 +21,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
 sha2 = "0.10"
+tree-sitter = "0.22"
+tree-sitter-rust = "0.21"
+tree-sitter-typescript = "0.21"

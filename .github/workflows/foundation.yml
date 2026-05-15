@@ -1,0 +1,121 @@
+name: foundation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-foundation:
+    name: verify-foundation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No tracked private keys
+        run: |
+          set -euo pipefail
+          tracked="$(git ls-files | grep -E '\.priv$' || true)"
+          if [[ -n "$tracked" ]]; then
+            echo "::error::tracked private key material is forbidden:" >&2
+            echo "$tracked" >&2
+            exit 1
+          fi
+
+      - name: Rust toolchain (rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+          components: rustfmt, clippy
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: npm cache path
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: npm-${{ runner.os }}-${{ hashFiles('packages/chassis-types/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: pre-commit config parity with verify-foundation
+        run: ./scripts/verify-pre-commit-parity.sh
+
+      - name: verify-foundation.sh
+        env:
+          CHASSIS_VERIFY_LOG_DIR: ${{ github.workspace }}/verify-foundation-logs
+        run: ./scripts/verify-foundation.sh
+
+      - name: Upload verify-foundation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-foundation-logs-${{ matrix.os }}
+          path: verify-foundation-logs/
+          if-no-files-found: warn
+
+  fingerprint-parity:
+    name: fingerprint Node vs Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: Node digest
+        id: node
+        run: |
+          export CHASSIS_REPO_ROOT="$GITHUB_WORKSPACE"
+          DIGEST="$(node --input-type=module -e "import { buildManifest, manifestHash } from './packages/chassis-types/scripts/fingerprint-schemas.mjs'; console.log(manifestHash(buildManifest(process.env.CHASSIS_REPO_ROOT)));")"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Rust digest
+        id: rust
+        env:
+          CHASSIS_REPO_ROOT: ${{ github.workspace }}
+        run: |
+          DIGEST="$(cargo run -p chassis-core --example fingerprint -q)"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Compare
+        run: |
+          if [ "${{ steps.node.outputs.digest }}" != "${{ steps.rust.outputs.digest }}" ]; then
+            echo "::error::Fingerprints diverge node=${{ steps.node.outputs.digest }} rust=${{ steps.rust.outputs.digest }}"
+            exit 1
+          fi
+          echo "OK ${{ steps.node.outputs.digest }}"

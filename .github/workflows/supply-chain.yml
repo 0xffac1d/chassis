@@ -1,0 +1,94 @@
+name: supply-chain
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: supply-chain-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supply-chain:
+    name: supply-chain (audit + deny + bans)
+    runs-on: ubuntu-latest
+    env:
+      SUPPLY_CHAIN_LOG_DIR: ${{ github.workspace }}/supply-chain-logs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: Prepare log dir
+        run: mkdir -p "$SUPPLY_CHAIN_LOG_DIR"
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+
+      - name: cargo audit
+        run: |
+          set -o pipefail
+          cargo audit --deny warnings --ignore RUSTSEC-2024-0320 \
+            2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/cargo-audit.log"
+
+      - name: cargo deny check
+        run: |
+          set -o pipefail
+          cargo deny --workspace check \
+            2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/cargo-deny.log"
+
+      - name: Banned-crates lockfile guard
+        run: |
+          set -o pipefail
+          ./scripts/check-banned-crates.sh \
+            2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/check-banned-crates.log"
+
+      - name: Feature audit (cargo tree)
+        run: |
+          set -o pipefail
+          {
+            echo "=== cargo tree --workspace -e features (depth 6) ===" ;
+            cargo tree --workspace --edges features --depth 6 ;
+            echo ;
+            echo "=== cargo tree --workspace --duplicates ===" ;
+            cargo tree --workspace --duplicates || true ;
+          } 2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/feature-audit.log"
+
+      - name: Upload supply-chain logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-logs
+          path: ${{ env.SUPPLY_CHAIN_LOG_DIR }}/
+          if-no-files-found: warn
+
+  dependency-review:
+    name: Dependency review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

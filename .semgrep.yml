@@ -1,0 +1,58 @@
+# Local + CI Semgrep: conservative guardrails (Rust kernel / CLI).
+rules:
+  - id: chassis-no-unwrap-in-cli
+    languages: [rust]
+    message: >
+      Avoid .unwrap() in chassis-cli; use proper error handling (CH style).
+    severity: ERROR
+    pattern: $X.unwrap(...)
+    paths:
+      include:
+        - crates/chassis-cli/src/**/*.rs
+
+  - id: chassis-no-dbg-core
+    languages: [rust]
+    message: Remove dbg! from chassis-core (use tracing or structured errors).
+    severity: ERROR
+    pattern: dbg!(...)
+    paths:
+      include:
+        - crates/chassis-core/**/*.rs
+
+  - id: chassis-no-println-core
+    languages: [rust]
+    message: Remove println! from chassis-core (keep I/O at CLI / JSON-RPC edges).
+    severity: WARNING
+    pattern: println!(...)
+    paths:
+      include:
+        - crates/chassis-core/**/*.rs
+
+  - id: chassis-no-panic-runtime-cli
+    languages: [rust]
+    message: Avoid panic!/todo!/unimplemented! outside tests in chassis-cli.
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: panic!(...)
+          - pattern: todo!(...)
+          - pattern: unimplemented!(...)
+    paths:
+      include:
+        - crates/chassis-cli/src/**/*.rs
+
+  - id: chassis-no-panic-runtime-core
+    languages: [rust]
+    message: Avoid panic!/todo!/unimplemented! outside tests in chassis-core.
+    severity: ERROR
+    patterns:
+      - pattern-either:
+          - pattern: panic!(...)
+          - pattern: todo!(...)
+          - pattern: unimplemented!(...)
+    paths:
+      include:
+        - crates/chassis-core/**/*.rs
+      exclude:
+        - "**/tests/**/*.rs"
+        - "**/*tests*.rs"

@@ -1,0 +1,39 @@
+# Chassis Spec Kit — markdown bundle (fixture)
+
+This file wraps the same YAML as `.chassis/spec-index-source.yaml` inside a
+`yaml-meta` fence (ADR-0029).
+
+```yaml-meta
+version: 1
+chassis_preset_version: 1
+feature_id: chassis-self
+title: "Chassis self-application spec index"
+summary: "Tracks Spec Kit bridge work against root CONTRACT.yaml claims."
+constitution_principles:
+  - id: P1
+    text: "Policy sees spec intent only through schema-valid artifacts."
+non_goals:
+  - "Parsing arbitrary Spec Kit Markdown in CI"
+requirements:
+  - id: REQ-001
+    title: "Spec bridge"
+    description: "Deterministic spec-index.json and linker diagnostics."
+    acceptance_criteria:
+      - "`chassis export` attaches spec_kit when artifacts/spec-index.json exists"
+    claim_ids:
+      - chassis.exports-not-policy-engines
+    related_task_ids:
+      - TASK-001
+    touched_paths:
+      - crates/chassis-core/src/exports.rs
+tasks:
+  - id: TASK-001
+    title: "Integrate spec-index"
+    depends_on: []
+    touched_paths:
+      - crates/chassis-core/src/exports.rs
+implementation_constraints:
+  - "serde_yaml workspace dependency per ADR-0025 retention decision"
+```
+
+Human-readable narrative may appear outside the fence.

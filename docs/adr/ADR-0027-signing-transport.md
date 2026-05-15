@@ -67,6 +67,8 @@ indefinitely.
 - Until the follow-up ships, downstream verifiers cannot rely on Sigstore
   identity claims or SLSA build provenance for Chassis releases. That
   trade-off is documented and conscious.
+- **Trace id:** `chassis.no-private-keys-tracked` documents the fail-closed CI guard
+  against committing `.priv` material while keeping `.pub` verifier keys addressable.
 
 ## Status
 

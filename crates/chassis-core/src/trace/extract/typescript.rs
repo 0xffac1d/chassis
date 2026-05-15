@@ -5,9 +5,14 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
+use tree_sitter;
+use tree_sitter_typescript;
 
 use crate::diagnostic::{Diagnostic, Severity, Violated};
-use crate::trace::extract::rust::{normalize_rel, RULE_DUPLICATE_SITE, RULE_MALFORMED};
+use crate::trace::backend::TraceExtractBackend;
+use crate::trace::extract::rust::{
+    normalize_rel, RULE_DUPLICATE_SITE, RULE_MALFORMED, RULE_PARSE_ERROR,
+};
 use crate::trace::types::{ClaimSite, SiteKind};
 
 static CLAIM_RE: LazyLock<Regex> =
@@ -32,7 +37,11 @@ fn diag(rule: &str, sev: Severity, msg: String, subject: String) -> Diagnostic {
         source: Some("trace::extract::typescript".to_string()),
         subject: Some(subject),
         violated: Some(Violated {
-            convention: "ADR-0023".to_string(),
+            convention: if rule == RULE_PARSE_ERROR {
+                "ADR-0028".to_string()
+            } else {
+                "ADR-0023".to_string()
+            },
         }),
         docs: None,
         fix: None,
@@ -157,7 +166,110 @@ pub fn scan_typescript(rel: &Path, lines: &[String]) -> (Vec<ClaimSite>, Vec<Dia
     (sites, diags)
 }
 
-pub fn extract_typescript(root: &Path) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
+fn scan_typescript_ts(
+    rel: &Path,
+    lines: &[String],
+    comment_rows: &std::collections::BTreeSet<usize>,
+) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
+    use std::collections::hash_map::{Entry, HashMap};
+
+    let mut sites = Vec::new();
+    let mut diags = Vec::new();
+    let mut seen: HashMap<(usize, String), usize> = HashMap::new();
+
+    let mut k = 0usize;
+    while k < lines.len() {
+        if REJECTED_JSDOC_RE.is_match(&lines[k]) {
+            diags.push(diag(
+                RULE_MALFORMED,
+                Severity::Error,
+                "JSDoc `@claim` form is rejected by ADR-0023 (supersedes ADR-0005); \
+                 use `// @claim <id>` on its own line immediately before the backed item"
+                    .to_string(),
+                format!("{}:{}", rel.display(), k + 1),
+            ));
+        }
+        if !comment_rows.contains(&k) || !CLAIM_RE.is_match(lines[k].trim()) {
+            k += 1;
+            continue;
+        }
+        let first = k + 1;
+        let mut ids = Vec::<String>::new();
+        let mut idx = k;
+        while idx < lines.len() {
+            let l = &lines[idx];
+            if let Some(cap) = CLAIM_RE.captures(l.trim()) {
+                let raw = cap.get(1).unwrap().as_str().to_string();
+                if CLAIM_ID_OK.is_match(&raw) {
+                    ids.push(raw);
+                } else {
+                    diags.push(diag(
+                        RULE_MALFORMED,
+                        Severity::Error,
+                        format!("claim id `{raw}` violates STABLE-IDS grammar"),
+                        format!("{}:{}", rel.display(), idx + 1),
+                    ));
+                }
+                idx += 1;
+            } else {
+                break;
+            }
+        }
+        let Some(site_ix) = find_back_site_idx(lines, idx) else {
+            k = idx.max(k + 1);
+            continue;
+        };
+
+        let is_test = lines[site_ix].contains("test(")
+            || lines[site_ix].contains(".test.")
+            || lines[site_ix].contains("describe(")
+            || scan_for_jest(lines, site_ix);
+
+        let kind = if is_test {
+            SiteKind::Test
+        } else {
+            SiteKind::Impl
+        };
+
+        let site_ln = site_ix + 1;
+        for cid in ids {
+            let key = (site_ln, cid.clone());
+            match seen.entry(key) {
+                Entry::Occupied(_) => {
+                    diags.push(diag(
+                        RULE_DUPLICATE_SITE,
+                        Severity::Info,
+                        format!("duplicate @claim `{cid}` anchored at the same site"),
+                        format!("{}:{}", rel.display(), site_ln),
+                    ));
+                }
+                Entry::Vacant(v) => {
+                    v.insert(1);
+                    sites.push(ClaimSite {
+                        file: rel.to_path_buf(),
+                        line: first,
+                        claim_id: cid.clone(),
+                        kind,
+                    });
+                }
+            }
+        }
+        k = site_ix + 1;
+    }
+    (sites, diags)
+}
+
+pub fn extract_typescript(
+    root: &Path,
+    backend: TraceExtractBackend,
+) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
+    match backend {
+        TraceExtractBackend::Regex => extract_typescript_regex(root),
+        TraceExtractBackend::TreeSitter => extract_typescript_treesitter(root),
+    }
+}
+
+fn extract_typescript_regex(root: &Path) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
     let pk = root.join("packages");
     let mut sites = Vec::new();
     let mut diags = Vec::new();
@@ -166,6 +278,111 @@ pub fn extract_typescript(root: &Path) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
     }
     walk_ts(&pk, root, &mut sites, &mut diags);
     (sites, diags)
+}
+
+fn extract_typescript_treesitter(root: &Path) -> (Vec<ClaimSite>, Vec<Diagnostic>) {
+    let pk = root.join("packages");
+    let mut sites = Vec::new();
+    let mut diags = Vec::new();
+    if !pk.is_dir() {
+        return (sites, diags);
+    }
+    walk_ts_ts(&pk, root, &mut sites, &mut diags);
+    (sites, diags)
+}
+
+fn collect_ts_line_comment_rows(node: tree_sitter::Node<'_>, src: &[u8], rows: &mut Vec<usize>) {
+    let mut c = node.walk();
+    if !c.goto_first_child() {
+        return;
+    }
+    loop {
+        let n = c.node();
+        if n.kind() == "comment" {
+            if let Ok(t) = n.utf8_text(src) {
+                if t.trim_start().starts_with("//") {
+                    rows.push(n.start_position().row);
+                }
+            }
+        } else {
+            collect_ts_line_comment_rows(n, src, rows);
+        }
+        if !c.goto_next_sibling() {
+            break;
+        }
+    }
+}
+
+fn walk_ts_ts(dir: &Path, root: &Path, sites: &mut Vec<ClaimSite>, diags: &mut Vec<Diagnostic>) {
+    let Ok(rd) = fs::read_dir(dir) else {
+        return;
+    };
+    for ent in rd.flatten() {
+        let p = ent.path();
+        if p.is_dir() {
+            if p.file_name().and_then(|n| n.to_str()) == Some("node_modules") {
+                continue;
+            }
+            walk_ts_ts(&p, root, sites, diags);
+            continue;
+        }
+        let ext = p.extension().and_then(|e| e.to_str());
+        let lang = match ext {
+            Some("ts") => tree_sitter_typescript::language_typescript(),
+            Some("tsx") => tree_sitter_typescript::language_tsx(),
+            _ => continue,
+        };
+        let raw = match fs::read_to_string(&p) {
+            Ok(s) => s,
+            Err(e) => {
+                diags.push(diag(
+                    RULE_MALFORMED,
+                    Severity::Error,
+                    format!("read failed: {e}"),
+                    p.display().to_string(),
+                ));
+                continue;
+            }
+        };
+        let rel = normalize_rel(root, &p);
+        let ls: Vec<String> = raw.lines().map(|l| l.to_string()).collect();
+        let mut parser = tree_sitter::Parser::new();
+        if let Err(e) = parser.set_language(&lang) {
+            diags.push(diag(
+                RULE_MALFORMED,
+                Severity::Error,
+                format!("tree-sitter typescript: {e}"),
+                rel.display().to_string(),
+            ));
+            continue;
+        }
+        let Some(tree) = parser.parse(&raw, None) else {
+            diags.push(diag(
+                RULE_PARSE_ERROR,
+                Severity::Warning,
+                "tree-sitter parse returned no tree".into(),
+                rel.display().to_string(),
+            ));
+            continue;
+        };
+        let root_node = tree.root_node();
+        if root_node.has_error() {
+            diags.push(diag(
+                RULE_PARSE_ERROR,
+                Severity::Warning,
+                "tree-sitter parse contains error nodes — extraction may be incomplete".into(),
+                rel.display().to_string(),
+            ));
+        }
+        let mut rows = Vec::new();
+        collect_ts_line_comment_rows(root_node, raw.as_bytes(), &mut rows);
+        rows.sort_unstable();
+        rows.dedup();
+        let entry_set: std::collections::BTreeSet<usize> = rows.iter().copied().collect();
+        let (mut s, mut d) = scan_typescript_ts(&rel, &ls, &entry_set);
+        sites.append(&mut s);
+        diags.append(&mut d);
+    }
 }
 
 fn walk_ts(dir: &Path, root: &Path, sites: &mut Vec<ClaimSite>, diags: &mut Vec<Diagnostic>) {

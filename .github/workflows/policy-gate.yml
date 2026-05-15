@@ -1,0 +1,49 @@
+name: policy-gate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: policy-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy-opa:
+    name: OPA policy gate
+    runs-on: ubuntu-latest
+    env:
+      POLICY_GATE_OUT_DIR: ${{ github.workspace }}/policy-gate-artifacts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: Install OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: v1.16.2
+
+      - name: Install python jsonschema
+        run: python3 -m pip install --upgrade --user jsonschema
+
+      - name: Policy gate (export + shape check + opa test + eval)
+        run: ./scripts/policy-gate.sh "$GITHUB_WORKSPACE"
+
+      - name: Upload policy-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-gate-artifacts
+          path: policy-gate-artifacts/
+          if-no-files-found: warn

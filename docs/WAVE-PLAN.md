@@ -69,3 +69,18 @@ Remaining:
 - `deny.toml` enforces the SPDX license allowlist and the network-crate denylist via cargo-deny.
 - `scripts/check-archive-hygiene.sh` rejects build/cache artifacts and stale developer-machine paths from any candidate source archive (driven by `scripts/build-source-archive.sh`).
 - `scripts/docs-lint.sh` enforces a forbidden-phrase set on active documentation so stale wording (old monolith paths, the wrong "MCP server" framing, an incorrect schema-module count) cannot land silently. <!-- chassis-lint-allow:mcp-server -->
+
+## Wave 7 — Foundation closure ✅
+
+- **Self-verifying source archive:** `.gitattributes` ships `CLAUDE.md`, `.gitignore`, and `.github/workflows/**` in `git archive` output; `source-archive.yml` extracts the tarball and runs `./scripts/verify-foundation.sh` on CI.
+- **Split CI:** `foundation.yml`, `supply-chain.yml`, `policy-gate.yml`, `self-attest.yml`, `source-archive.yml`, and `release-evidence.yml` (aggregator after the foundation gates succeed).
+- **Secrets hygiene:** `foundation.yml` fails if any `*.priv` file is tracked; `.chassis/keys/README.md` documents the public-key contract.
+- **Evidence bundle:** `bundle-release-evidence.sh` downloads peer workflow artifacts; `release-evidence.yml` re-validates them, runs digest round-trips (`CH-EVIDENCE-DIGEST-MISMATCH`), and repacks a single `release-evidence-<sha>.tar.gz`.
+
+## Wave 8 — Optimal stack ✅
+
+- **Tree-sitter trace extraction:** `chassis trace --extractor tree-sitter|regex` with parity tests (ADR-0028).
+- **Spec Kit Markdown bridge:** `chassis spec-index from-spec-kit` + Markdown↔YAML parity fixture (ADR-0029).
+- **`pre-commit` + parity gate:** `.pre-commit-config.yaml` mirrors `verify-foundation.sh`; `verify-pre-commit-parity.sh` fails on drift.
+- **Static / dependency scanning:** Semgrep (`.semgrep.yml` + SARIF), CodeQL (Rust + JavaScript matrix), Renovate config + validator workflow.
+- **Provenance layering:** Cosign keyless sign/verify on `release-gate.dsse` in `self-attest.yml` (ADR-0030); SLSA generic provenance + `slsa-verifier` + GitHub `attest-build-provenance` in `source-archive.yml` (ADR-0031).

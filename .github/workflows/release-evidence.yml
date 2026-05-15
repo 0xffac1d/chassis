@@ -1,0 +1,108 @@
+name: release-evidence
+
+on:
+  workflow_run:
+    workflows: [source-archive]
+    types:
+      - completed
+    branches: [main, master]
+
+concurrency:
+  group: release-evidence-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Install GitHub CLI
+        run: sudo apt-get update && sudo apt-get install -y gh jq
+
+      - name: Wait for all gate workflows (same commit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash .github/scripts/wait-for-all-gates.sh
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install python jsonschema
+        run: python3 -m pip install --upgrade --user jsonschema
+
+      - name: Download peer workflow artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash .github/scripts/bundle-release-evidence.sh
+        # script uses HEAD_SHA and writes to evidence/
+
+      - name: Re-validate governance artifacts (chassis-core)
+        run: |
+          set -euo pipefail
+          SA="evidence/self-attest-artifacts"
+          [[ -d "$SA" ]] || { echo "missing self-attest bundle"; exit 1; }
+          cargo run -p chassis-core --example validate_artifact -- trace-graph    "$SA/trace-graph.json"
+          cargo run -p chassis-core --example validate_artifact -- drift-report   "$SA/drift-report.json"
+          cargo run -p chassis-core --example validate_artifact -- dsse-envelope "$SA/release-gate.dsse"
+          cargo run -p chassis-core --example validate_artifact -- in-toto-statement "$SA/in-toto-statement.json"
+          cargo run -p chassis-core --example validate_artifact -- release-gate "$SA/release-gate.json"
+
+      - name: policy-input.json vs opa-input schema
+        run: |
+          set -euo pipefail
+          PI="evidence/policy-gate-artifacts/policy-input.json"
+          [[ -f "$PI" ]] || { echo "missing policy-input"; exit 1; }
+          python3 - "$PI" schemas/opa-input.schema.json <<'PY'
+          import json, sys
+          from pathlib import Path
+          try:
+              import jsonschema
+          except ImportError:
+              print("jsonschema required", file=sys.stderr)
+              raise SystemExit(1)
+          payload = json.loads(Path(sys.argv[1]).read_text())
+          schema = json.loads(Path(sys.argv[2]).read_text())
+          jsonschema.validate(payload, schema)
+          print("opa-input shape OK")
+          PY
+
+      - name: Schema manifest digest roundtrip (CH-EVIDENCE-DIGEST-MISMATCH)
+        run: |
+          bash .github/scripts/verify-in-toto-subject-digest.sh "$GITHUB_WORKSPACE" \
+            "evidence/self-attest-artifacts/in-toto-statement.json"
+
+      - name: Source archive tarball vs SLSA subject digests
+        run: bash .github/scripts/verify-evidence-tarball-slsa-subject.sh evidence
+
+      - name: Pack release-evidence tarball
+        run: |
+          set -euo pipefail
+          tar -czvf "release-evidence-${{ github.event.workflow_run.head_sha }}.tar.gz" evidence
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: release-evidence-${{ github.event.workflow_run.head_sha }}.tar.gz

@@ -16,8 +16,9 @@ use chassis_core::artifact::{
     validate_eventcatalog_metadata_value, validate_opa_input_value, validate_policy_input_value,
     validate_release_gate_value, validate_spec_index_value, validate_trace_graph_value,
 };
-use chassis_core::attest::predicate::{CommandRun, Verdict};
 use chassis_core::attest::GateOutcome;
+use chassis_core::attest::CH_PROVENANCE_COSIGN_VERIFY_FAILED;
+use chassis_core::attest::{CommandRun, Verdict};
 use chassis_core::contract::validate_metadata_contract;
 use chassis_core::diagnostic::Severity;
 use chassis_core::diff;
@@ -33,7 +34,9 @@ use chassis_core::gate::{
 use chassis_core::spec_index::{
     digest_sha256_hex, export_from_source_yaml_path, link_spec_index, SpecIndex,
 };
-use chassis_core::trace::{build_trace_graph, render_mermaid};
+use chassis_core::spec_index_markdown::export_from_spec_bundle_markdown_path;
+use chassis_core::trace::TraceExtractBackend;
+use chassis_core::trace::{build_trace_graph, build_trace_graph_at_with, render_mermaid};
 
 /// Stable CLI exit codes. This surface is part of the public CLI contract —
 /// do not renumber without bumping the CLI's CONTRACT.yaml version.
@@ -54,10 +57,23 @@ mod rule {
     pub const MISSING_FILE: &str = "CLI-MISSING-FILE";
     pub const MALFORMED_INPUT: &str = "CLI-MALFORMED-INPUT";
     pub const INTERNAL: &str = "CLI-INTERNAL";
-    /// No release signing key is present and the caller did not opt in to
-    /// ephemeral signing. Release-grade attestations are never signed with
-    /// implicit throwaway keys.
     pub const ATTEST_KEY_MISSING: &str = "CH-ATTEST-KEY-MISSING";
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum TraceExtractorCli {
+    Regex,
+    #[value(name = "tree-sitter")]
+    TreeSitter,
+}
+
+impl From<TraceExtractorCli> for TraceExtractBackend {
+    fn from(value: TraceExtractorCli) -> Self {
+        match value {
+            TraceExtractorCli::Regex => TraceExtractBackend::Regex,
+            TraceExtractorCli::TreeSitter => TraceExtractBackend::TreeSitter,
+        }
+    }
 }
 
 #[derive(Parser, Debug)]
@@ -143,6 +159,9 @@ enum Command {
         /// Render Mermaid text instead of JSON/summary (overrides --json).
         #[arg(long)]
         mermaid: bool,
+        /// How to discover `// @claim` sites (`regex` default, or `tree-sitter`).
+        #[arg(long, value_enum, default_value_t = TraceExtractorCli::Regex)]
+        extractor: TraceExtractorCli,
     },
     /// Compute the drift report using git history.
     Drift,
@@ -237,6 +256,18 @@ enum AttestCmd {
         public_key: Option<PathBuf>,
         /// Path to the DSSE envelope JSON file.
         file: PathBuf,
+        /// Cosign `verify-blob` signature file (optional; Sigstore keyless in CI).
+        #[arg(long)]
+        cosign_signature: Option<PathBuf>,
+        /// Cosign certificate bundle from `sign-blob` (required with --cosign-signature).
+        #[arg(long)]
+        cosign_certificate: Option<PathBuf>,
+        /// Pass-through to `cosign verify-blob --certificate-identity-regexp`.
+        #[arg(long)]
+        cosign_certificate_identity_regexp: Option<String>,
+        /// Pass-through to `cosign verify-blob --certificate-oidc-issuer-regexp`.
+        #[arg(long)]
+        cosign_certificate_oidc_issuer_regexp: Option<String>,
     },
 }
 
@@ -256,11 +287,20 @@ enum SpecIndexCmd {
         /// Path to a spec-index.json file.
         path: PathBuf,
     },
-    /// Map requirements to CONTRACT.yaml claims; print diagnostics.
+    /// Join spec-index.json with repo contracts + trace (link pass).
     Link {
-        /// Path to spec-index.json.
+        /// Path to spec-index.json (for example `artifacts/spec-index.json`).
         #[arg(long)]
         index: PathBuf,
+    },
+    /// Write canonical spec-index.json from a Markdown bundle (` ```yaml-meta ` fence).
+    FromSpecKit {
+        /// Path to bundle markdown (for example `spec/chassis-bundle.md`).
+        #[arg(long)]
+        bundle: PathBuf,
+        /// Output JSON path (for example `artifacts/spec-index.json`).
+        #[arg(long)]
+        out: PathBuf,
     },
 }
 
@@ -378,11 +418,14 @@ fn main() {
     let result = match cli.command {
         Command::Validate { path } => run_validate(&path, json),
         Command::Diff { old, new } => run_diff(&old, &new, json),
-        Command::Trace { mermaid } => run_trace(&root, mermaid, json),
+        Command::Trace { mermaid, extractor } => run_trace(&root, mermaid, json, extractor.into()),
         Command::Drift => run_drift(&root, json),
         Command::Export { format } => run_export(&root, format, json),
         Command::SpecIndex(cmd) => match cmd {
             SpecIndexCmd::Export { from, out } => run_spec_index_export(&from, &out, json),
+            SpecIndexCmd::FromSpecKit { bundle, out } => {
+                run_spec_index_from_bundle(&bundle, &out, json)
+            }
             SpecIndexCmd::Validate { path } => run_spec_index_validate(&path, json),
             SpecIndexCmd::Link { index } => run_spec_index_link(&root, &index, json),
         },
@@ -409,9 +452,23 @@ fn main() {
             ephemeral_key,
             out,
         }) => run_attest_sign(&root, private_key.as_deref(), ephemeral_key, &out, json),
-        Command::Attest(AttestCmd::Verify { public_key, file }) => {
-            run_attest_verify(&root, public_key.as_deref(), &file, json)
-        }
+        Command::Attest(AttestCmd::Verify {
+            public_key,
+            file,
+            cosign_signature,
+            cosign_certificate,
+            cosign_certificate_identity_regexp,
+            cosign_certificate_oidc_issuer_regexp,
+        }) => run_attest_verify(
+            &root,
+            public_key.as_deref(),
+            &file,
+            cosign_signature.as_deref(),
+            cosign_certificate.as_deref(),
+            cosign_certificate_identity_regexp.as_deref(),
+            cosign_certificate_oidc_issuer_regexp.as_deref(),
+            json,
+        ),
     };
 
     let code = match result {
@@ -503,8 +560,14 @@ fn run_diff(old: &Path, new: &Path, json: bool) -> Result<i32, CliError> {
 
 // -- trace --------------------------------------------------------------------
 
-fn run_trace(root: &Path, mermaid: bool, json: bool) -> Result<i32, CliError> {
-    let graph = build_trace_graph(root).map_err(|e| CliError::internal(format!("trace: {e}")))?;
+fn run_trace(
+    root: &Path,
+    mermaid: bool,
+    json: bool,
+    backend: TraceExtractBackend,
+) -> Result<i32, CliError> {
+    let graph = build_trace_graph_at_with(root, Utc::now(), backend)
+        .map_err(|e| CliError::internal(format!("trace: {e}")))?;
     let payload = serde_json::to_value(&graph)
         .map_err(|e| CliError::internal(format!("serialize trace graph: {e}")))?;
     validate_trace_graph_value(&payload)
@@ -589,6 +652,47 @@ fn run_spec_index_export(from: &Path, out: &Path, json: bool) -> Result<i32, Cli
         );
     } else {
         println!("wrote {} (spec_index digest {digest})", out.display());
+    }
+    Ok(exit::OK)
+}
+
+fn run_spec_index_from_bundle(bundle: &Path, out: &Path, json: bool) -> Result<i32, CliError> {
+    let idx = export_from_spec_bundle_markdown_path(bundle).map_err(|e| CliError {
+        code: exit::MALFORMED_INPUT,
+        rule: e.rule_id,
+        message: e.message,
+        path: Some(bundle.to_path_buf()),
+    })?;
+    let v = serde_json::to_value(&idx)
+        .map_err(|e| CliError::internal(format!("serialize spec index: {e}")))?;
+    validate_spec_index_value(&v).map_err(|errs| {
+        CliError::internal(format!("spec index schema invalid after export: {errs:?}"))
+    })?;
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| CliError::internal(format!("create_dir {}: {e}", parent.display())))?;
+    }
+    let pretty = serde_json::to_string_pretty(&v)
+        .map_err(|e| CliError::internal(format!("pretty spec index json: {e}")))?;
+    fs::write(out, pretty + "\n").map_err(|e| CliError::missing_file(out, e))?;
+
+    let digest = digest_sha256_hex(&idx).map_err(CliError::internal)?;
+    if json {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "out": out.display().to_string(),
+                "digest": digest,
+                "source": "markdown-bundle",
+            })
+        );
+    } else {
+        println!(
+            "wrote {} (spec_index digest {digest}, from {})",
+            out.display(),
+            bundle.display()
+        );
     }
     Ok(exit::OK)
 }
@@ -1518,6 +1622,10 @@ fn run_attest_verify(
     root: &Path,
     public_key: Option<&Path>,
     file: &Path,
+    cosign_signature: Option<&Path>,
+    cosign_certificate: Option<&Path>,
+    cosign_certificate_identity_regexp: Option<&str>,
+    cosign_certificate_oidc_issuer_regexp: Option<&str>,
     json: bool,
 ) -> Result<i32, CliError> {
     use chassis_core::attest::sign::{
@@ -1547,6 +1655,45 @@ fn run_attest_verify(
 
     verify_subject_matches_repo(&stmt, root)
         .map_err(|e| CliError::attest_verify(CH_ATTEST_SUBJECT_MISMATCH, format!("{e}")))?;
+
+    if let Some(sig) = cosign_signature {
+        let cert = cosign_certificate.ok_or_else(|| {
+            CliError::malformed_no_path("--cosign-certificate is required with --cosign-signature")
+        })?;
+        let id_re = cosign_certificate_identity_regexp.ok_or_else(|| {
+            CliError::malformed_no_path(
+                "--cosign-certificate-identity-regexp is required with --cosign-signature",
+            )
+        })?;
+        let iss_re = cosign_certificate_oidc_issuer_regexp.ok_or_else(|| {
+            CliError::malformed_no_path(
+                "--cosign-certificate-oidc-issuer-regexp is required with --cosign-signature",
+            )
+        })?;
+        let st = std::process::Command::new("cosign")
+            .arg("verify-blob")
+            .arg(file.as_os_str())
+            .arg("--signature")
+            .arg(sig.as_os_str())
+            .arg("--certificate")
+            .arg(cert.as_os_str())
+            .arg("--certificate-identity-regexp")
+            .arg(id_re)
+            .arg("--certificate-oidc-issuer-regexp")
+            .arg(iss_re)
+            .status()
+            .map_err(|e| {
+                CliError::internal(format!(
+                    "failed to spawn cosign (install Sigstore cosign and ensure it is on PATH): {e}"
+                ))
+            })?;
+        if !st.success() {
+            return Err(CliError::attest_verify(
+                CH_PROVENANCE_COSIGN_VERIFY_FAILED,
+                format!("cosign verify-blob failed for {}", file.display()),
+            ));
+        }
+    }
 
     if json {
         let payload = serde_json::to_value(&stmt)

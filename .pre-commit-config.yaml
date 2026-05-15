@@ -1,0 +1,70 @@
+# Mirrors `scripts/verify-foundation.sh` for local runs. Drift from that script
+# is caught by `scripts/verify-pre-commit-parity.sh` (foundation CI + verify-foundation).
+repos:
+  - repo: local
+    hooks:
+      - id: docs-lint
+        name: docs-lint.sh
+        entry: bash scripts/docs-lint.sh
+        language: system
+        pass_filenames: false
+
+      - id: cargo-fmt
+        name: cargo fmt --check --all
+        entry: bash -lc 'cargo fmt --check --all'
+        language: system
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: "cargo clippy (chassis-types needles)"
+        entry: bash -lc 'cargo clippy --workspace --all-targets -- -D warnings'
+        language: system
+        pass_filenames: false
+
+      - id: cargo-check
+        name: cargo check --workspace
+        entry: bash -lc 'cargo check --workspace'
+        language: system
+        pass_filenames: false
+
+      - id: cargo-test
+        name: cargo test --workspace
+        entry: bash -lc 'cargo test --workspace'
+        language: system
+        pass_filenames: false
+
+      - id: diagnostic_governance
+        name: diagnostic_governance
+        entry: bash -lc 'cargo test -p chassis-core --test diagnostic_governance'
+        language: system
+        pass_filenames: false
+
+      - id: npm-ci-chassis-types
+        name: npm ci (packages/chassis-types)
+        entry: bash -lc 'npm ci --prefix packages/chassis-types'
+        language: system
+        pass_filenames: false
+
+      - id: npm-build-chassis-types
+        name: npm run build (chassis-types)
+        entry: bash -lc 'npm run build --prefix packages/chassis-types'
+        language: system
+        pass_filenames: false
+
+      - id: verify-schema-metadata
+        name: verify-schema-metadata.mjs
+        entry: bash -lc 'node packages/chassis-types/scripts/verify-schema-metadata.mjs'
+        language: system
+        pass_filenames: false
+
+      - id: verify-fingerprint
+        name: verify-fingerprint.mjs
+        entry: bash -lc 'node packages/chassis-types/scripts/verify-fingerprint.mjs'
+        language: system
+        pass_filenames: false
+
+      - id: npm-test-chassis-types
+        name: npm test (chassis-types)
+        entry: bash -lc 'npm test --prefix packages/chassis-types'
+        language: system
+        pass_filenames: false

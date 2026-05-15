@@ -1,0 +1,23 @@
+---
+id: ADR-0031
+title: "SLSA generic provenance + GitHub build attestations for source archives"
+status: accepted
+date: "2026-05-15"
+enforces: []
+tags:
+  - supply-chain
+  - ci
+---
+
+# ADR-0031 — Provenance layers around source archives
+
+## Decision
+
+- **`source-archive.yml`** runs `slsa-framework/slsa-github-generator` generic provenance over `dist/chassis-source-ci.tar.gz` and **`actions/attest-build-provenance`** on the same blob.
+- **`release-evidence.yml`** recomputes the schema-manifest digest from the checkout and compares it to `self-attest-artifacts/in-toto-statement.json` (see `.github/scripts/verify-in-toto-subject-digest.sh`).
+- Additional artifact digests MAY be checked the same way as the evidence bundle grows; this ADR records the CI split only.
+
+## Consequences
+
+- Consumers can fetch GitHub-hosted provenance + a single `release-evidence` tarball per commit.
+- **Trace ids:** `chassis.provenance-cosign-slsa` (SLSA + GH attestations around the tarball) and `chassis.evidence-digest-roundtrip` (post-download digest checks in `release-evidence.yml`).

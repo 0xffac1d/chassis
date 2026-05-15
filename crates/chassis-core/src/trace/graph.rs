@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::contract::{validate_metadata_contract, Contract};
 use crate::diagnostic::{Diagnostic, Severity, Violated};
 use crate::exempt::{self, Registry as ExemptionRegistry};
+use crate::trace::backend::TraceExtractBackend;
 use crate::trace::extract::{rust::extract_rust, typescript::extract_typescript};
 use crate::trace::types::{ClaimContractKind, ClaimNode, SiteKind, TraceError, TraceGraph};
 
@@ -187,14 +188,23 @@ fn attach_exemptions(
 
 /// Build repo-wide trace metadata for every CONTRACT claim plus extracted sites.
 pub fn build_trace_graph(root: &Path) -> Result<TraceGraph, TraceError> {
-    build_trace_graph_at(root, Utc::now())
+    build_trace_graph_at_with(root, Utc::now(), TraceExtractBackend::default())
 }
 
 pub fn build_trace_graph_at(root: &Path, now: DateTime<Utc>) -> Result<TraceGraph, TraceError> {
+    build_trace_graph_at_with(root, now, TraceExtractBackend::default())
+}
+
+/// Like [`build_trace_graph_at`] but selects the Rust/TS comment extractor backend.
+pub fn build_trace_graph_at_with(
+    root: &Path,
+    now: DateTime<Utc>,
+    backend: TraceExtractBackend,
+) -> Result<TraceGraph, TraceError> {
     let root = fs::canonicalize(root).unwrap_or_else(|_| root.to_path_buf());
 
-    let (mut rust_sites, rust_diags) = extract_rust(&root);
-    let (mut ts_sites, ts_diags) = extract_typescript(&root);
+    let (mut rust_sites, rust_diags) = extract_rust(&root, backend);
+    let (mut ts_sites, ts_diags) = extract_typescript(&root, backend);
     rust_sites.append(&mut ts_sites);
     let mut diag_all = rust_diags;
     diag_all.extend(ts_diags);

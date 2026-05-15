@@ -9,7 +9,12 @@ pub mod graph;
 pub mod render;
 pub mod types;
 
-pub use graph::{build_trace_graph, build_trace_graph_at, RULE_NOT_IN_CONTRACT};
+mod backend;
+pub use backend::TraceExtractBackend;
+
+pub use graph::{
+    build_trace_graph, build_trace_graph_at, build_trace_graph_at_with, RULE_NOT_IN_CONTRACT,
+};
 pub use render::render_mermaid;
 pub use types::{ClaimContractKind, ClaimNode, ClaimSite, SiteKind, TraceError, TraceGraph};
 

@@ -1,0 +1,28 @@
+name: renovate-config-validator
+
+on:
+  pull_request:
+    paths:
+      - "renovate.json"
+      - ".github/workflows/renovate-config-validator.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "renovate.json"
+
+concurrency:
+  group: renovate-cfg-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate renovate.json
+        run: npx --yes renovate-config-validator renovate.json

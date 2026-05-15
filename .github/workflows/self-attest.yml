@@ -1,0 +1,67 @@
+name: self-attest
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: self-attest-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  self-attest:
+    name: self-attest (CLI trace + drift + DSSE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: self-attest.sh
+        env:
+          SELF_ATTEST_DIR: ${{ github.workspace }}/self-attest-artifacts
+          SELF_ATTEST_ARTIFACT: ${{ github.workspace }}/self-attest-artifacts/release-gate.dsse
+        run: ./scripts/self-attest.sh
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.7.0
+        with:
+          cosign-release: v2.4.0
+
+      - name: Cosign keyless sign DSSE blob
+        working-directory: self-attest-artifacts
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --output-signature=release-gate.dsse.cosign.sig \
+            --output-certificate=release-gate.dsse.cosign.cert \
+            release-gate.dsse
+
+      - name: Cosign verify DSSE blob (keyless)
+        working-directory: self-attest-artifacts
+        run: |
+          set -euo pipefail
+          cosign verify-blob release-gate.dsse \
+            --signature=release-gate.dsse.cosign.sig \
+            --certificate=release-gate.dsse.cosign.cert \
+            --certificate-identity-regexp='https://github.com/${{ github.repository }}/.github/workflows/self-attest.yml@.*' \
+            --certificate-oidc-issuer-regexp='https://token.actions.githubusercontent.com'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: self-attest-artifacts
+          path: self-attest-artifacts/

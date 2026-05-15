@@ -6,6 +6,7 @@
 pub mod artifact;
 pub mod attest;
 pub mod contract;
+pub mod contract_claim_markers;
 pub mod diagnostic;
 pub mod diagnostic_registry;
 pub mod diff;
@@ -16,6 +17,7 @@ pub mod exports;
 pub mod fingerprint;
 pub mod gate;
 pub mod spec_index;
+pub mod spec_index_markdown;
 pub mod supply;
 pub mod trace;
 pub mod validators;

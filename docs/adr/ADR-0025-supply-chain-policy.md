@@ -144,6 +144,8 @@ Both checks run in CI (`supply-chain` job).
   filename, and the exit criteria are written down.
 - Source archives shipped from CI cannot accidentally include build
   output, vendored caches, Python bytecode, or developer-machine paths.
+- **Trace id:** `chassis.archive-self-verifying` ties self-verifying `git archive`
+  extracts (including `CLAUDE.md`, `.gitignore`, and `.github/workflows/`) to this policy.
 
 ## Alternatives considered
 

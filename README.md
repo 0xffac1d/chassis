@@ -11,7 +11,7 @@ Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit
 | Crate / package | Status | What it ships |
 |---|---|---|
 | `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`), trace graph, drift report, DSSE attestation. `cargo test` clean on Rust ≥ 1.86. |
-| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace`, `drift`, `export`, `spec-index export|validate|link`, `release-gate`, `attest sign`, `attest verify`. |
+| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace` (regex or tree-sitter extractor), `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `release-gate`, `attest sign`, `attest verify`. |
 | `crates/chassis-jsonrpc/` (binary: `chassis-jsonrpc`) | **experimental** | Newline-delimited JSON-RPC 2.0 server over stdio exposing six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Every emitted diagnostic validates against `schemas/diagnostic.schema.json`; `release_gate` returns the same predicate shape (`schemas/release-gate.schema.json`) the CLI writes. **Not** an MCP implementation — a real MCP surface (lifecycle + `tools/list` + `tools/call`) is future work, see `docs/future-mcp.md`. |
 | `packages/chassis-types/` (npm `@chassis/core-types`) | supported | 26 generated `.d.ts` modules (18 root schemas + 8 kind subschemas), plus committed `dist/`, `fingerprint.sha256`, `manifest.json`. |
 
@@ -62,7 +62,7 @@ flags (`trace_failed`, `drift_failed`, `exemption_failed`, `attestation_failed`,
 `spec_failed`), `unsuppressed_blocking`, `suppressed`, `severity_overridden`,
 `final_exit_code`, and the `commands_run` log.
 
-**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (tarballs/zips without `.git`) are **not** release-gate runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`.
+**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (`git archive` tarballs without `.git`) are **not** `release-gate` runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`. Those same archives **are** expected to run `./scripts/verify-foundation.sh` (docs-lint, Rust, Node gates); CI proves this via `source-archive.yml` extract-and-smoke.
 
 **Default artifact paths.** Without `--out` / `--attest-out`, the CLI writes
 predicates and DSSE envelopes under `<repo>/dist/` (gitignored). The root-level
@@ -95,6 +95,20 @@ The EventCatalog-style adapter only uses data Chassis already has in `service` a
 
 **OPA (Rego)** — Release policy lives in `policy/chassis_release.rego` and is evaluated over `chassis export --format opa` by `./scripts/policy-gate.sh` (also run in CI). When `artifacts/spec-index.json` is present, exports include `spec_kit.spec_index_digest` and merged spec-to-contract linker diagnostics. Chassis stays an evidence exporter; OPA evaluates `allow` and emits `policy-result.json`.
 
-`./scripts/verify-foundation.sh` is the local pre-push gate (Rust fmt/clippy/check/test, Node build + fingerprint parity + tests).
+`./scripts/verify-foundation.sh` is the local pre-push gate (Rust fmt/clippy/check/test, diagnostic governance, Node build + schema/fingerprint checks + tests). It is intentionally runnable from a clean `git archive` extract so tarball consumers see the same gate as developers. Optional local hooks live in `.pre-commit-config.yaml`; drift vs `verify-foundation.sh` is enforced by `scripts/verify-pre-commit-parity.sh` (also run inside `foundation.yml`).
+
+### What CI proves
+
+Foundation gates are split by workflow name:
+
+| Workflow | Role |
+| --- | --- |
+| `foundation.yml` | `verify-foundation` (Ubuntu + macOS) + Node/Rust fingerprint parity; blocks tracked `*.priv`; pre-commit parity. |
+| `supply-chain.yml` | `cargo audit`, `cargo deny`, banned deps, PR `dependency-review`. |
+| `policy-gate.yml` | OPA over `chassis export --format opa` (`policy/chassis_release.rego`). |
+| `self-attest.yml` | `scripts/self-attest.sh` + Cosign keyless sign/verify on `release-gate.dsse`. |
+| `source-archive.yml` | `git archive` + hygiene + GitHub attest-build-provenance + SLSA generic provenance + `slsa-verifier` + extract-smoke of `verify-foundation.sh`. |
+| `semgrep.yml` / `codeql.yml` / `renovate-config-validator.yml` | Static analysis + Renovate config schema. |
+| `release-evidence.yml` | After the above succeed for a commit, downloads artifacts, re-validates with `validate_artifact`, checks `CH-EVIDENCE-DIGEST-MISMATCH` round-trips, and uploads one `release-evidence-<sha>.tar.gz` bundle. |
 
 See `CLAUDE.md` for what each tree path holds and `docs/WAVE-PLAN.md` for current work.

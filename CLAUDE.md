@@ -14,7 +14,7 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 |------|--------|------|
 | `schemas/` | canonical | 18 root metadata schemas plus 8 per-kind contract branches under `schemas/contract-kinds/` (contract parent at `schemas/contract.schema.json` v3.x). 26 schema files total. |
 | `crates/chassis-core/` | supported | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier) + `fingerprint.rs` + `spec_index/` (Spec Kit index + linker) + `trace/` + `drift/` + `exports.rs` (export-only governance facts) + `attest/` (DSSE). `cargo check` + `cargo test` clean on Rust ≥ 1.86 (`rust-toolchain.toml`). |
-| `crates/chassis-cli/` | supported | Binary `chassis`. Subcommands: `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `export`, `spec-index export|validate|link`, `release-gate`, `attest sign`, `attest verify`. `release-gate` / `attest sign` use `chassis_core::gate::compute` so the JSON-RPC `release_gate` method, CLI JSON, on-disk `release-gate.json`, and DSSE predicates stay aligned (including optional `artifacts/spec-index.json` linkage fields on the predicate). (`doctor` is planned, not implemented.) |
+| `crates/chassis-cli/` | supported | Binary `chassis`. Subcommands: `validate`, `diff`, `exempt verify`, `trace [--mermaid] [--extractor regex|tree-sitter]`, `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `release-gate`, `attest sign`, `attest verify`. `release-gate` / `attest sign` use `chassis_core::gate::compute` so the JSON-RPC `release_gate` method, CLI JSON, on-disk `release-gate.json`, and DSSE predicates stay aligned (including optional `artifacts/spec-index.json` linkage fields on the predicate). (`doctor` is planned, not implemented.) |
 | `crates/chassis-jsonrpc/` | **experimental** | Binary `chassis-jsonrpc`. Newline-delimited JSON-RPC 2.0 over stdio, six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). **Not** a Model Context Protocol implementation — a real MCP surface is future work and is intentionally out of scope for the kernel surface. |
 | `policy/` | supported | OPA/Rego release policy (`package chassis.release`) evaluated over `chassis export --format opa`. Wired through `scripts/policy-gate.sh` and the `policy-opa` CI job; Chassis remains an evidence exporter. |
 | `packages/chassis-types/` | supported | TypeScript `.d.ts` generated from canonical schemas via `json-schema-to-typescript` (26 leaf modules: 18 root + 8 contract-kinds). `dist/`, `fingerprint.sha256`, and `manifest.json` are committed; rebuild with `npm run build`. |
@@ -60,14 +60,13 @@ Per ADR-0001, the project does not use the word "runtime" in user-facing copy un
 
 ## Immediate next work
 
-See `docs/WAVE-PLAN.md`. Highlights:
+See `docs/WAVE-PLAN.md` (Wave 7–8 landed the archive/CI split, evidence aggregation, tree-sitter trace parity, Spec Kit Markdown bridge, pre-commit/Semgrep/CodeQL/Renovate, Cosign + SLSA/GitHub attestations, and digest round-trips). Remaining highlights:
 
 1. Promote `chassis-jsonrpc` from experimental: either add a real MCP-protocol shim (per `docs/future-mcp.md`) or formalize the custom JSON-RPC surface and version it.
-2. Decide on signing transport beyond raw Ed25519 (cosign or in-toto envelope); capture in a Wave-3-close ADR.
-3. Add the planned `doctor` subcommand to `chassis-cli`.
-4. Stand up a TypeScript CLI alternative (NAPI or WASM) for `chassis-core`, if a Node-only consumer surfaces.
-5. Publish `chassis-core` to crates.io and `@chassis/core-types` to npm.
-6. Ship the Spec Kit extension package.
+2. Add the planned `doctor` subcommand to `chassis-cli`.
+3. Stand up a TypeScript CLI alternative (NAPI or WASM) for `chassis-core`, if a Node-only consumer surfaces.
+4. Publish `chassis-core` to crates.io and `@chassis/core-types` to npm.
+5. Ship the Spec Kit extension package.
 
 ## History
 

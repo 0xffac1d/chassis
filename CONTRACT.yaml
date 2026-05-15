@@ -66,6 +66,39 @@ invariants:
       - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attestation_verify_passes_for_correct_key"
       - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attestation_tamper_fails_verify"
       - "crates/chassis-cli/tests/cli_attest.rs::attest_verify_wrong_public_key_exits_6"
+  - id: chassis.archive-self-verifying
+    text: "`git archive` output includes CLAUDE.md, .gitignore, CI workflows, and hygiene-required paths; CI extracts the tarball and runs ./scripts/verify-foundation.sh (see .github/workflows/source-archive.yml job extract-smoke)."
+    test_linkage:
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_archive_self_verifying"
+      - ".github/workflows/source-archive.yml (job: extract-smoke)"
+      - "scripts/check-archive-hygiene.sh (required archive paths)"
+  - id: chassis.no-private-keys-tracked
+    text: "No secret signing material is tracked: git ls-files must not list any *.priv path (foundation CI gate; see .chassis/keys/README.md)."
+    test_linkage:
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_no_private_keys_tracked"
+      - ".github/workflows/foundation.yml (No tracked private keys)"
+  - id: chassis.trace-tree-sitter-parity
+    text: "Tree-sitter trace extraction matches the legacy regex extractor on happy-path fixtures (switch via chassis trace --extractor)."
+    test_linkage:
+      - "crates/chassis-core/tests/trace_extractor_parity.rs"
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_trace_treesitter_parity"
+  - id: chassis.spec-kit-markdown-bridge
+    text: "Spec Kit Markdown spec bundle parses to the same canonical SpecIndex JSON as equivalent YAML (chassis spec-index from-spec-kit)."
+    test_linkage:
+      - "crates/chassis-core/tests/spec_kit_markdown_parity.rs"
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_spec_kit_markdown_bridge"
+  - id: chassis.provenance-cosign-slsa
+    text: "CI cosign keyless signs release-gate.dsse and verifies with workflow identity pinning; source tarball gets SLSA generic provenance verified via slsa-verifier plus GitHub attest-build-provenance (ADR-0030, ADR-0031)."
+    test_linkage:
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_provenance_cosign_slsa"
+      - ".github/workflows/self-attest.yml (Cosign keyless sign + verify)"
+      - ".github/workflows/source-archive.yml (SLSA generator + verify-slsa)"
+  - id: chassis.evidence-digest-roundtrip
+    text: "release-evidence recomputes digests after download: schema-manifest subject from in-toto-statement matches the checkout fingerprint; source tarball sha256 matches SLSA DSSE subjects (CH-EVIDENCE-DIGEST-MISMATCH)."
+    test_linkage:
+      - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_evidence_digest_roundtrip"
+      - ".github/scripts/verify-in-toto-subject-digest.sh"
+      - ".github/scripts/verify-evidence-tarball-slsa-subject.sh"
 edge_cases:
   - id: chassis.adversarial-fixture-rejected
     text: "fixtures/adversarial/invalid-schema/CONTRACT.yaml fails canonical validation with at least one 'required' or 'enum' error."

@@ -24,6 +24,9 @@ pub use sign::{
     CH_ATTEST_VERIFY_FAILED, PAYLOAD_TYPE_IN_TOTO_JSON,
 };
 
+/// Cosign `verify-blob` failure surfaced by `chassis attest verify` (ADR-0030).
+pub const CH_PROVENANCE_COSIGN_VERIFY_FAILED: &str = "CH-PROVENANCE-COSIGN-VERIFY-FAILED";
+
 use crate::fingerprint::FingerprintError;
 
 #[derive(Debug)]
