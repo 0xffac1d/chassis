@@ -78,10 +78,14 @@ export type Entry = {
    * Per-entry opt-in for wildcard / global scopes. Required when path/scope contains `*`, `**`, or matches the repository root. Strict profile additionally requires the registry-level `allow_global: true`.
    */
   allow_global?: boolean;
+  /**
+   * Owners (emails or @-handles) who have signed off on this exemption per ADR-0004 CODEOWNERS union. Wave 2 verifiers compare this set against the required signoffs computed from the registry's `path`/`scope` and the repo CODEOWNERS file.
+   */
+  codeowner_acknowledgments?: string[];
 };
 
 /**
- * Time-bounded waiver registry for Chassis findings. Each entry grants a narrowly-scoped, owner-accountable, expiring exemption for a specific rule (or finding id). Audit suppresses a finding only when an entry is **active**, scope-matched, and not expired. Expired or invalid entries become audit findings of their own. Wildcard / global scopes require an explicit `allow_global: true` and fail strict mode unless the registry-level `allow_global: true` is set. Schema bumped to 1.1 for lifecycle fields (`status`, `severity_override`, `linked_issue`, `created_at`/`expires_at`, `path`, `rule_id`, `finding_id`).
+ * Time-bounded waiver registry for Chassis findings. Each entry grants a narrowly-scoped, owner-accountable, expiring exemption for a specific rule (or finding id). Audit suppresses a finding only when an entry is **active**, scope-matched, and not expired. Expired or invalid entries become audit findings of their own. Wildcard / global scopes require an explicit `allow_global: true` and fail strict mode unless the registry-level `allow_global: true` is set. Schema bumped to 1.1 for lifecycle fields (`status`, `severity_override`, `linked_issue`, `created_at`/`expires_at`, `path`, `rule_id`, `finding_id`); 1.2 adds optional `codeowner_acknowledgments` per Wave 2 ADR-0004 union enforcement.
  */
 export interface ExemptionRegistry {
   /**
