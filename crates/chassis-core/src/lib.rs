@@ -1,4 +1,5 @@
-//! Chassis core: typed contract / ADR / exemption vocabulary + JSON Schema validators, diff, fingerprint, drift.
+//! Chassis core: typed contract / ADR / exemption vocabulary + JSON Schema validators, diff,
+//! fingerprint, and drift/trace helpers used by forthcoming Wave tooling.
 
 #![forbid(unsafe_code)]
 
@@ -10,6 +11,7 @@ pub mod drift;
 pub mod exempt;
 pub mod exemption;
 pub mod fingerprint;
+pub mod trace;
 pub mod validators;
 
 #[cfg(test)]

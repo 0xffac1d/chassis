@@ -2,7 +2,6 @@ use serde_json::Value;
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Registry {
     pub version: i64,
     #[serde(skip_serializing_if = "Option::is_none")]

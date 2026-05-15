@@ -1,3 +1,4 @@
-//! Drift scoring and git-derived edit history helpers (ADR-0024).
+//! Drift scoring and git-derived edit timestamps per ADR-0024 (report assembly deferred).
 
 pub mod git;
+pub mod score;

@@ -130,6 +130,7 @@ dependencies = [
  "git2",
  "globset",
  "jsonschema",
+ "regex",
  "semver",
  "serde",
  "serde_json",

@@ -2,7 +2,6 @@ use serde_json::Value;
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Adr {
     pub id: String,
     pub title: String,
