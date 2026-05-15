@@ -31,8 +31,11 @@ See `ASSURANCE-LADDER.md` for promotion semantics.
 Rule-ID prefixes claimed by accepted ADRs. Each prefix is governed by the listed ADR(s); adding a new ID under an existing prefix requires amending that ADR or authoring a superseder (ADR-0011).
 
 - `ASSURANCE-*` — ADR-0002
+- `CH-ATTEST-*` — ADR-0022
 - `CH-DIFF-*` — ADR-0019
+- `CH-DRIFT-*` — ADR-0024
 - `CH-EXEMPT-*` — ADR-0020
+- `CH-TRACE-*` — ADR-0023
 - `CLAIM-*` — ADR-0003, ADR-0005
 - `DEFERRAL-*` — ADR-0016
 - `DIAGNOSTIC-*` — ADR-0018

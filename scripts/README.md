@@ -1,5 +1,13 @@
 # Repo scripts
 
+## `build-drift-fixture-repo.sh`
+
+Rebuilds `fixtures/drift-repo/drift_fixture.git` (bare repository, deterministic commits and author dates) used by `chassis_core::drift::git` unit tests.
+
+```bash
+./scripts/build-drift-fixture-repo.sh
+```
+
 ## `verify-foundation.sh`
 
 Runs the canonical local verification gates before pushing:
