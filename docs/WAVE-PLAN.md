@@ -31,7 +31,7 @@ Shipped:
 
 Open polish items:
 
-- Decide on signing transport beyond raw Ed25519 (cosign or in-toto) and capture in a Wave-3-close ADR.
+- Decide on signing transport beyond raw Ed25519 (cosign or in-toto) and capture in a Wave-3-close ADR. **Resolution captured in `docs/adr/ADR-0027-signing-transport.md` (proposed):** stay on DSSE+in-toto+Ed25519 for the kernel; Sigstore/cosign and SLSA/GitHub artifact attestations are **explicit follow-up**, layered on top of the existing predicate without changing the predicate type. Until that follow-up ships, release-grade attestations remain the operator-keyed Ed25519 path documented in ADR-0022.
 - Add the planned `doctor` subcommand to the CLI surface.
 
 ## Wave 3.5 — Spec Kit bridge ✅ (in tree)

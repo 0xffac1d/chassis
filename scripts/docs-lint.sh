@@ -54,7 +54,7 @@ PATTERNS=(
   'codegen/ts-types'
   'chassis-schemas([^-]|$)'
   '/mnt/C/(0xffac1d/)?chassis'
-  '\b(12 root|20 (schema|generated|leaf)|20 .d.ts)\b'
+  '\b(12 root|17 root|20 (schema|generated|leaf)|20 .d.ts|25 (modules|schemas))\b'
 )
 REASONS=(
   '`crates/chassis-cli/` ships the `chassis` binary; drop the disclaimer.'
@@ -62,8 +62,8 @@ REASONS=(
   '`scripts/chassis/` was the previous-monolith path. Current entrypoints live under `scripts/` and `crates/chassis-cli/`.'
   '`codegen/ts-types/` was the previous-monolith path. TypeScript types live at `packages/chassis-types/`.'
   '`chassis-schemas` was a previous-monolith crate. Schemas live under `schemas/` (the regex excludes the manifest kind `chassis-schemas-manifest`).'
-  'Stale absolute developer-machine path. Active docs must not embed `/mnt/C/chassis` or `/mnt/C/0xffac1d/chassis`; only `reference/` (snapshot zone, ADR-0025) is allowed to mention it. `scripts/check-archive-hygiene.sh` enforces the same rule on source archives.'
-  'Stale schema module count. `schemas/` ships 17 root schemas + 8 contract-kinds = 25 modules; `packages/chassis-types/` generates 25 `.d.ts` modules to match.'
+  'Stale absolute developer-machine path. Active docs must not embed local checkout paths; only `reference/` (snapshot zone, ADR-0025) is allowed to preserve them. `scripts/check-archive-hygiene.sh` enforces the same rule on source archives.'
+  'Stale schema/module inventory in active docs. Canonical JSON schemas live under `schemas/` as 18 root artifacts plus 8 contract-kind branches (26 schemas total); `packages/chassis-types/` generates matching leaf modules.'
 )
 
 # An inline allow marker lets an active doc carry one of these phrases when the

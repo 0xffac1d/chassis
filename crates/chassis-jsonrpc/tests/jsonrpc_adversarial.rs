@@ -16,6 +16,35 @@ use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
+/// `git init` + initial commit using the host `git` binary. Mirrors the
+/// helper in `chassis-cli/tests/common/mod.rs`; duplicated here because
+/// integration tests across crates can't share a `tests/common/` module.
+fn git_init_with_initial_commit(dir: &Path) {
+    let env = [
+        ("GIT_AUTHOR_NAME", "chassis-tests"),
+        ("GIT_AUTHOR_EMAIL", "tests@chassis.invalid"),
+        ("GIT_COMMITTER_NAME", "chassis-tests"),
+        ("GIT_COMMITTER_EMAIL", "tests@chassis.invalid"),
+    ];
+    let run = |args: &[&str]| {
+        let mut c = Command::new("git");
+        c.current_dir(dir);
+        for (k, v) in &env {
+            c.env(k, v);
+        }
+        let out = c.args(args).output().expect("git on PATH");
+        assert!(
+            out.status.success(),
+            "git {args:?} failed: stdout={} stderr={}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+    };
+    run(&["init", "--quiet", "--initial-branch=main"]);
+    run(&["add", "-A"]);
+    run(&["commit", "--quiet", "--allow-empty", "-m", "init"]);
+}
+
 use assert_cmd::cargo::cargo_bin;
 use chassis_core::artifact::{
     validate_diagnostic_value, validate_drift_report_value, validate_release_gate_value,
@@ -28,7 +57,6 @@ const PARSE_ERROR: i64 = -32700;
 const INVALID_REQUEST: i64 = -32600;
 const METHOD_NOT_FOUND: i64 = -32601;
 const INVALID_PARAMS: i64 = -32602;
-const INTERNAL_ERROR: i64 = -32603;
 
 fn jsonrpc_repo_root() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -424,19 +452,63 @@ fn release_gate_wrong_fail_on_drift_type_returns_invalid_params() {
 }
 
 #[test]
-fn release_gate_non_git_dir_returns_internal_error() {
-    // Empty directory: passes is_dir() but git_head() fails. Surfaces as
-    // CH-GATE-SUBSYSTEM-FAILURE with the JSON-RPC internal-error code.
+fn release_gate_invalid_contract_returns_invalid_params_with_structured_data() {
+    // Repo-shaped fixture: minimal directory with a malformed `CONTRACT.yaml`
+    // and just enough git state for `require_git_worktree`. The shared
+    // preflight in `chassis_core::gate::compute` fails closed with
+    // `CH-GATE-CONTRACT-INVALID` and the JSON-RPC server forwards the
+    // `ContractReport` on the JSON-RPC error envelope so a caller agent
+    // receives the same structured `contract_validation` summary the CLI
+    // prints under `--json`. This is the cross-surface parity guarantee.
+    let tmp = TempDir::new().expect("tempdir");
+    std::fs::write(tmp.path().join("CONTRACT.yaml"), "name: broken\nkind: library\n")
+        .expect("write CONTRACT.yaml");
+    // Minimal git repo with a HEAD so the gate's git-worktree check passes.
+    git_init_with_initial_commit(tmp.path());
+
+    let reply = one(
+        tmp.path(),
+        json!({"jsonrpc": "2.0", "id": 1, "method": "release_gate"}),
+    );
+    assert_error(&reply, INVALID_PARAMS, "invalid contract");
+    let msg = reply["error"]["message"].as_str().expect("error message");
+    assert!(
+        msg.starts_with("CH-GATE-CONTRACT-INVALID:"),
+        "expected CONTRACT-INVALID rule id, got: {msg}"
+    );
+    let data = &reply["error"]["data"];
+    assert!(
+        data.is_object(),
+        "JSON-RPC error.data must carry the structured contract report: {reply}"
+    );
+    assert_eq!(data["invalid"].as_u64(), Some(1));
+    assert!(
+        data["errors"].is_array() && !data["errors"].as_array().unwrap().is_empty(),
+        "report must include at least one per-contract error: {data}"
+    );
+    let first = &data["errors"][0];
+    assert_eq!(
+        first["code"].as_str(),
+        Some("CH-RUST-METADATA-CONTRACT"),
+        "contract failure must carry the canonical schema rule id"
+    );
+}
+
+#[test]
+fn release_gate_non_git_dir_returns_invalid_params() {
+    // Empty directory: passes `is_dir()` but has no `.git`. Must fail fast with
+    // CH-GATE-GIT-METADATA-REQUIRED (same class as a bad CHASSIS_REPO_ROOT).
     let tmp = TempDir::new().expect("tempdir");
     let reply = one(
         tmp.path(),
         json!({"jsonrpc": "2.0", "id": 1, "method": "release_gate"}),
     );
-    assert_error(&reply, INTERNAL_ERROR, "non-git directory");
-    assert!(reply["error"]["message"]
-        .as_str()
-        .unwrap()
-        .starts_with("CH-GATE-"));
+    assert_error(&reply, INVALID_PARAMS, "non-git directory");
+    let msg = reply["error"]["message"].as_str().unwrap();
+    assert!(
+        msg.starts_with("CH-GATE-GIT-METADATA-REQUIRED:"),
+        "expected missing-git rule, got: {msg}"
+    );
 }
 
 #[test]

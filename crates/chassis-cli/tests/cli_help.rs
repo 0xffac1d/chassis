@@ -35,6 +35,16 @@ fn top_level_help_documents_exit_codes() {
 }
 
 #[test]
+fn release_gate_help_documents_git_prerequisite() {
+    chassis()
+        .args(["release-gate", "--help"])
+        .assert()
+        .success()
+        .stdout(contains("Git"))
+        .stdout(contains(".git"));
+}
+
+#[test]
 fn attest_help_lists_sign_and_verify() {
     chassis()
         .args(["attest", "--help"])

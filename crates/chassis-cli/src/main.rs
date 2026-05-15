@@ -26,7 +26,10 @@ use chassis_core::exempt;
 use chassis_core::exempt::Codeowners;
 use chassis_core::exports;
 use chassis_core::fingerprint;
-use chassis_core::gate::compute as gate_compute;
+use chassis_core::gate::{
+    compute as gate_compute, validate_repo_contracts as gate_validate_repo_contracts,
+    ContractError, ContractReport,
+};
 use chassis_core::spec_index::{
     digest_sha256_hex, export_from_source_yaml_path, link_spec_index, SpecIndex,
 };
@@ -90,7 +93,7 @@ Stable subcommands:
   spec-index validate         Schema-validate spec-index.json.
   spec-index link             Link spec requirements to CONTRACT.yaml claims.
   exempt verify               Statically verify .chassis/exemptions.yaml against CODEOWNERS.
-  release-gate                Run validate + trace + drift + exemptions + optional attestation.
+  release-gate                Run validate + trace + drift + exemptions + optional attestation (needs `.git`).
   attest sign --out <FILE>    Assemble + sign a DSSE-wrapped release-gate Statement.
   attest verify <FILE>        Verify a DSSE envelope (signature + repo subject digest).
 
@@ -115,7 +118,11 @@ Attestation key policy:
     with --ephemeral-key. Without one of these the command exits with
     CH-ATTEST-KEY-MISSING. Ephemeral signing is for demos/tests only — the
     CLI marks such artifacts as release_grade=false and writes the matching
-    public key next to the envelope.";
+    public key next to the envelope.
+
+  release-gate requires a Git working tree at --repo (.git + readable HEAD).
+  Drift scoring reads commit history and the predicate records git_commit.
+  Extracted source archives without Git metadata fail with CH-GATE-GIT-METADATA-REQUIRED.";
 
 #[derive(Subcommand, Debug)]
 enum Command {
@@ -148,7 +155,11 @@ enum Command {
     /// Spec Kit index: export YAML → JSON, validate, or link to contracts.
     #[command(subcommand)]
     SpecIndex(SpecIndexCmd),
-    /// Run the end-to-end release gate over --repo.
+    /// Run the end-to-end release gate over `--repo`.
+    ///
+    /// Requires a Git checkout (`.git` + readable `HEAD`): drift uses history
+    /// and the output records `git_commit`. Plain source drops without Git
+    /// metadata are unsupported (fail with `CH-GATE-GIT-METADATA-REQUIRED`).
     ReleaseGate {
         /// Fail when unsuppressed drift diagnostics remain.
         #[arg(long)]
@@ -156,10 +167,10 @@ enum Command {
         /// Write and verify a DSSE-wrapped in-toto attestation.
         #[arg(long)]
         attest: bool,
-        /// Path for the release-gate predicate artifact.
+        /// Predicate JSON path (default `<repo>/dist/release-gate.json`).
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Path for the DSSE envelope when --attest is set.
+        /// DSSE envelope path when --attest is set (default `<repo>/dist/release-gate.dsse`).
         #[arg(long)]
         attest_out: Option<PathBuf>,
         /// Path to an Ed25519 signing key (hex, 64 chars). When omitted, the
@@ -766,10 +777,10 @@ fn run_release_gate(
     let now = Utc::now();
     let artifact_path = out
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| root.join("release-gate.json"));
+        .unwrap_or_else(|| root.join("dist/release-gate.json"));
     let attestation_path = attest_out
         .map(Path::to_path_buf)
-        .unwrap_or_else(|| root.join("release-gate.dsse"));
+        .unwrap_or_else(|| root.join("dist/release-gate.dsse"));
 
     let mut argv = vec![
         "chassis".to_string(),
@@ -791,7 +802,19 @@ fn run_release_gate(
         argv.push("--ephemeral-key".to_string());
     }
 
-    let contract_summary = validate_repo_contracts(root)?;
+    // Run the shared preflight up-front so that the CLI envelope can carry
+    // the structured `contract_validation` payload even on the truncated
+    // fail-closed path. `gate_compute` will run the same preflight again
+    // (cheap; tens of small YAML files) and short-circuit identically.
+    let contract_summary = match gate_validate_repo_contracts(root) {
+        Ok(r) => r,
+        Err(e) => {
+            return Err(CliError::internal(format!(
+                "release gate: {}: {}",
+                e.rule_id, e.message
+            )));
+        }
+    };
     if contract_summary.invalid > 0 {
         let final_exit_code = exit::VALIDATE_FAILED;
         let output = json!({
@@ -812,7 +835,7 @@ fn run_release_gate(
             "final_exit_code": final_exit_code,
             "schema_fingerprint": Value::Null,
             "git_commit": Value::Null,
-            "contract_validation": contract_summary.to_json(),
+            "contract_validation": contract_report_to_json(&contract_summary),
             "trace_summary": Value::Null,
             "drift_summary": Value::Null,
             "exemption_summary": Value::Null,
@@ -963,7 +986,7 @@ fn run_release_gate(
         "final_exit_code": final_outcome.final_exit_code,
         "schema_fingerprint": schema_fingerprint,
         "git_commit": git_commit,
-        "contract_validation": contract_summary.to_json(),
+        "contract_validation": contract_report_to_json(&contract_summary),
         "trace_summary": trace_summary,
         "drift_summary": {
             "stale": drift.summary.stale,
@@ -986,62 +1009,21 @@ fn run_release_gate(
     Ok(final_outcome.final_exit_code)
 }
 
-#[derive(Debug)]
-struct ContractValidationSummary {
-    checked: usize,
-    valid: usize,
-    invalid: usize,
-    errors: Vec<Value>,
+fn contract_error_to_json(e: &ContractError) -> Value {
+    json!({
+        "path": e.path,
+        "code": e.code,
+        "message": e.message,
+    })
 }
 
-impl ContractValidationSummary {
-    fn to_json(&self) -> Value {
-        json!({
-            "checked": self.checked,
-            "valid": self.valid,
-            "invalid": self.invalid,
-            "errors": self.errors,
-        })
-    }
-}
-
-fn validate_repo_contracts(root: &Path) -> Result<ContractValidationSummary, CliError> {
-    let contracts = discover_contract_files(root)?;
-    let mut summary = ContractValidationSummary {
-        checked: contracts.len(),
-        valid: 0,
-        invalid: 0,
-        errors: Vec::new(),
-    };
-
-    for path in contracts {
-        let rel = path
-            .strip_prefix(root)
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|_| path.clone());
-        match read_text(&path)
-            .and_then(|raw| parse_yaml_to_json(&path, &raw))
-            .and_then(|value| {
-                validate_metadata_contract(&value).map_err(|errs| CliError {
-                    code: exit::VALIDATE_FAILED,
-                    rule: "CH-RUST-METADATA-CONTRACT",
-                    message: errs.join("; "),
-                    path: Some(path.clone()),
-                })
-            }) {
-            Ok(()) => summary.valid += 1,
-            Err(e) => {
-                summary.invalid += 1;
-                summary.errors.push(json!({
-                    "path": rel.display().to_string(),
-                    "code": e.rule,
-                    "message": e.message,
-                }));
-            }
-        }
-    }
-
-    Ok(summary)
+fn contract_report_to_json(report: &ContractReport) -> Value {
+    json!({
+        "checked": report.checked,
+        "valid": report.valid,
+        "invalid": report.invalid,
+        "errors": report.errors.iter().map(contract_error_to_json).collect::<Vec<_>>(),
+    })
 }
 
 fn build_export_policy_input(root: &Path) -> Result<exports::PolicyInput, CliError> {

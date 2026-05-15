@@ -40,7 +40,9 @@ mod rpc_code {
     pub const INVALID_REQUEST: i64 = -32600;
     /// `method` field did not match any of the six published verbs.
     pub const METHOD_NOT_FOUND: i64 = -32601;
-    /// Caller supplied wrong / missing / mis-typed params for a method.
+    /// Caller supplied wrong / missing / mis-typed params for a method, or a
+    /// repo root that cannot satisfy the method (e.g. `release_gate` on a
+    /// non-git tree per `CH-GATE-GIT-METADATA-REQUIRED`).
     pub const INVALID_PARAMS: i64 = -32602;
     /// Server-side failure while executing the method (gate compute failed,
     /// emitted artifact failed its schema, etc.). The `message` field carries
@@ -132,6 +134,18 @@ fn rpc_parse_error(id: Value) -> Value {
 
 fn rpc_error(id: &Value, code: i64, msg: impl Into<String>) -> Value {
     json!({"jsonrpc": "2.0", "id": id.clone(), "error": { "code": code, "message": msg.into() }})
+}
+
+/// Same as [`rpc_error`] but carries a structured `data` payload on the error
+/// envelope. Used when a stable rule id ships an associated structured
+/// summary (e.g. `CH-GATE-CONTRACT-INVALID` and its contract validation
+/// report).
+fn rpc_error_with_data(id: &Value, code: i64, msg: impl Into<String>, data: Option<Value>) -> Value {
+    let mut err = json!({ "code": code, "message": msg.into() });
+    if let Some(d) = data {
+        err["data"] = d;
+    }
+    json!({"jsonrpc": "2.0", "id": id.clone(), "error": err})
 }
 
 fn rpc_result(id: &Value, result: Value) -> Value {
@@ -373,8 +387,28 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
 
                 let now = Utc::now();
                 let run = gate::compute(repo, now, fail_on_drift).map_err(|e| {
+                    // Match CLI semantics: a `CONTRACT_INVALID` preflight is
+                    // bad input from the agent's point of view (the repo it
+                    // pointed us at fails the canonical schema), so surface
+                    // the structured `contract_validation` payload via the
+                    // JSON-RPC error `data` field. CLI and JSON-RPC then
+                    // describe the same failure off the same `gate::compute`
+                    // call.
+                    if e.rule_id == gate::rule_id::CONTRACT_INVALID {
+                        let data = e
+                            .contract_report
+                            .as_ref()
+                            .and_then(|r| serde_json::to_value(r).ok());
+                        return rpc_error_with_data(
+                            &id,
+                            rpc_code::INVALID_PARAMS,
+                            format!("{}: {}", e.rule_id, e.message),
+                            data,
+                        );
+                    }
                     let code = match e.rule_id {
-                        gate::rule_id::REPO_UNREADABLE => rpc_code::INVALID_PARAMS,
+                        gate::rule_id::REPO_UNREADABLE
+                        | gate::rule_id::GIT_METADATA_REQUIRED => rpc_code::INVALID_PARAMS,
                         _ => rpc_code::INTERNAL_ERROR,
                     };
                     rpc_error(&id, code, format!("{}: {}", e.rule_id, e.message))

@@ -1,0 +1,43 @@
+# gitattributes — release source archive policy.
+#
+# `scripts/build-source-archive.sh` runs `git archive`, which honors any
+# pathspec marked with `export-ignore` here. Anything tagged below is
+# tracked in the repo but **excluded** from the produced source tarball,
+# so neither developer convenience files nor reference-only material
+# leak into release artifacts.
+#
+# `scripts/check-archive-hygiene.sh` re-verifies the produced archive,
+# but that script catches *forbidden artifacts* (build/cache dirs,
+# stale developer paths). `export-ignore` is the curated exclude list.
+#
+# Keep this short and conservative: only directories that are clearly
+# study-material, CI-only, or local development noise.
+
+# CI configuration is irrelevant for downstream consumers of the source
+# archive; reviewers can read it on the GitHub mirror.
+/.github/**             export-ignore
+
+# Reference-only snapshot zone (ADR-0025). Useful in-repo for audit,
+# but it doubles archive size and is explicitly non-canonical material
+# (preserved verbatim from the prior project, including its absolute
+# checkout paths). Hygiene also excludes `reference/` from the stale-
+# path scan, but excluding it from the archive entirely keeps the
+# downloadable surface aligned with what we tell users to read.
+/reference/**           export-ignore
+
+# Local self-attest output and gitignore-only files (defensive: these
+# should not be committed in the first place; gitignore covers them).
+/self-attest-artifacts/** export-ignore
+
+# Historical/agent transcripts, claude config, and prompts that may live
+# at the repo root in some checkouts. None are part of the release surface.
+/.cursor/**             export-ignore
+/.claude/**             export-ignore
+CLAUDE.md               export-ignore
+AGENTS.md               export-ignore
+
+# These dotfiles configure `git archive` itself and the IDE; they have
+# no role in the produced archive.
+.gitattributes          export-ignore
+.gitignore              export-ignore
+.editorconfig           export-ignore

@@ -12,16 +12,23 @@
 //!
 //! Signing is out of scope here. Callers that want a signed DSSE envelope
 //! pass the predicate to [`crate::attest::assemble`] + sign it themselves.
+//!
+//! **Git checkout required:** [`compute`] fails fast with
+//! [`rule_id::GIT_METADATA_REQUIRED`] when the repo root has no openable `.git`
+//! (for example an extracted source archive). Drift scoring and
+//! [`GateRun::git_commit`] depend on Git history and `HEAD`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use git2::Repository;
+use serde::{Deserialize, Serialize};
 
 use crate::attest::assemble::GateOutcome;
 use crate::attest::predicate::{
     CommandRun, DriftSummary, ExemptSummary, ReleaseGatePredicate, TraceSummary, Verdict,
 };
+use crate::contract::validate_metadata_contract;
 use crate::diagnostic::{Diagnostic, Severity};
 use crate::drift::report::{build_drift_report, validate_drift_report_json, DriftReport};
 use crate::exempt::{
@@ -36,6 +43,15 @@ use crate::trace::{build_trace_graph, types::TraceGraph, validate_trace_graph};
 pub mod rule_id {
     /// The repo root is missing or unreadable — no trace graph could be built.
     pub const REPO_UNREADABLE: &str = "CH-GATE-REPO-UNREADABLE";
+    /// No Git metadata at `--repo` (e.g. extracted `tar.gz` / zip source drop).
+    /// Drift scoring and the predicate's `git_commit` field require a checkout.
+    pub const GIT_METADATA_REQUIRED: &str = "CH-GATE-GIT-METADATA-REQUIRED";
+    /// At least one repo `CONTRACT.yaml` failed its canonical schema check
+    /// during preflight. Contract validation runs before trace/drift/exempt
+    /// and is **not** exemption-applicable: a contract that cannot be parsed
+    /// or doesn't satisfy `schemas/contract.schema.json` is a release-gate
+    /// prerequisite, not a normalized diagnostic findings stream.
+    pub const CONTRACT_INVALID: &str = "CH-GATE-CONTRACT-INVALID";
     /// Trace, drift, or git inspection failed below the gate.
     pub const SUBSYSTEM_FAILURE: &str = "CH-GATE-SUBSYSTEM-FAILURE";
     /// The exemption registry file existed but failed to parse.
@@ -47,10 +63,15 @@ pub mod rule_id {
 
 /// Error from [`compute`]. Each variant carries a stable rule id so the CLI
 /// and JSON-RPC surfaces map gate failures onto the same diagnostic vocabulary.
+///
+/// `contract_report` is `Some` only for `CONTRACT_INVALID`, allowing a caller
+/// (CLI or JSON-RPC) to render the per-contract structured summary without
+/// re-walking the tree. For every other rule id it is `None`.
 #[derive(Debug)]
 pub struct GateError {
     pub rule_id: &'static str,
     pub message: String,
+    pub contract_report: Option<ContractReport>,
 }
 
 impl GateError {
@@ -58,7 +79,13 @@ impl GateError {
         Self {
             rule_id,
             message: message.into(),
+            contract_report: None,
         }
+    }
+
+    fn with_contract_report(mut self, report: ContractReport) -> Self {
+        self.contract_report = Some(report);
+        self
     }
 }
 
@@ -69,6 +96,156 @@ impl std::fmt::Display for GateError {
 }
 
 impl std::error::Error for GateError {}
+
+/// Per-contract validation outcome surfaced by [`validate_repo_contracts`].
+/// Mirrors the structured `contract_validation` payload the CLI prints, so
+/// CLI and JSON-RPC callers can render the same JSON.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContractError {
+    /// Path of the failing CONTRACT.yaml, repo-relative when possible.
+    pub path: String,
+    /// Stable rule id for the failure (typically `CH-RUST-METADATA-CONTRACT`,
+    /// `CH-GATE-CONTRACT-MISSING`, or `CH-GATE-CONTRACT-MALFORMED`).
+    pub code: String,
+    /// Human-readable failure detail.
+    pub message: String,
+}
+
+/// Whole-repo contract preflight report. `invalid > 0` means the gate must
+/// fail closed; trace/drift/exemption inputs are skipped in that case.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ContractReport {
+    pub checked: usize,
+    pub valid: usize,
+    pub invalid: usize,
+    pub errors: Vec<ContractError>,
+}
+
+impl ContractReport {
+    /// True iff at least one contract failed validation.
+    pub fn has_invalid(&self) -> bool {
+        self.invalid > 0
+    }
+}
+
+/// Stable rule id for a contract that failed `schemas/contract.schema.json`.
+const CH_RUST_METADATA_CONTRACT: &str = "CH-RUST-METADATA-CONTRACT";
+/// Stable rule id when a contract file can't be read or YAML-parsed.
+const CH_GATE_CONTRACT_MALFORMED: &str = "CH-GATE-CONTRACT-MALFORMED";
+
+/// Walk the repo for `CONTRACT.yaml` files and validate each against
+/// `schemas/contract.schema.json`. Skips `target/`, `node_modules/`, `.git/`,
+/// `fixtures/`, and `reference/` (matching the CLI and trace walkers so the
+/// preflight, trace graph, and CLI summary all see the same set of contracts).
+///
+/// Used by [`compute`] as a fail-closed preflight; CLI callers may invoke it
+/// directly to format the structured `contract_validation` summary, then hand
+/// the resulting `ContractReport` back to the user before [`compute`] runs.
+pub fn validate_repo_contracts(repo: &Path) -> Result<ContractReport, GateError> {
+    if !repo.is_dir() {
+        return Err(GateError::new(
+            rule_id::REPO_UNREADABLE,
+            format!("repo root not a directory: {}", repo.display()),
+        ));
+    }
+    let contracts = discover_contract_files(repo).map_err(|e| {
+        GateError::new(
+            rule_id::SUBSYSTEM_FAILURE,
+            format!("walk for CONTRACT.yaml under {}: {e}", repo.display()),
+        )
+    })?;
+
+    let mut report = ContractReport {
+        checked: contracts.len(),
+        valid: 0,
+        invalid: 0,
+        errors: Vec::new(),
+    };
+
+    for path in contracts {
+        let rel = path
+            .strip_prefix(repo)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|_| path.clone());
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                report.invalid += 1;
+                report.errors.push(ContractError {
+                    path: rel.display().to_string(),
+                    code: CH_GATE_CONTRACT_MALFORMED.to_string(),
+                    message: format!("read: {e}"),
+                });
+                continue;
+            }
+        };
+        let yaml: serde_yaml::Value = match serde_yaml::from_str(&raw) {
+            Ok(v) => v,
+            Err(e) => {
+                report.invalid += 1;
+                report.errors.push(ContractError {
+                    path: rel.display().to_string(),
+                    code: CH_GATE_CONTRACT_MALFORMED.to_string(),
+                    message: format!("yaml parse: {e}"),
+                });
+                continue;
+            }
+        };
+        let value = match serde_json::to_value(yaml) {
+            Ok(v) => v,
+            Err(e) => {
+                report.invalid += 1;
+                report.errors.push(ContractError {
+                    path: rel.display().to_string(),
+                    code: CH_GATE_CONTRACT_MALFORMED.to_string(),
+                    message: format!("yaml→json: {e}"),
+                });
+                continue;
+            }
+        };
+        match validate_metadata_contract(&value) {
+            Ok(()) => report.valid += 1,
+            Err(errs) => {
+                report.invalid += 1;
+                report.errors.push(ContractError {
+                    path: rel.display().to_string(),
+                    code: CH_RUST_METADATA_CONTRACT.to_string(),
+                    message: errs.join("; "),
+                });
+            }
+        }
+    }
+    Ok(report)
+}
+
+fn discover_contract_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+        for ent in std::fs::read_dir(dir)? {
+            let ent = ent?;
+            let p = ent.path();
+            if p.is_dir() {
+                if matches!(
+                    p.file_name().and_then(|n| n.to_str()),
+                    Some("target")
+                        | Some("node_modules")
+                        | Some(".git")
+                        | Some("fixtures")
+                        | Some("reference")
+                ) {
+                    continue;
+                }
+                walk(&p, out)?;
+            } else if p.file_name().and_then(|n| n.to_str()) == Some("CONTRACT.yaml") {
+                out.push(p);
+            }
+        }
+        Ok(())
+    }
+    let mut out = Vec::new();
+    walk(root, &mut out)?;
+    out.sort();
+    Ok(out)
+}
 
 /// Optional Spec Kit index (`artifacts/spec-index.json`) linkage state for the gate.
 #[derive(Debug, Clone)]
@@ -99,6 +276,10 @@ impl SpecGateState {
 /// JSON-RPC surface returns only the predicate).
 #[derive(Debug)]
 pub struct GateRun {
+    /// Preflight contract-validation summary. Always populated and always
+    /// passing on a successful [`compute`] (a failing contract would have
+    /// short-circuited with `CONTRACT_INVALID`).
+    pub contracts: ContractReport,
     pub trace: TraceGraph,
     pub drift: DriftReport,
     pub spec: SpecGateState,
@@ -143,12 +324,14 @@ impl GateRun {
             .any(|d| d.severity == Severity::Error)
     }
 
-    /// Count of unsuppressed drift diagnostics at error/warning severity.
+    /// Count of unsuppressed trace/spec/drift diagnostics at error/warning
+    /// severity after exemptions were applied (used by the release-gate
+    /// predicate and exported summaries).
     pub fn unsuppressed_blocking(&self) -> usize {
-        self.unsuppressed_drift
-            .iter()
-            .filter(|d| matches!(d.severity, Severity::Error | Severity::Warning))
-            .count()
+        let blocking = |d: &&Diagnostic| matches!(d.severity, Severity::Error | Severity::Warning);
+        self.trace.diagnostics.iter().filter(blocking).count()
+            + self.spec.diagnostics.iter().filter(blocking).count()
+            + self.unsuppressed_drift.iter().filter(blocking).count()
     }
 
     /// Active (non-revoked, non-expired) entries in the registry, as of `now`.
@@ -310,7 +493,30 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         ));
     }
 
-    let trace = build_trace_graph(repo).map_err(|e| {
+    require_git_worktree(repo)?;
+
+    // Fail-closed contract preflight: a release-gate predicate cannot describe
+    // a repo whose CONTRACT.yaml files don't satisfy the canonical schema. The
+    // CLI also surfaces the structured report in its output envelope; both
+    // surfaces share this exact code path so JSON-RPC and CLI agree.
+    let contracts = validate_repo_contracts(repo)?;
+    if contracts.has_invalid() {
+        let summary = format!(
+            "{} of {} contract(s) failed canonical schema validation; first: {}",
+            contracts.invalid,
+            contracts.checked,
+            contracts
+                .errors
+                .first()
+                .map(|e| format!("{} [{}]: {}", e.path, e.code, e.message))
+                .unwrap_or_else(|| "unknown".to_string())
+        );
+        return Err(
+            GateError::new(rule_id::CONTRACT_INVALID, summary).with_contract_report(contracts)
+        );
+    }
+
+    let mut trace = build_trace_graph(repo).map_err(|e| {
         GateError::new(
             rule_id::SUBSYSTEM_FAILURE,
             format!("build trace graph: {e}"),
@@ -323,9 +529,9 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         )
     })?;
 
-    let spec = load_spec_index_gate(repo, &trace)?;
+    let mut spec = load_spec_index_gate(repo, &trace)?;
 
-    let drift = build_drift_report(repo, &trace, now).map_err(|e| {
+    let mut drift = build_drift_report(repo, &trace, now).map_err(|e| {
         GateError::new(
             rule_id::SUBSYSTEM_FAILURE,
             format!("build drift report: {e}"),
@@ -344,19 +550,31 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         )
     })?;
 
-    let exempt = load_and_apply_exemptions(repo, drift.diagnostics.clone(), now)?;
+    let exempt = load_and_apply_exemptions(
+        repo,
+        std::mem::take(&mut trace.diagnostics),
+        std::mem::take(&mut spec.diagnostics),
+        std::mem::take(&mut drift.diagnostics),
+        now,
+    )?;
+
+    trace.diagnostics = exempt.unsuppressed_trace;
+    spec.diagnostics = exempt.unsuppressed_spec;
+    let drift_unsuppressed = exempt.unsuppressed_drift;
+    drift.diagnostics = drift_unsuppressed.clone();
 
     let schema_fingerprint = fingerprint::compute(repo)
         .map_err(|e| GateError::new(rule_id::SUBSYSTEM_FAILURE, format!("fingerprint: {e}")))?;
     let git_commit = git_head(repo)?;
 
     Ok(GateRun {
+        contracts,
         trace,
         drift,
         spec,
         exempt_registry: exempt.registry,
         exempt_diagnostics: exempt.diagnostics,
-        unsuppressed_drift: exempt.unsuppressed_drift,
+        unsuppressed_drift: drift_unsuppressed,
         suppressed: exempt.suppressed,
         overridden: exempt.overridden,
         audit: exempt.audit,
@@ -365,6 +583,31 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         fail_on_drift,
         now,
     })
+}
+
+fn require_git_worktree(repo: &Path) -> Result<(), GateError> {
+    let r = Repository::open(repo).map_err(|e| {
+        GateError::new(
+            rule_id::GIT_METADATA_REQUIRED,
+            format!(
+                "release-gate is not runnable on a plain source tree at {}: no `.git` metadata ({}). \
+                 Use a Git clone or full checkout; extracted release archives omit history and HEAD.",
+                repo.display(),
+                e.message()
+            ),
+        )
+    })?;
+    r.head().map_err(|e| {
+        GateError::new(
+            rule_id::GIT_METADATA_REQUIRED,
+            format!(
+                "release-gate requires a readable Git HEAD at {}: {}",
+                repo.display(),
+                e.message()
+            ),
+        )
+    })?;
+    Ok(())
 }
 
 fn load_spec_index_gate(repo: &Path, trace: &TraceGraph) -> Result<SpecGateState, GateError> {
@@ -423,20 +666,25 @@ fn git_head(repo: &Path) -> Result<String, GateError> {
 }
 
 /// Output of [`load_and_apply_exemptions`]: the parsed registry (if any), the
-/// verifier diagnostics, the counts of suppressed/overridden/audit records
-/// from the apply pass, and the drift diagnostics that survived suppression.
+/// verifier diagnostics, the summed suppressed/overridden/audit counts from
+/// applying the registry independently across trace/spec/drift diagnostic
+/// buckets, plus each bucket's surviving diagnostics.
 struct ExemptionState {
     registry: Option<Registry>,
     diagnostics: Vec<Diagnostic>,
     suppressed: usize,
     overridden: usize,
     audit: usize,
+    unsuppressed_trace: Vec<Diagnostic>,
+    unsuppressed_spec: Vec<Diagnostic>,
     unsuppressed_drift: Vec<Diagnostic>,
 }
 
 fn load_and_apply_exemptions(
     repo: &Path,
-    drift_diagnostics: Vec<Diagnostic>,
+    trace_diag: Vec<Diagnostic>,
+    spec_diag: Vec<Diagnostic>,
+    drift_diag: Vec<Diagnostic>,
     now: DateTime<Utc>,
 ) -> Result<ExemptionState, GateError> {
     let p = repo.join(".chassis/exemptions.yaml");
@@ -447,7 +695,9 @@ fn load_and_apply_exemptions(
             suppressed: 0,
             overridden: 0,
             audit: 0,
-            unsuppressed_drift: drift_diagnostics,
+            unsuppressed_trace: trace_diag,
+            unsuppressed_spec: spec_diag,
+            unsuppressed_drift: drift_diag,
         });
     }
     let raw = std::fs::read_to_string(&p).map_err(|e| {
@@ -467,14 +717,38 @@ fn load_and_apply_exemptions(
     let codeowners = Codeowners::parse(&co_raw)
         .map_err(|e| GateError::new(rule_id::REGISTRY_MALFORMED, format!("CODEOWNERS: {e}")))?;
     let exempt_diagnostics = exempt_verify(&registry, now, &codeowners);
-    let applied = apply_exemptions(drift_diagnostics, &registry, now);
+
+    let mut suppressed = 0usize;
+    let mut overridden = 0usize;
+    let mut audit = 0usize;
+
+    let applied_trace = apply_exemptions(trace_diag, &registry, now);
+    suppressed += applied_trace.suppressed.len();
+    overridden += applied_trace.overridden.len();
+    audit += applied_trace.audit.len();
+    let trace_us = applied_trace.unsuppressed;
+
+    let applied_spec = apply_exemptions(spec_diag, &registry, now);
+    suppressed += applied_spec.suppressed.len();
+    overridden += applied_spec.overridden.len();
+    audit += applied_spec.audit.len();
+    let spec_us = applied_spec.unsuppressed;
+
+    let applied_drift = apply_exemptions(drift_diag, &registry, now);
+    suppressed += applied_drift.suppressed.len();
+    overridden += applied_drift.overridden.len();
+    audit += applied_drift.audit.len();
+    let drift_us = applied_drift.unsuppressed;
+
     Ok(ExemptionState {
         registry: Some(registry),
         diagnostics: exempt_diagnostics,
-        suppressed: applied.suppressed.len(),
-        overridden: applied.overridden.len(),
-        audit: applied.audit.len(),
-        unsuppressed_drift: applied.unsuppressed,
+        suppressed,
+        overridden,
+        audit,
+        unsuppressed_trace: trace_us,
+        unsuppressed_spec: spec_us,
+        unsuppressed_drift: drift_us,
     })
 }
 
@@ -504,5 +778,78 @@ mod tests {
         let bogus = std::path::PathBuf::from("/this/path/does/not/exist/anywhere");
         let err = compute(&bogus, Utc::now(), true).expect_err("must fail for missing repo");
         assert_eq!(err.rule_id, rule_id::REPO_UNREADABLE);
+    }
+
+    #[test]
+    fn compute_rejects_source_tree_without_git() {
+        let base = std::env::temp_dir().join(format!(
+            "chassis-gate-no-git-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&base).unwrap();
+        let err = compute(&base, Utc::now(), true).expect_err("must require git metadata");
+        assert_eq!(err.rule_id, rule_id::GIT_METADATA_REQUIRED);
+        assert!(
+            err.message.contains("`.git`") && err.message.contains("archive"),
+            "message should name missing git metadata / archive case: {}",
+            err.message
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn validate_repo_contracts_passes_for_self_repo() {
+        let report = validate_repo_contracts(&repo_root()).expect("validate self repo");
+        assert!(
+            !report.has_invalid(),
+            "self-repo contracts must validate clean: {report:?}"
+        );
+        assert!(report.checked >= 1, "expected at least one CONTRACT.yaml");
+        assert_eq!(report.invalid, 0);
+        assert_eq!(report.valid, report.checked);
+    }
+
+    #[test]
+    fn compute_fails_closed_when_a_contract_is_invalid() {
+        // Build a tiny git repo with a malformed CONTRACT.yaml at the root
+        // (missing `kind` and most required fields). The preflight must
+        // short-circuit with `CONTRACT_INVALID` before trace/drift run; the
+        // returned error must carry the structured ContractReport so the CLI
+        // and JSON-RPC surfaces can render the same `contract_validation`
+        // payload from one source of truth.
+        let base = std::env::temp_dir().join(format!(
+            "chassis-gate-bad-contract-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("CONTRACT.yaml"), "name: broken\nkind: library\n").unwrap();
+        let _ = git2::Repository::init(&base).unwrap();
+        // Init enough git state for `require_git_worktree` (HEAD readable).
+        let repo = git2::Repository::open(&base).unwrap();
+        let mut idx = repo.index().unwrap();
+        idx.add_path(std::path::Path::new("CONTRACT.yaml")).unwrap();
+        idx.write().unwrap();
+        let tree_id = idx.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let sig = git2::Signature::now("test", "test@example.com").unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .unwrap();
+
+        let err = compute(&base, Utc::now(), true).expect_err("invalid contract must fail closed");
+        assert_eq!(err.rule_id, rule_id::CONTRACT_INVALID);
+        let report = err
+            .contract_report
+            .as_ref()
+            .expect("CONTRACT_INVALID must carry the structured report");
+        assert!(report.has_invalid());
+        assert_eq!(report.invalid, 1);
+        assert_eq!(report.errors[0].code, CH_RUST_METADATA_CONTRACT);
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

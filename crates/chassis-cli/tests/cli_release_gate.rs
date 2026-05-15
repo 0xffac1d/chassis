@@ -59,6 +59,51 @@ fn edge_is_true() { assert!(edge()); }
     dir
 }
 
+fn source_archive_like_repo() -> TempDir {
+    let dir = TempDir::new().unwrap();
+    write(dir.path(), "CONTRACT.yaml", VALID_LIBRARY_YAML);
+    write(
+        dir.path(),
+        "crates/demo/src/lib.rs",
+        r#"
+// @claim cli.tests.alpha
+pub fn alpha() -> bool { true }
+
+#[test]
+// @claim cli.tests.alpha
+fn alpha_is_true() { assert!(alpha()); }
+"#,
+    );
+    dir
+}
+
+#[test]
+fn release_gate_requires_git_metadata_not_plain_source_extract() {
+    let dir = source_archive_like_repo();
+
+    let assert = chassis()
+        .args(["--json", "release-gate", "--fail-on-drift", "--repo"])
+        .arg(dir.path())
+        .assert()
+        .code(exit::INTERNAL);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("error JSON");
+    assert_eq!(v["ok"], false);
+    let msg = v["error"]["message"].as_str().expect("message string");
+    assert!(
+        msg.contains("CH-GATE-GIT-METADATA-REQUIRED"),
+        "expected stable rule id in message: {msg}"
+    );
+    assert!(
+        msg.contains("`.git`") || msg.contains(".git"),
+        "expected mention of .git / metadata: {msg}"
+    );
+    assert!(
+        !dir.path().join("dist/release-gate.json").exists(),
+        "must not write predicate when gate prerequisites are missing"
+    );
+}
+
 #[test]
 fn release_gate_happy_path_outputs_end_to_end_summary() {
     let dir = traced_repo();
@@ -92,7 +137,7 @@ fn release_gate_happy_path_outputs_end_to_end_summary() {
     assert_eq!(v["trace_summary"]["missing_tests"], 0);
     assert_eq!(v["drift_summary"]["missing"], 0);
 
-    let artifact_path = dir.path().join("release-gate.json");
+    let artifact_path = dir.path().join("dist/release-gate.json");
     assert!(artifact_path.is_file());
     let predicate: Value =
         serde_json::from_str(&std::fs::read_to_string(&artifact_path).unwrap()).unwrap();
@@ -232,7 +277,7 @@ fn release_gate_attest_with_no_key_fails_closed() {
     assert_eq!(v["error"]["code"], "CH-ATTEST-KEY-MISSING");
 
     // No DSSE envelope was written — the gate cannot lie about being signed.
-    assert!(!dir.path().join("release-gate.dsse").exists());
+    assert!(!dir.path().join("dist/release-gate.dsse").exists());
 }
 
 #[test]
@@ -345,7 +390,7 @@ fn release_gate_attestation_verify_passes_for_correct_key() {
         .assert()
         .code(exit::OK);
 
-    let dsse_path = dir.path().join("release-gate.dsse");
+    let dsse_path = dir.path().join("dist/release-gate.dsse");
     chassis()
         .args(["--json", "attest", "verify"])
         .arg(&dsse_path)
@@ -374,7 +419,7 @@ fn release_gate_attestation_tamper_fails_verify() {
         .assert()
         .code(exit::OK);
 
-    let dsse_path = dir.path().join("release-gate.dsse");
+    let dsse_path = dir.path().join("dist/release-gate.dsse");
     let mut env: Value =
         serde_json::from_str(&std::fs::read_to_string(&dsse_path).unwrap()).expect("DSSE JSON");
     env["payload"] = Value::String(B64.encode(br#"{"tampered":true}"#));
@@ -411,7 +456,7 @@ fn release_gate_signed_predicate_validates_against_schema() {
         .code(exit::OK);
     let cli: Value = serde_json::from_str(&stdout(&assert)).expect("CLI JSON");
 
-    let dsse_path = dir.path().join("release-gate.dsse");
+    let dsse_path = dir.path().join("dist/release-gate.dsse");
     let predicate = predicate_from_dsse(&dsse_path);
     validate_release_gate_value(&predicate).expect("signed predicate matches schema");
 
@@ -456,7 +501,7 @@ fn release_gate_signed_predicate_carries_blocking_reasons_when_failing() {
     let cli: Value = serde_json::from_str(&stdout(&assert)).expect("CLI JSON");
     assert_eq!(cli["verdict"], "fail");
 
-    let predicate = predicate_from_dsse(&dir.path().join("release-gate.dsse"));
+    let predicate = predicate_from_dsse(&dir.path().join("dist/release-gate.dsse"));
     validate_release_gate_value(&predicate).expect("signed predicate matches schema");
     assert_eq!(predicate["verdict"], "fail");
     let trace_failed = predicate["trace_failed"].as_bool().unwrap();
@@ -502,7 +547,7 @@ fn release_gate_final_exit_code_matches_process_exit_code() {
 
         if case.emits_predicate {
             let predicate: Value = serde_json::from_str(
-                &std::fs::read_to_string(dir.path().join("release-gate.json")).unwrap(),
+                &std::fs::read_to_string(dir.path().join("dist/release-gate.json")).unwrap(),
             )
             .unwrap();
             validate_release_gate_value(&predicate).expect("on-disk predicate matches schema");
@@ -682,7 +727,7 @@ fn t2() {}
     );
 
     let predicate: Value = serde_json::from_str(
-        &std::fs::read_to_string(dir.path().join("release-gate.json")).unwrap(),
+        &std::fs::read_to_string(dir.path().join("dist/release-gate.json")).unwrap(),
     )
     .unwrap();
     validate_release_gate_value(&predicate).expect("predicate matches schema");
@@ -764,7 +809,7 @@ fn t2() {}
     );
 
     let predicate: Value = serde_json::from_str(
-        &std::fs::read_to_string(dir.path().join("release-gate.json")).unwrap(),
+        &std::fs::read_to_string(dir.path().join("dist/release-gate.json")).unwrap(),
     )
     .unwrap();
     validate_release_gate_value(&predicate).expect("predicate matches schema");
@@ -811,12 +856,85 @@ fn t2() {}
     assert_eq!(v["spec_link_failed"], true);
     assert_eq!(v["final_exit_code"], exit::VALIDATE_FAILED);
 
-    let predicate: Value =
-        serde_json::from_str(&fs::read_to_string(dir.path().join("release-gate.json")).unwrap())
-            .unwrap();
+    let predicate: Value = serde_json::from_str(
+        &fs::read_to_string(dir.path().join("dist/release-gate.json")).unwrap(),
+    )
+    .unwrap();
     validate_release_gate_value(&predicate).expect("predicate matches schema");
     assert_eq!(predicate["spec_failed"], true);
     assert_eq!(predicate["spec_index_present"], true);
     assert!(predicate["spec_error_count"].as_u64().unwrap() >= 1);
     assert_eq!(predicate["final_exit_code"], exit::VALIDATE_FAILED);
+}
+
+/// Spec-index linkage diagnostics participate in exemption application (same registry pass as drift).
+#[test]
+fn release_gate_suppresses_spec_link_errors_when_exemption_matches() {
+    let dir = TempDir::new().unwrap();
+    write(dir.path(), "CONTRACT.yaml", VALID_LIBRARY_YAML);
+    write(
+        dir.path(),
+        "crates/demo/src/lib.rs",
+        r#"
+// @claim cli.tests.alpha
+pub fn alpha() {}
+// @claim cli.tests.edge.one
+pub fn edge() {}
+#[test]
+// @claim cli.tests.alpha
+fn t1() {}
+#[test]
+// @claim cli.tests.edge.one
+fn t2() {}
+"#,
+    );
+    fs::create_dir_all(dir.path().join("artifacts")).unwrap();
+    write(
+        dir.path(),
+        "artifacts/spec-index.json",
+        include_str!("fixtures/spec_index_bad_unknown_claim.json"),
+    );
+    write(dir.path(), "CODEOWNERS", "* @platform-team\n");
+    write(
+        dir.path(),
+        ".chassis/exemptions.yaml",
+        r#"version: 2
+allow_global: true
+entries:
+  - id: EX-2026-0201
+    rule_id: CH-SPEC-UNKNOWN-CLAIM-REF
+    reason: "Fixture: suppress unknown claim linkage noise."
+    owner: platform-team@docs.invalid
+    created_at: "2026-05-01"
+    expires_at: "2026-07-30"
+    path: "**"
+    allow_global: true
+    status: active
+    codeowner_acknowledgments:
+      - "@platform-team"
+"#,
+    );
+    git_init_with_initial_commit(dir.path());
+
+    let assert = chassis()
+        .args(["--json", "release-gate", "--fail-on-drift", "--repo"])
+        .arg(dir.path())
+        .assert()
+        .code(exit::OK);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON envelope");
+    assert_eq!(v["spec_link_failed"], false);
+    assert_eq!(v["verdict"], "pass");
+    assert!(
+        v["suppressed"].as_u64().unwrap() >= 1,
+        "spec linkage diagnostic must increment suppressed counter: {v}"
+    );
+
+    let predicate: Value = serde_json::from_str(
+        &fs::read_to_string(dir.path().join("dist/release-gate.json")).unwrap(),
+    )
+    .unwrap();
+    validate_release_gate_value(&predicate).expect("predicate matches schema");
+    assert_eq!(predicate["spec_failed"], false);
+    assert_eq!(predicate["spec_error_count"], 0);
 }

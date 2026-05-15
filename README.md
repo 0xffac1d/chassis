@@ -19,21 +19,56 @@ All canonical schemas under `schemas/` resolve locally; happy-path and adversari
 
 ## Golden path
 
-Self-attestation against this repository (run by `scripts/self-attest.sh` and CI):
+The end-to-end bundled verifier is `chassis release-gate`. It runs the
+canonical-schema preflight on every `CONTRACT.yaml`, builds the trace graph,
+computes drift, applies the exemption registry across trace/spec/drift, links
+`artifacts/spec-index.json` if present, and (optionally) signs a DSSE-wrapped
+in-toto release-gate predicate. Both the CLI and the JSON-RPC `release_gate`
+method return the same predicate shape (`schemas/release-gate.schema.json`) and
+the same blocking-axis fields, so an agent and a human see identical verdicts.
 
 ```bash
-chassis validate CONTRACT.yaml
-chassis trace --json > trace.json
-chassis drift --json > drift.json
-chassis attest sign --private-key .chassis/keys/release.priv --out release-gate.dsse
-chassis attest verify --public-key .chassis/keys/release.pub release-gate.dsse
+# release-grade signing key (gitignored)
+mkdir -p .chassis/keys
+# bundled verifier — writes dist/release-gate.json and dist/release-gate.dsse
+chassis release-gate \
+    --fail-on-drift \
+    --attest \
+    --private-key .chassis/keys/release.priv
+
+# verify the signed envelope
+chassis attest verify dist/release-gate.dsse \
+    --public-key .chassis/keys/release.pub
 ```
 
-`chassis release-gate` bundles validate + trace + drift + exemption + optional
-`artifacts/spec-index.json` linkage + (optional) attestation into one invocation
-when you want a single pass/fail verdict; the signed predicate records digest,
-`spec_failed`, and `spec_error_count` alongside the trace/drift/exemption axes.
-The steps above are the granular form.
+The granular primitive form — useful for CI or for embedding into another
+pipeline — is what `scripts/self-attest.sh` runs to confirm each layer
+in isolation before re-running the bundled command:
+
+```bash
+mkdir -p self-attest-artifacts
+chassis trace --json > self-attest-artifacts/trace-graph.json
+chassis drift --json > self-attest-artifacts/drift-report.json
+chassis attest sign \
+    --private-key .chassis/keys/release.priv \
+    --out self-attest-artifacts/release-gate.dsse
+chassis attest verify self-attest-artifacts/release-gate.dsse \
+    --public-key .chassis/keys/release.pub
+```
+
+Both paths produce a `schemas/release-gate.schema.json`-conformant predicate
+that records `schema_fingerprint`, `git_commit`, `verdict`, per-axis blocking
+flags (`trace_failed`, `drift_failed`, `exemption_failed`, `attestation_failed`,
+`spec_failed`), `unsuppressed_blocking`, `suppressed`, `severity_overridden`,
+`final_exit_code`, and the `commands_run` log.
+
+**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (tarballs/zips without `.git`) are **not** release-gate runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`.
+
+**Default artifact paths.** Without `--out` / `--attest-out`, the CLI writes
+predicates and DSSE envelopes under `<repo>/dist/` (gitignored). The root-level
+filenames `release-gate.json` and `release-gate.dsse` are reserved for explicit
+overrides and remain in `.gitignore` so generated outputs cannot dirty the
+working tree.
 
 ### Release-grade attestation key policy
 

@@ -14,4 +14,11 @@ dist/
 .chassis/keys/*.priv
 .chassis/cache/
 
+/release-gate.json
 /release-gate.dsse
+
+# Local self-attest pipeline output (`scripts/self-attest.sh`); CI uploads it
+# as a build artifact, but local runs must not dirty the working tree.
+/self-attest-artifacts/
+**/.ephemeral.pub
+*.dsse.ephemeral.pub

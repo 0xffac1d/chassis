@@ -12,7 +12,7 @@
       "acceptance_criteria": ["a"],
       "claim_ids": ["this.claim.does.not.exist"],
       "related_task_ids": ["TASK-001"],
-      "touched_paths": ["crates/demo/src/lib.rs"]
+      "touched_paths": []
     }
   ],
   "tasks": [
@@ -20,7 +20,7 @@
       "id": "TASK-001",
       "title": "t",
       "depends_on": [],
-      "touched_paths": ["crates/demo/src/lib.rs"]
+      "touched_paths": []
     }
   ],
   "implementation_constraints": []

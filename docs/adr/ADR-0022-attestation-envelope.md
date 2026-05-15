@@ -19,6 +19,12 @@ enforces:
     description: "DSSE envelope does not conform to schemas/dsse-envelope.schema.json (sign or verify side)."
   - rule: CH-GATE-REPO-UNREADABLE
     description: "Release-gate input root is missing or not a directory; no trace graph can be built."
+  - rule: CH-GATE-GIT-METADATA-REQUIRED
+    description: "`release-gate` was run on a tree without Git checkout metadata (e.g. an extracted source archive): drift and `git_commit` require `.git` + `HEAD`."
+  - rule: CH-GATE-CONTRACT-INVALID
+    description: "Release-gate preflight rejected at least one CONTRACT.yaml that did not satisfy schemas/contract.schema.json. Surfaced identically by the CLI envelope and the JSON-RPC `release_gate` error so both surfaces fail closed before trace/drift/exempt run. Not exemption-applicable."
+  - rule: CH-GATE-CONTRACT-MALFORMED
+    description: "A CONTRACT.yaml file could not be read or YAML-parsed during release-gate preflight (filesystem error or malformed YAML before schema validation)."
   - rule: CH-GATE-SUBSYSTEM-FAILURE
     description: "Trace, drift, or git inspection failed below the release gate."
   - rule: CH-GATE-REGISTRY-MALFORMED

@@ -258,7 +258,14 @@ jobs:
         with:
           version: v1.16.2
 
-      - name: Policy gate (export + opa test + eval)
+      # `policy-gate.sh` falls back to a hand-rolled shape check when
+      # python's `jsonschema` is missing, but pinning it gives us full
+      # draft-2020-12 validation of `policy-input.json` against
+      # `schemas/opa-input.schema.json` before `opa eval --schema`.
+      - name: Install python jsonschema
+        run: python3 -m pip install --upgrade --user jsonschema
+
+      - name: Policy gate (export + shape check + opa test + eval)
         run: ./scripts/policy-gate.sh "$GITHUB_WORKSPACE"
 
       - name: Upload policy-gate artifacts
@@ -268,3 +275,26 @@ jobs:
           name: policy-gate-artifacts
           path: policy-gate-artifacts/
           if-no-files-found: warn
+
+  dependency-review:
+    name: Dependency review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # GitHub-native supply-chain check that complements the Rust
+      # `cargo audit` / `cargo deny` pipeline by inspecting added or
+      # changed dependencies in the PR diff (npm, GitHub Actions, etc.).
+      # Fails the PR if a dep introduces a known vulnerability or a
+      # disallowed license. Rust crates are still primarily covered by
+      # the `supply-chain` job above; this is parity for the Node
+      # surface in `packages/chassis-types/` and any new GitHub Action.
+      - name: Dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure

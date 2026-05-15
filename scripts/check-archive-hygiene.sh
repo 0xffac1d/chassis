@@ -23,8 +23,8 @@
 #     anywhere in tracked files, EXCEPT under reference/** which is
 #     documented in ADR-0025 as the snapshot zone where the prior
 #     project's literal paths are preserved on purpose. The hygiene
-#     script itself and the policy ADR are also exempt because they
-#     must mention the literal pattern in order to detect it.
+#     script itself, `scripts/docs-lint.sh`, and the supply-chain ADR are also
+#     exempt because they must embed or cite the literal pattern to enforce it.
 #
 # Exit code: 0 on clean, 1 on first violation (with diagnostic output).
 
@@ -123,8 +123,9 @@ done < <(find "$scan_dir" -type f -name '*.pyc' -print0 2>/dev/null)
 # 2. Stale developer-machine paths in tracked file content
 # ---------------------------------------------------------------------------
 # Allow the entire reference/ tree (snapshot zone, see ADR-0025), the hygiene
-# script itself, and the supply-chain ADR (both must mention the pattern in
-# order to detect it).
+# script itself, `scripts/docs-lint.sh` (it embeds the same detector regex in its
+# active-docs forbidden-pattern table), and the supply-chain ADR (both must
+# mention the pattern in order to detect it).
 # Use grep -P for fixed-string alternation; fall back to extended regex for
 # portability when -P is unavailable.
 PATTERN='/mnt/C/(0xffac1d/)?chassis'
@@ -140,6 +141,7 @@ mapfile -t hits < <(
         --exclude-dir=__pycache__ \
         --exclude-dir=reference \
         --exclude=check-archive-hygiene.sh \
+        --exclude=docs-lint.sh \
         --exclude=ADR-0025-supply-chain-policy.md \
         2>/dev/null \
         || true

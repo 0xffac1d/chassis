@@ -143,6 +143,16 @@ pub struct EventCatalogMetadata {
     pub metadata: Value,
 }
 
+/// Build the canonical Chassis policy-input fact bundle.
+///
+/// **Exemption parity with the release gate:** when `exemptions.registry` is
+/// present, the registry is applied to the trace, drift, and spec-link
+/// diagnostic buckets the same way `chassis_core::gate::compute` applies it
+/// — so OPA, Cedar, and any other consumer reading
+/// `chassis export --format opa` cannot see (or deny on) a finding that
+/// release-gate has already suppressed. Exemption *verifier* diagnostics
+/// (registry shape errors) are passed through verbatim because they remain
+/// fail-closed governance evidence and are never themselves suppressible.
 #[allow(clippy::too_many_arguments)]
 pub fn build_policy_input(
     repo: RepoFacts,
@@ -152,13 +162,60 @@ pub fn build_policy_input(
     drift_diagnostics: Vec<Diagnostic>,
     exemptions: ExemptionFacts,
     spec_kit: Option<SpecKitExtension>,
-    mut spec_link_diagnostics: Vec<Diagnostic>,
+    spec_link_diagnostics: Vec<Diagnostic>,
 ) -> PolicyInput {
+    build_policy_input_at(
+        repo,
+        contracts,
+        trace,
+        drift_summary,
+        drift_diagnostics,
+        exemptions,
+        spec_kit,
+        spec_link_diagnostics,
+        chrono::Utc::now(),
+    )
+}
+
+/// Same as [`build_policy_input`] but takes an explicit `now` so deterministic
+/// callers (tests, CI) can pin exemption window semantics.
+#[allow(clippy::too_many_arguments)]
+pub fn build_policy_input_at(
+    repo: RepoFacts,
+    contracts: Vec<ContractFact>,
+    trace: &TraceGraph,
+    drift_summary: DriftSummaryCounts,
+    drift_diagnostics: Vec<Diagnostic>,
+    exemptions: ExemptionFacts,
+    spec_kit: Option<SpecKitExtension>,
+    spec_link_diagnostics: Vec<Diagnostic>,
+    now: chrono::DateTime<chrono::Utc>,
+) -> PolicyInput {
+    let trace_diag = trace.diagnostics.clone();
+    let mut audit_diagnostics: Vec<Diagnostic> = Vec::new();
+
+    let (trace_us, drift_us, spec_us) = if let Some(reg) = exemptions.registry.as_ref() {
+        // Each bucket is filtered independently — same shape as gate.rs so
+        // that suppressed/overridden counts add up identically.
+        let t = crate::exempt::apply::apply_exemptions(trace_diag, reg, now);
+        let d = crate::exempt::apply::apply_exemptions(drift_diagnostics, reg, now);
+        let s = crate::exempt::apply::apply_exemptions(spec_link_diagnostics, reg, now);
+        audit_diagnostics.extend(t.audit);
+        audit_diagnostics.extend(d.audit);
+        audit_diagnostics.extend(s.audit);
+        (t.unsuppressed, d.unsuppressed, s.unsuppressed)
+    } else {
+        (trace_diag, drift_diagnostics, spec_link_diagnostics)
+    };
+
     let mut diagnostics = Vec::new();
-    diagnostics.extend(trace.diagnostics.clone());
-    diagnostics.extend(drift_diagnostics);
+    diagnostics.extend(trace_us);
+    diagnostics.extend(drift_us);
     diagnostics.extend(exemptions.diagnostics.clone());
-    diagnostics.append(&mut spec_link_diagnostics);
+    diagnostics.extend(spec_us);
+    // Audit info diagnostics are non-blocking and let policy / agents see
+    // the suppression actions chassis took on this run.
+    diagnostics.extend(audit_diagnostics);
 
     PolicyInput {
         version: 1,
@@ -460,6 +517,146 @@ mod tests {
         let v = serde_json::to_value(opa_input(sample_input())).unwrap();
         validate_opa_input_value(&v).expect("schema-valid OPA input");
         assert!(v.get("input").is_some());
+    }
+
+    #[test]
+    // @claim chassis.exports-not-policy-engines
+    fn build_policy_input_applies_registry_exemptions_to_trace_drift_spec() {
+        // Exemption registry that suppresses CH-DRIFT-IMPL-MISSING and
+        // downgrades a fictional CH-TRACE-* rule. Build a policy input that
+        // would otherwise carry blocking error diagnostics; confirm the
+        // exemption pass mirrors gate semantics:
+        //   - error-severity drift finding -> suppressed
+        //   - error-severity trace finding -> downgraded to info
+        //   - exemption verifier diagnostic -> passed through verbatim
+        use crate::diagnostic::{Severity, Violated};
+        use crate::exempt::{Exemption, ExemptionStatus, Registry};
+        use chrono::TimeZone;
+
+        let now = chrono::Utc.with_ymd_and_hms(2026, 5, 15, 0, 0, 0).unwrap();
+        let drift_diag = Diagnostic {
+            rule_id: "CH-DRIFT-IMPL-MISSING".into(),
+            severity: Severity::Error,
+            message: "missing impl for events.published".into(),
+            source: Some("drift".into()),
+            subject: Some("events.published".into()),
+            violated: Some(Violated {
+                convention: "ADR-0024".into(),
+            }),
+            docs: None,
+            fix: None,
+            location: None,
+            detail: None,
+        };
+        let trace_diag = Diagnostic {
+            rule_id: "CH-TRACE-CLAIM-NOT-IN-CONTRACT".into(),
+            severity: Severity::Error,
+            message: "orphan claim".into(),
+            source: Some("trace".into()),
+            subject: Some("orphan.id".into()),
+            violated: Some(Violated {
+                convention: "ADR-0023".into(),
+            }),
+            docs: None,
+            fix: None,
+            location: None,
+            detail: None,
+        };
+
+        let suppress = Exemption {
+            id: "EX-2026-0001".into(),
+            rule_id: Some("CH-DRIFT-IMPL-MISSING".into()),
+            finding_id: None,
+            paths: vec!["**".into()],
+            status: ExemptionStatus::Active,
+            allow_global: Some(true),
+            severity_override: None,
+            created_at: chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(),
+            expires_at: chrono::NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            owner: "platform".into(),
+            reason: "fixture".into(),
+            codeowner_acknowledgments: vec!["@platform".into()],
+            linked_issue: None,
+            adr: None,
+        };
+        let downgrade = Exemption {
+            id: "EX-2026-0002".into(),
+            rule_id: Some("CH-TRACE-CLAIM-NOT-IN-CONTRACT".into()),
+            finding_id: None,
+            paths: vec!["**".into()],
+            status: ExemptionStatus::Active,
+            allow_global: Some(true),
+            severity_override: Some(Severity::Info),
+            created_at: chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(),
+            expires_at: chrono::NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
+            owner: "platform".into(),
+            reason: "fixture".into(),
+            codeowner_acknowledgments: vec!["@platform".into()],
+            linked_issue: None,
+            adr: None,
+        };
+        let registry = Registry {
+            version: 2,
+            entries: vec![suppress, downgrade],
+            quota: None,
+            allow_global: Some(true),
+        };
+
+        let mut sample = sample_input();
+        let trace = TraceGraph {
+            claims: Default::default(),
+            orphan_sites: vec![],
+            diagnostics: vec![trace_diag.clone()],
+        };
+        sample = build_policy_input_at(
+            sample.repo.clone(),
+            sample.contracts.clone(),
+            &trace,
+            DriftSummaryCounts {
+                stale: 0,
+                abandoned: 0,
+                missing: 0,
+            },
+            vec![drift_diag.clone()],
+            ExemptionFacts {
+                registry: Some(registry),
+                diagnostics: vec![],
+            },
+            None,
+            vec![],
+            now,
+        );
+
+        let v = serde_json::to_value(&sample).unwrap();
+        validate_policy_input_value(&v).expect("schema-valid post-exemption policy input");
+
+        let drift_present = sample
+            .diagnostics
+            .iter()
+            .any(|d| d.rule_id == "CH-DRIFT-IMPL-MISSING");
+        let trace_present = sample
+            .diagnostics
+            .iter()
+            .find(|d| d.rule_id == "CH-TRACE-CLAIM-NOT-IN-CONTRACT");
+        assert!(
+            !drift_present,
+            "drift error must be suppressed in the merged diagnostics list"
+        );
+        let trace_after = trace_present.expect("trace diagnostic still surfaces");
+        assert_eq!(
+            trace_after.severity,
+            Severity::Info,
+            "trace severity must be downgraded by registry override"
+        );
+        let audit_count = sample
+            .diagnostics
+            .iter()
+            .filter(|d| d.rule_id == "CH-EXEMPT-APPLIED")
+            .count();
+        assert!(
+            audit_count >= 2,
+            "audit info diagnostics must accompany suppress + override actions"
+        );
     }
 
     #[test]

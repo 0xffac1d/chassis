@@ -88,4 +88,27 @@ PY
 
 cargo run -p chassis-core --example validate_artifact --quiet -- release-gate "$PREDICATE_OUT"
 
+# Bundled-pipeline proof: the same `chassis release-gate --attest` command
+# end users invoke must succeed end-to-end against this repo's checkout. We
+# run it here as a defense-in-depth check on top of the trace + drift +
+# attest primitive flow above. Output goes to a distinct subdir so it does
+# not clobber the per-step artifacts the rest of the script already
+# validated.
+BUNDLED_DIR="$ARTIFACT_DIR/release-gate"
+mkdir -p "$BUNDLED_DIR"
+cargo run -p chassis-cli --quiet -- \
+    release-gate \
+    --repo "$ROOT" \
+    --fail-on-drift \
+    --attest \
+    --private-key "$TMP/priv.hex" \
+    --out "$BUNDLED_DIR/release-gate.json" \
+    --attest-out "$BUNDLED_DIR/release-gate.dsse" \
+    --json >"$BUNDLED_DIR/release-gate.summary.json"
+
+cargo run -p chassis-core --example validate_artifact --quiet -- \
+    release-gate "$BUNDLED_DIR/release-gate.json"
+cargo run -p chassis-core --example validate_artifact --quiet -- \
+    dsse-envelope "$BUNDLED_DIR/release-gate.dsse"
+
 echo "self-attest: OK"
