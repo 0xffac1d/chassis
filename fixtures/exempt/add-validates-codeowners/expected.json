@@ -1,0 +1,4 @@
+{
+  "outcome": "error",
+  "ruleIds": ["CH-EXEMPT-MISSING-CODEOWNERS"]
+}

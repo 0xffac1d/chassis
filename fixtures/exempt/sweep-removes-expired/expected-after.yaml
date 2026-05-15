@@ -1,0 +1,10 @@
+version: 2
+entries:
+  - id: EX-2026-0002
+    rule_id: CH-DIFF-OWNER-CHANGED
+    reason: "Still-active entry that the sweeper must leave in place during the Wave 2 pass."
+    owner: platform-team@docs.invalid
+    created_at: "2026-04-01"
+    expires_at: "2026-06-30"
+    path:
+      - crates/bar/src/lib.rs

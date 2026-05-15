@@ -1,0 +1,13 @@
+# Intentionally bypasses schema (path is required by JSON schema). This fixture
+# exercises the Rust-side CH-EXEMPT-PATHS-EMPTY check that fires when a registry
+# is constructed in memory with an empty paths vector — e.g. via the typed API
+# bypassing the schema-fronted YAML loader.
+version: 2
+entries:
+  - id: EX-2026-0001
+    rule_id: CH-DIFF-CLAIM-REMOVED
+    reason: "Edge-case fixture covering empty paths after in-memory construction; CHASSIS-203."
+    owner: platform-team@docs.invalid
+    created_at: "2026-04-01"
+    expires_at: "2026-06-30"
+    path: []

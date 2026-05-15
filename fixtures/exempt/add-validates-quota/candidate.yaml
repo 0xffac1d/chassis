@@ -1,0 +1,7 @@
+id: EX-2026-0099
+rule_id: CH-DIFF-CLAIM-REMOVED
+reason: "Twenty-sixth candidate exemption that should be rejected by ADR-0004 quota cap."
+owner: platform-team@docs.invalid
+created_at: "2026-04-01"
+expires_at: "2026-06-30"
+path: crates/extra/src/lib.rs
