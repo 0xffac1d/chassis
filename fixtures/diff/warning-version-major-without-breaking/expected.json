@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-VERSION-MAJOR-WITHOUT-BREAKING": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-VERSION-MAJOR-WITHOUT-BREAKING",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.version"
+    }
+  ],
+  "strict_rule_id_set": true
+}

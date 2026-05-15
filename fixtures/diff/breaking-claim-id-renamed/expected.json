@@ -1,0 +1,23 @@
+{
+  "_note": "Per stub ADR-0019, CH-DIFF-CLAIM-ID-CHANGED is decomposed into REMOVED + ADDED rather than emitted as a distinct rule. Old id 'fixture.old-id' surfaces as removed; new id 'fixture.new-id' surfaces as added.",
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-CLAIM-REMOVED": 1,
+    "CH-DIFF-CLAIM-ADDED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-CLAIM-REMOVED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.invariants.fixture.old-id"
+    },
+    {
+      "ruleId": "CH-DIFF-CLAIM-ADDED",
+      "severity": "info",
+      "classification": "additive",
+      "subject": "contract<diff-fixture>.invariants.fixture.new-id"
+    }
+  ],
+  "strict_rule_id_set": true
+}

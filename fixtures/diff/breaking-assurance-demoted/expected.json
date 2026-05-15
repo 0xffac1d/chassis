@@ -1,0 +1,15 @@
+{
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-ASSURANCE-DEMOTED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-ASSURANCE-DEMOTED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.assurance_level"
+    }
+  ],
+  "strict_rule_id_set": true
+}

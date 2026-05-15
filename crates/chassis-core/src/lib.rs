@@ -7,6 +7,7 @@ pub mod authority_index;
 pub mod coherence_report;
 pub mod contract;
 pub mod diagnostic;
+pub mod diff;
 pub mod exemption;
 pub mod field_definition;
 pub mod tag_ontology;

@@ -1,0 +1,21 @@
+{
+  "has_breaking": true,
+  "rule_id_counts": {
+    "CH-DIFF-CLAIM-REMOVED": 1,
+    "CH-DIFF-VERSION-BREAKING-WITHOUT-MAJOR": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-VERSION-BREAKING-WITHOUT-MAJOR",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.version"
+    },
+    {
+      "ruleId": "CH-DIFF-CLAIM-REMOVED",
+      "severity": "error",
+      "classification": "breaking",
+      "subject": "contract<diff-fixture>.invariants.fixture.two"
+    }
+  ]
+}

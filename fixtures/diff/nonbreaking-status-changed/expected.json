@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-STATUS-CHANGED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-STATUS-CHANGED",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.status"
+    }
+  ],
+  "strict_rule_id_set": true
+}

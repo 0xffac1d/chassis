@@ -1,0 +1,15 @@
+{
+  "has_breaking": false,
+  "rule_id_counts": {
+    "CH-DIFF-OWNER-CHANGED": 1
+  },
+  "findings": [
+    {
+      "ruleId": "CH-DIFF-OWNER-CHANGED",
+      "severity": "warning",
+      "classification": "non-breaking",
+      "subject": "contract<diff-fixture>.owner"
+    }
+  ],
+  "strict_rule_id_set": true
+}
