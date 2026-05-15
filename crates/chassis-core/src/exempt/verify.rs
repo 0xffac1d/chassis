@@ -9,8 +9,9 @@ use crate::diagnostic::Severity;
 
 use super::envelope::{diag, diag_with_detail};
 use super::{
-    id_matches_grammar, is_expired, lifetime_days, rule_id, Codeowners, Diagnostic, Registry,
-    MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
+    entry_is_quota_active, entry_violates_global_policy, id_matches_grammar,
+    is_entry_expired_audit, lifetime_days, rule_id, Codeowners, Diagnostic, ExemptionStatus,
+    Registry, MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
 };
 
 pub(crate) fn verify(
@@ -21,7 +22,6 @@ pub(crate) fn verify(
 ) -> Vec<Diagnostic> {
     let mut out: Vec<Diagnostic> = Vec::new();
 
-    // Duplicate-id sweep first; reporting once per duplicate id avoids spam.
     let mut seen: HashSet<&str> = HashSet::new();
     let mut dup_reported: HashSet<&str> = HashSet::new();
     for entry in &registry.entries {
@@ -45,6 +45,27 @@ pub(crate) fn verify(
             ));
         }
 
+        if !entry.has_rule_or_finding() {
+            out.push(diag(
+                rule_id::MISSING_RULE_OR_FINDING,
+                Severity::Error,
+                entry.id.clone(),
+                "entry requires non-empty `rule_id`, `finding_id`, or legacy `rule`",
+            ));
+        }
+
+        if matches!(entry.status, ExemptionStatus::Revoked) {
+            out.push(diag(
+                rule_id::REVOKED,
+                Severity::Info,
+                entry.id.clone(),
+                format!(
+                    "exemption `{}` is revoked and retained only as audit evidence",
+                    entry.id
+                ),
+            ));
+        }
+
         if entry.paths.is_empty() {
             out.push(diag(
                 rule_id::PATHS_EMPTY,
@@ -54,8 +75,17 @@ pub(crate) fn verify(
             ));
         }
 
+        if entry_violates_global_policy(entry, registry) {
+            out.push(diag(
+                rule_id::GLOBAL_WITHOUT_OPT_IN,
+                Severity::Error,
+                entry.id.clone(),
+                "wildcard or repo-root path requires registry.allow_global=true and entry.allow_global=true",
+            ));
+        }
+
         let lifetime = lifetime_days(entry.created_at, entry.expires_at);
-        if lifetime < 0 || lifetime > MAX_LIFETIME_DAYS {
+        if !(0..=MAX_LIFETIME_DAYS).contains(&lifetime) {
             out.push(diag_with_detail(
                 rule_id::LIFETIME_EXCEEDED,
                 Severity::Error,
@@ -73,7 +103,7 @@ pub(crate) fn verify(
             ));
         }
 
-        if is_expired(entry.expires_at, now) {
+        if is_entry_expired_audit(entry, now) {
             out.push(diag_with_detail(
                 rule_id::EXPIRED,
                 Severity::Error,
@@ -106,17 +136,16 @@ pub(crate) fn verify(
         }
 
         if let Some(known) = adr_rule_ids {
-            if !known.iter().any(|r| r == &entry.rule_id) {
-                out.push(diag_with_detail(
-                    rule_id::RULE_NOT_IN_ADR,
-                    Severity::Warning,
-                    entry.id.clone(),
-                    format!(
-                        "rule_id `{}` does not resolve to any ADR enforces[]",
-                        entry.rule_id
-                    ),
-                    json!({ "ruleId": entry.rule_id }),
-                ));
+            if let Some(ref rid) = entry.rule_id {
+                if !known.iter().any(|r| r == rid) {
+                    out.push(diag_with_detail(
+                        rule_id::RULE_NOT_IN_ADR,
+                        Severity::Warning,
+                        entry.id.clone(),
+                        format!("rule_id `{rid}` does not resolve to any ADR enforces[]"),
+                        json!({ "ruleId": rid }),
+                    ));
+                }
             }
         }
     }
@@ -146,6 +175,6 @@ fn active_count(registry: &Registry, now: DateTime<Utc>) -> usize {
     registry
         .entries
         .iter()
-        .filter(|e| e.created_at <= today && today <= e.expires_at)
+        .filter(|e| entry_is_quota_active(e, today))
         .count()
 }

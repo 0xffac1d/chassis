@@ -6,12 +6,12 @@ Staging map. Wave numbers advance when foundational contracts land; later waves 
 
 - Kind-discriminated `schemas/contract.schema.json` with semver metadata per ADR-0008.
 - ADRs 0002–0016 accepted.
-- Regenerated Rust + `@chassis/types` artifacts + schema fingerprint.
+- Regenerated Rust + `@chassis/core-types` artifacts + schema fingerprint.
 - Repository-root `CONTRACT.yaml` validating against the tightened schema.
 
 ## Wave 2 — Contract tooling ✅
 
-- ADR-0017 (Rust fingerprint port), ADR-0018 (diagnostic envelope).
+- ADR-0017 (Rust fingerprint port) — **`crates/chassis-core/src/fingerprint.rs`** (parity-tested against `packages/chassis-types/scripts/fingerprint-schemas.mjs`).
 - `crates/chassis-core/src/diff/` — contract-diff engine emitting `CH-DIFF-*` diagnostics (ADR-0019).
 - `crates/chassis-core/src/exempt/` — exemption registry + sweeper + CODEOWNERS resolver (ADR-0020).
 - 8 per-kind subschemas under `schemas/contract-kinds/`; `contract.schema.json` bumped to `3.0.0` (ADR-0021).

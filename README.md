@@ -6,9 +6,9 @@ Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit
 
 **Status: pre-alpha kernel.**
 
-- `crates/chassis-core/` — Rust types + JSON Schema validators. `cargo check` and `cargo test` pass (Rust ≥ 1.85).
-- `packages/chassis-types/` — TypeScript types generated from the 8 canonical JSON Schemas.
-- 8 canonical schemas under `schemas/` validate; `fixtures/happy-path/` validates against them.
+- `crates/chassis-core/` — Rust types + JSON Schema validators. `cargo check` and `cargo test` pass (Rust ≥ 1.86).
+- `packages/chassis-types/` (**npm `@chassis/core-types`**) — TypeScript types generated from **16 canonical JSON Schema modules** (8 root schemas plus 8 kind subschemas under `schemas/contract-kinds/`).
+- All canonical schemas under `schemas/` compile; happy-path/adversarial `CONTRACT.yaml` fixtures validate as documented in `fixtures/`.
 - No CLI binary yet; no MCP server yet; not yet published to crates.io or npm.
 
 See `CLAUDE.md` for the current state of the tree and the immediate next work.

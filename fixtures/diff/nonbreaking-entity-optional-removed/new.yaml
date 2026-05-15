@@ -1,0 +1,29 @@
+name: "entity-minimal"
+kind: entity
+version: "0.1.0"
+purpose: "Fixture for diff: optional kind-specific fields removed only."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+fields:
+  - name: "id"
+    type: "uuid"
+    nullable: false
+    indexed: true
+    description: "Primary key for the entity."
+  - name: "email"
+    type: "string"
+    nullable: false
+    indexed: true
+    description: "Login email."
+relationships:
+  - name: "primary_address"
+    kind: "one-to-one"
+    target: "Address"
+invariants:
+  - id: entity.optional.diff
+    text: "Preserves required fields arrays."
+edge_cases:
+  - id: entity.optional.diff-edge
+    text: "Removing optional slices only."

@@ -38,5 +38,9 @@ pub fn validate_common_field_definition(instance: &Value) -> Result<(), Vec<Stri
         .iter_errors(instance)
         .map(|e| e.to_string())
         .collect();
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

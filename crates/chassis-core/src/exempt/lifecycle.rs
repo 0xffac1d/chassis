@@ -7,8 +7,9 @@ use crate::diagnostic::Severity;
 
 use super::envelope::{diag, diag_with_detail};
 use super::{
-    id_matches_grammar, is_expired, lifetime_days, rule_id, Codeowners, Diagnostic, Exemption,
-    ListFilter, Registry, MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
+    entry_is_quota_active, entry_violates_global_policy, id_matches_grammar, is_expired,
+    lifetime_days, rule_id, Codeowners, Diagnostic, Exemption, ExemptionStatus, ListFilter,
+    Registry, MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
 };
 
 pub(crate) fn add(
@@ -38,6 +39,15 @@ pub(crate) fn add(
         ));
     }
 
+    if !entry.has_rule_or_finding() {
+        errors.push(diag(
+            rule_id::MISSING_RULE_OR_FINDING,
+            Severity::Error,
+            entry.id.clone(),
+            "each entry requires `rule_id`, `finding_id`, or legacy `rule`",
+        ));
+    }
+
     if entry.paths.is_empty() {
         errors.push(diag(
             rule_id::PATHS_EMPTY,
@@ -47,8 +57,17 @@ pub(crate) fn add(
         ));
     }
 
+    if entry_violates_global_policy(&entry, &registry) {
+        errors.push(diag(
+            rule_id::GLOBAL_WITHOUT_OPT_IN,
+            Severity::Error,
+            entry.id.clone(),
+            "wildcard or repo-root path requires registry.allow_global=true and entry.allow_global=true",
+        ));
+    }
+
     let lifetime = lifetime_days(entry.created_at, entry.expires_at);
-    if lifetime < 0 || lifetime > MAX_LIFETIME_DAYS {
+    if !(0..=MAX_LIFETIME_DAYS).contains(&lifetime) {
         errors.push(diag_with_detail(
             rule_id::LIFETIME_EXCEEDED,
             Severity::Error,
@@ -66,7 +85,7 @@ pub(crate) fn add(
         ));
     }
 
-    let active_after: usize = active_count(&registry, now) + 1;
+    let active_after: usize = active_count(&registry, now) + quota_weight_if_adding(&entry, now);
     if active_after > MAX_ACTIVE_ENTRIES {
         errors.push(diag_with_detail(
             rule_id::QUOTA_EXCEEDED,
@@ -103,17 +122,16 @@ pub(crate) fn add(
     }
 
     if let Some(known) = adr_rule_ids {
-        if !known.iter().any(|r| r == &entry.rule_id) {
-            errors.push(diag_with_detail(
-                rule_id::RULE_NOT_IN_ADR,
-                Severity::Warning,
-                entry.id.clone(),
-                format!(
-                    "rule_id `{}` does not resolve to any ADR enforces[]",
-                    entry.rule_id
-                ),
-                json!({ "ruleId": entry.rule_id }),
-            ));
+        if let Some(ref rid) = entry.rule_id {
+            if !known.iter().any(|r| r == rid) {
+                errors.push(diag_with_detail(
+                    rule_id::RULE_NOT_IN_ADR,
+                    Severity::Warning,
+                    entry.id.clone(),
+                    format!("rule_id `{rid}` does not resolve to any ADR enforces[]"),
+                    json!({ "ruleId": rid }),
+                ));
+            }
         }
     }
 
@@ -140,12 +158,15 @@ pub(crate) fn remove(mut registry: Registry, id: &str) -> Result<Registry, Diagn
     Ok(registry)
 }
 
-pub(crate) fn list<'a>(registry: &'a Registry, filter: ListFilter) -> Vec<&'a Exemption> {
+pub(crate) fn list(registry: &Registry, filter: ListFilter) -> Vec<&Exemption> {
     registry
         .entries
         .iter()
         .filter(|e| match &filter.rule_id {
-            Some(r) => &e.rule_id == r,
+            Some(r) => {
+                e.rule_id.as_deref() == Some(r.as_str())
+                    || e.finding_id.as_deref() == Some(r.as_str())
+            }
             None => true,
         })
         .filter(|e| match &filter.path {
@@ -153,31 +174,35 @@ pub(crate) fn list<'a>(registry: &'a Registry, filter: ListFilter) -> Vec<&'a Ex
             None => true,
         })
         .filter(|e| match filter.active_at {
-            Some(d) => e.created_at <= d && d <= e.expires_at,
+            Some(d) => {
+                e.status == ExemptionStatus::Active && e.created_at <= d && d <= e.expires_at
+            }
             None => true,
         })
         .collect()
 }
 
-pub(crate) fn sweep(
-    mut registry: Registry,
-    now: DateTime<Utc>,
-) -> (Registry, Vec<Diagnostic>) {
+pub(crate) fn sweep(mut registry: Registry, now: DateTime<Utc>) -> (Registry, Vec<Diagnostic>) {
     let mut removed: Vec<Diagnostic> = Vec::new();
     let mut kept: Vec<Exemption> = Vec::with_capacity(registry.entries.len());
     for entry in registry.entries.into_iter() {
-        if is_expired(entry.expires_at, now) {
+        let should_remove = match entry.status {
+            ExemptionStatus::Revoked => false,
+            ExemptionStatus::Expired => true,
+            ExemptionStatus::Active => is_expired(entry.expires_at, now),
+        };
+        if should_remove {
             removed.push(diag_with_detail(
                 rule_id::REMOVED_BY_SWEEPER,
                 Severity::Info,
                 entry.id.clone(),
                 format!(
-                    "removed expired exemption `{}` (expired {})",
+                    "removed expired exemption `{}` (expires {})",
                     entry.id, entry.expires_at
                 ),
                 json!({
                     "id": entry.id,
-                    "ruleId": entry.rule_id,
+                    "ruleId": entry.primary_rule_label(),
                     "expiresAt": entry.expires_at.to_string(),
                 }),
             ));
@@ -194,6 +219,16 @@ fn active_count(registry: &Registry, now: DateTime<Utc>) -> usize {
     registry
         .entries
         .iter()
-        .filter(|e| e.created_at <= today && today <= e.expires_at)
+        .filter(|e| entry_is_quota_active(e, today))
         .count()
+}
+
+/// New entry counts toward the quota cap only when it would be quota-active immediately.
+fn quota_weight_if_adding(entry: &Exemption, now: DateTime<Utc>) -> usize {
+    let today = now.date_naive();
+    if entry_is_quota_active(entry, today) {
+        1
+    } else {
+        0
+    }
 }

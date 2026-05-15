@@ -14,8 +14,8 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import path, { join, relative, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { canonicalize } from './canonicalize.mjs';
 
@@ -128,14 +128,22 @@ function main() {
   const manifest = buildManifest(root);
   const digest = manifestHash(manifest);
 
+  const canon = canonicalize(manifest);
+
   const here = fileURLToPath(new URL('.', import.meta.url));
   const pkgRoot = join(here, '..');
   const outPath = join(pkgRoot, 'fingerprint.sha256');
   writeFileSync(outPath, `${digest}  chassis-schemas-manifest\n`, 'utf8');
+  const manifestPath = join(pkgRoot, 'manifest.json');
+  writeFileSync(manifestPath, `${canon}\n`, 'utf8');
   console.log(`fingerprint-schemas: wrote ${relative(pkgRoot, outPath)} (${digest})`);
+  console.log(`fingerprint-schemas: wrote ${relative(pkgRoot, manifestPath)}`);
   console.log(`fingerprint-schemas: ${manifest.count} schemas under ${relative(pkgRoot, join(root, 'schemas'))}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const isExecutedDirectly =
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+if (isExecutedDirectly) {
   main();
 }

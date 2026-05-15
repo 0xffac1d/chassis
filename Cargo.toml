@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["chassis-core"]
+members = ["crates/chassis-core"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"

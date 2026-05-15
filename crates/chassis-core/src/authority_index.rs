@@ -21,5 +21,9 @@ pub fn validate_coherence_authority_index(instance: &Value) -> Result<(), Vec<St
         .iter_errors(instance)
         .map(|e| e.to_string())
         .collect();
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }

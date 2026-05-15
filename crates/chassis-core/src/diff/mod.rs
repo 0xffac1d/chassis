@@ -84,9 +84,10 @@ pub enum Classification {
 
 /// Parse `detail.classification` from a canonical [`Diagnostic`].
 pub(crate) fn finding_classification(d: &Diagnostic) -> Option<Classification> {
-    d.detail.as_ref()?.get("classification").and_then(|v| {
-        serde_json::from_value::<Classification>(v.clone()).ok()
-    })
+    d.detail
+        .as_ref()?
+        .get("classification")
+        .and_then(|v| serde_json::from_value::<Classification>(v.clone()).ok())
 }
 
 /// True when the finding carries diff-domain classification `breaking`.
@@ -103,7 +104,7 @@ pub struct DiffReport {
 
 impl DiffReport {
     pub fn has_breaking(&self) -> bool {
-        self.findings.iter().any(|d| finding_is_breaking(d))
+        self.findings.iter().any(finding_is_breaking)
     }
 
     pub fn count_by_classification(&self, c: Classification) -> usize {
@@ -242,9 +243,7 @@ pub fn diff(old: &Value, new: &Value) -> Result<DiffReport, DiffError> {
                     findings.push(envelope::breaking(
                         CH_DIFF_REQUIRED_KIND_FIELD_REMOVED,
                         &format!("{subject_prefix}.{field}"),
-                        format!(
-                            "kind-required field '{field}' removed for kind '{new_kind}'"
-                        ),
+                        format!("kind-required field '{field}' removed for kind '{new_kind}'"),
                         json!({ "field": field, "kind": new_kind }),
                     ));
                 }
@@ -270,7 +269,7 @@ pub fn diff(old: &Value, new: &Value) -> Result<DiffReport, DiffError> {
 }
 
 fn breaking_so_far(findings: &[Diagnostic]) -> bool {
-    findings.iter().any(|d| finding_is_breaking(d))
+    findings.iter().any(finding_is_breaking)
 }
 
 fn diff_version(
@@ -307,9 +306,7 @@ fn diff_version(
         findings.push(envelope::breaking(
             CH_DIFF_VERSION_MISSING,
             &subject,
-            format!(
-                "version field not parseable as semver (old={old_v:?}, new={new_v:?})"
-            ),
+            format!("version field not parseable as semver (old={old_v:?}, new={new_v:?})"),
             json!({ "before": old_v, "after": new_v }),
         ));
         return;
@@ -320,9 +317,7 @@ fn diff_version(
             findings.push(envelope::breaking(
                 CH_DIFF_VERSION_NOT_BUMPED,
                 &subject,
-                format!(
-                    "breaking change detected but version not bumped (still {old_v})"
-                ),
+                format!("breaking change detected but version not bumped (still {old_v})"),
                 json!({ "before": old_v, "after": new_v }),
             ));
         }
@@ -346,9 +341,7 @@ fn diff_version(
         findings.push(envelope::warning_non_breaking(
             CH_DIFF_VERSION_MAJOR_WITHOUT_BREAKING,
             &subject,
-            format!(
-                "major version bumped ({old_v} -> {new_v}) but no breaking changes detected"
-            ),
+            format!("major version bumped ({old_v} -> {new_v}) but no breaking changes detected"),
             json!({ "before": old_v, "after": new_v }),
         ));
     }
@@ -357,9 +350,7 @@ fn diff_version(
         findings.push(envelope::breaking(
             CH_DIFF_VERSION_BREAKING_WITHOUT_MAJOR,
             &subject,
-            format!(
-                "breaking changes detected but version bump is not major ({old_v} -> {new_v})"
-            ),
+            format!("breaking changes detected but version bump is not major ({old_v} -> {new_v})"),
             json!({ "before": old_v, "after": new_v }),
         ));
     }

@@ -9,8 +9,8 @@ enforces:
     description: "Each supported kind has exactly one canonical subschema file at schemas/contract-kinds/<kind>.schema.json (dash-separated filename matching kind token)."
   - rule: KIND-SUBSCHEMA-REF-FROM-PARENT
     description: "Parent schemas/contract.schema.json discriminates on kind and composes each branch via $ref into the matching per-kind subschema."
-  - rule: KIND-SUBSCHEMA-EMBEDDED-AT-COMPILE-TIME
-    description: "chassis-core registers per-kind schema bodies via include_str! and Resource URIs so $refs resolve with no runtime filesystem access."
+  - rule: CH-RUST-METADATA-CONTRACT
+    description: "Error. `CanonicalMetadataContractValidator` rejected a CONTRACT JSON instance against kind-discriminated `schemas/contract.schema.json` + per-kind refs."
 applies_to:
   - "schemas/contract.schema.json"
   - "schemas/contract-kinds/*.schema.json"
@@ -59,7 +59,7 @@ Validation uses `jsonschema` resource registration (`with_resource`) so `./contr
 
 ## Consequences
 
-- `@chassis/types` generated contracts reflect structured per-kind payloads.
+- Typed `@chassis/core-types` generated contracts reflect structured per-kind payloads.
 - Repo-root `CONTRACT.yaml` and minimal fixtures were migrated (e.g. library `exports` as structured rows).
 - Seven additional happy-path fixtures cover non-library kinds.
 - Validator tests include targeted adversarial cases for CLI and entity kinds.

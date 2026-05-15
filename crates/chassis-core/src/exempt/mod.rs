@@ -16,14 +16,22 @@
 //! | `CH-EXEMPT-RULE-NOT-IN-ADR`        | warning  | The exempted `rule_id` doesn't resolve to an ADR's `enforces[]`. |
 //! | `CH-EXEMPT-REMOVED-BY-SWEEPER`     | info     | Sweeper removed an expired entry.                                |
 //! | `CH-EXEMPT-PATHS-EMPTY`            | error    | `paths` array is empty.                                          |
-//! | `CH-EXEMPT-CODEOWNERS-PARSE-ERROR` | error    | CODEOWNERS file couldn't be parsed.                              |
-//! | `CH-EXEMPT-NOT-FOUND`              | error    | `remove()` could not locate the requested id.                    |
+//! | `CH-EXEMPT-CODEOWNERS-PARSE-ERROR` | error    | The CODEOWNERS file couldn't be parsed.                          |
+//! | `CH-EXEMPT-REVOKED`               | info     | Entry retained with `status: revoked` (audit-only).              |
+//! | `CH-EXEMPT-LEGACY-ALIAS`          | info     | v1 aliases detected via `registry_parse_str_with_diagnostics`.     |
+//! | `CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN`       | error    | Wildcard / repo-root scope without registry + entry `allow_global`.       |
+//! | `CH-EXEMPT-MISSING-RULE-OR-FINDING`     | error    | Entry lacks `rule_id`, `finding_id`, and legacy `rule`.                     |
 //!
 //! Cross-session note: `Diagnostic` is shared via [`crate::diagnostic::Diagnostic`].
 //! Session D (contract-diff) also emits diagnostics through the same envelope.
 
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+
+use crate::diagnostic::Severity;
+
+use envelope::diag_with_detail;
 
 pub mod codeowners;
 mod envelope;
@@ -55,9 +63,29 @@ pub mod rule_id {
     pub const REMOVED_BY_SWEEPER: &str = "CH-EXEMPT-REMOVED-BY-SWEEPER";
     pub const PATHS_EMPTY: &str = "CH-EXEMPT-PATHS-EMPTY";
     pub const CODEOWNERS_PARSE_ERROR: &str = "CH-EXEMPT-CODEOWNERS-PARSE-ERROR";
-    /// Emitted by `remove()` when the supplied id is not present. Routing aid;
-    /// distinct from `DUPLICATE_ID` per ADR-0011 immutability.
+    /// Emitted by `remove()` when the supplied id is not present.
     pub const NOT_FOUND: &str = "CH-EXEMPT-NOT-FOUND";
+    pub const REVOKED: &str = "CH-EXEMPT-REVOKED";
+    pub const LEGACY_ALIAS: &str = "CH-EXEMPT-LEGACY-ALIAS";
+    pub const GLOBAL_WITHOUT_OPT_IN: &str = "CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN";
+    pub const MISSING_RULE_OR_FINDING: &str = "CH-EXEMPT-MISSING-RULE-OR-FINDING";
+}
+
+/// Lifecycle states for exemption entries (`schemas/exemption-registry.schema.json`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ExemptionStatus {
+    #[default]
+    Active,
+    Expired,
+    Revoked,
+}
+
+impl ExemptionStatus {
+    #[inline]
+    fn is_active_for_serde(status: &ExemptionStatus) -> bool {
+        matches!(status, ExemptionStatus::Active)
+    }
 }
 
 /// An exemption registry entry.
@@ -70,19 +98,25 @@ pub mod rule_id {
 pub struct Exemption {
     pub id: String,
 
-    #[serde(rename = "rule_id")]
-    pub rule_id: String,
+    #[serde(default, alias = "rule")]
+    pub rule_id: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finding_id: Option<String>,
 
     pub reason: String,
 
     pub owner: String,
 
+    #[serde(default, alias = "created")]
     pub created_at: NaiveDate,
 
+    #[serde(default, alias = "expires")]
     pub expires_at: NaiveDate,
 
     #[serde(
         rename = "path",
+        alias = "scope",
         deserialize_with = "deserialize_paths",
         serialize_with = "serialize_paths"
     )]
@@ -91,11 +125,45 @@ pub struct Exemption {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub codeowner_acknowledgments: Vec<String>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "ticket")]
     pub linked_issue: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adr: Option<String>,
+
+    #[serde(default, skip_serializing_if = "ExemptionStatus::is_active_for_serde")]
+    pub status: ExemptionStatus,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub severity_override: Option<crate::diagnostic::Severity>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allow_global: Option<bool>,
+}
+
+impl Exemption {
+    /// True when at least one of `rule_id`, `finding_id`, or legacy `rule` is present and non-empty.
+    pub fn has_rule_or_finding(&self) -> bool {
+        let rule_ok = self
+            .rule_id
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        let find_ok = self
+            .finding_id
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        rule_ok || find_ok
+    }
+
+    /// Human-facing label for diagnostics (prefer `rule_id`, else `finding_id`).
+    pub fn primary_rule_label(&self) -> String {
+        self.rule_id
+            .clone()
+            .or_else(|| self.finding_id.clone())
+            .unwrap_or_default()
+    }
 }
 
 /// The whole exemption registry document (root-level wrapper).
@@ -170,7 +238,7 @@ pub fn remove(registry: Registry, id: &str) -> Result<Registry, Diagnostic> {
 
 /// Filter the registry. Returns references in the order they appear in the
 /// underlying `entries` vector.
-pub fn list<'a>(registry: &'a Registry, filter: ListFilter) -> Vec<&'a Exemption> {
+pub fn list(registry: &Registry, filter: ListFilter) -> Vec<&Exemption> {
     lifecycle::list(registry, filter)
 }
 
@@ -185,11 +253,7 @@ pub fn sweep(registry: Registry, now: DateTime<Utc>) -> (Registry, Vec<Diagnosti
 /// Validates: ID grammar and uniqueness, lifetime cap, active-count quota,
 /// expiration state, CODEOWNERS signoff coverage, non-empty paths.
 /// Returns one diagnostic per violation. An empty vec = clean.
-pub fn verify(
-    registry: &Registry,
-    now: DateTime<Utc>,
-    codeowners: &Codeowners,
-) -> Vec<Diagnostic> {
+pub fn verify(registry: &Registry, now: DateTime<Utc>, codeowners: &Codeowners) -> Vec<Diagnostic> {
     verify::verify(registry, now, codeowners, None)
 }
 
@@ -202,6 +266,86 @@ pub fn verify_with_adr_index(
     adr_rule_ids: &[String],
 ) -> Vec<Diagnostic> {
     verify::verify(registry, now, codeowners, Some(adr_rule_ids))
+}
+
+/// Parse registry JSON while emitting [`rule_id::LEGACY_ALIAS`] info diagnostics for v1 aliases.
+pub fn registry_parse_value_with_diagnostics(
+    doc: JsonValue,
+) -> Result<(Registry, Vec<Diagnostic>), serde_json::Error> {
+    let diags = scan_legacy_alias_diagnostics(&doc);
+    let registry: Registry = serde_json::from_value(doc)?;
+    Ok((registry, diags))
+}
+
+/// Parse UTF-8 JSON like [`registry_parse_value_with_diagnostics`].
+pub fn registry_parse_str_with_diagnostics(
+    raw: &str,
+) -> Result<(Registry, Vec<Diagnostic>), serde_json::Error> {
+    let doc: JsonValue = serde_json::from_str(raw)?;
+    registry_parse_value_with_diagnostics(doc)
+}
+
+fn scan_legacy_alias_diagnostics(doc: &JsonValue) -> Vec<Diagnostic> {
+    let mut out = Vec::new();
+    let Some(entries) = doc.get("entries").and_then(JsonValue::as_array) else {
+        return out;
+    };
+    static LEGACY_KEYS: &[&str] = &["rule", "scope", "created", "expires", "ticket"];
+    for entry in entries {
+        let Some(id) = entry.get("id").and_then(JsonValue::as_str) else {
+            continue;
+        };
+        let mut found: Vec<&'static str> = Vec::new();
+        for &k in LEGACY_KEYS {
+            if entry.get(k).is_some() {
+                found.push(k);
+            }
+        }
+        if found.is_empty() {
+            continue;
+        }
+        out.push(diag_with_detail(
+            rule_id::LEGACY_ALIAS,
+            Severity::Info,
+            id.to_string(),
+            format!(
+                "exemption `{id}` uses legacy field name(s): {}; prefer canonical v2 keys",
+                found.join(", ")
+            ),
+            serde_json::json!({ "legacyKeys": found }),
+        ));
+    }
+    out
+}
+
+/// True when scope uses wildcards / repo-root and strict opt-in bits are insufficient.
+#[inline]
+pub(crate) fn path_requires_global_allow(path: &str) -> bool {
+    let t = path.trim();
+    t == "/" || t.contains('*')
+}
+
+#[inline]
+pub(crate) fn entry_violates_global_policy(entry: &Exemption, registry: &Registry) -> bool {
+    entry.paths.iter().any(|p| {
+        path_requires_global_allow(p)
+            && !(entry.allow_global == Some(true) && registry.allow_global == Some(true))
+    })
+}
+
+/// Active for quota counting: not revoked/expired by status and within created..expires inclusive.
+#[inline]
+pub(crate) fn entry_is_quota_active(entry: &Exemption, today: NaiveDate) -> bool {
+    match entry.status {
+        ExemptionStatus::Revoked | ExemptionStatus::Expired => false,
+        ExemptionStatus::Active => entry.created_at <= today && today <= entry.expires_at,
+    }
+}
+
+/// Expired audit signal: calendar expiry or explicit lifecycle `expired`.
+#[inline]
+pub(crate) fn is_entry_expired_audit(entry: &Exemption, now: DateTime<Utc>) -> bool {
+    is_expired(entry.expires_at, now) || entry.status == ExemptionStatus::Expired
 }
 
 /// True iff `id` matches the canonical EX-YYYY-NNNN grammar.

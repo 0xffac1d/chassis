@@ -51,7 +51,8 @@ fn collect_claims(obj: &Map<String, Value>) -> BTreeMap<String, ClaimRow> {
                 .to_string();
             // First write wins; duplicate ids inside the same document are a
             // schema authoring error caught upstream by validation.
-            out.entry(id.to_string()).or_insert(ClaimRow { text, bucket });
+            out.entry(id.to_string())
+                .or_insert(ClaimRow { text, bucket });
         }
     }
     out
@@ -73,10 +74,7 @@ pub(super) fn diff_claim_sets(
                 findings.push(envelope::breaking(
                     CH_DIFF_CLAIM_REMOVED,
                     &format!("{subject_prefix}.{}.{}", old_row.bucket.key(), id),
-                    format!(
-                        "{} claim {id:?} removed",
-                        old_row.bucket.key()
-                    ),
+                    format!("{} claim {id:?} removed", old_row.bucket.key()),
                     json!({
                         "id": id,
                         "bucket": old_row.bucket.key(),
@@ -106,9 +104,7 @@ pub(super) fn diff_claim_sets(
                             findings.push(envelope::breaking(
                                 CH_DIFF_INVARIANT_DEMOTED_TO_EDGE_CASE,
                                 &format!("{subject_prefix}.invariants.{id}"),
-                                format!(
-                                    "invariant {id:?} demoted to edge_case (weaker guarantee)"
-                                ),
+                                format!("invariant {id:?} demoted to edge_case (weaker guarantee)"),
                                 json!({
                                     "id": id,
                                     "from": "invariants",

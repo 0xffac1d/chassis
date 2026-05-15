@@ -18,7 +18,7 @@ const files = new Set(
     .map((e) => e.path.replace(/\\/g, '/')),
 );
 
-const required = ['dist/index.js', 'dist/index.d.ts', 'fingerprint.sha256'];
+const required = ['dist/index.js', 'dist/index.d.ts', 'fingerprint.sha256', 'manifest.json'];
 const missing = required.filter((p) => !files.has(p));
 if (missing.length) {
   console.error('pack-includes-dist: npm pack would omit:', missing);

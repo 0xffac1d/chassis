@@ -11,5 +11,9 @@ pub mod diff;
 pub mod exempt;
 pub mod exemption;
 pub mod field_definition;
+pub mod fingerprint;
 pub mod tag_ontology;
 pub mod validators;
+
+#[cfg(test)]
+mod adr_kernel_rule_binding_tests;

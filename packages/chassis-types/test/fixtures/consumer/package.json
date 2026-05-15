@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@chassis/types": "file:../../.."
+    "@chassis/core-types": "file:../../.."
   },
   "devDependencies": {
     "typescript": "~5.4.5"
