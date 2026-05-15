@@ -7,9 +7,15 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::diagnostic::Severity;
 use super::classify::ladder_rank;
 use super::{
-    diff, Classification, DiffError, Severity, CH_DIFF_CLAIM_REMOVED, CH_DIFF_PARSE_ERROR,
+    diff,
+    finding_classification,
+    Classification,
+    DiffError,
+    CH_DIFF_CLAIM_REMOVED,
+    CH_DIFF_PARSE_ERROR,
     CH_DIFF_VERSION_BREAKING_WITHOUT_MAJOR,
 };
 
@@ -188,7 +194,7 @@ fn fixture_driven_diff_cases() {
                     continue;
                 }
                 if let Some(s) = &ef.subject {
-                    if &d.subject != s {
+                    if d.subject.as_deref() != Some(s.as_str()) {
                         continue;
                     }
                 }
@@ -203,7 +209,7 @@ fn fixture_driven_diff_cases() {
                     }
                 }
                 if let Some(cls) = &ef.classification {
-                    let got = match d.classification() {
+                    let got = match finding_classification(d) {
                         Some(Classification::Breaking) => "breaking",
                         Some(Classification::NonBreaking) => "non-breaking",
                         Some(Classification::Additive) => "additive",
@@ -226,7 +232,7 @@ fn fixture_driven_diff_cases() {
                             d.rule_id.clone(),
                             d.subject.clone(),
                             d.severity,
-                            d.classification()
+                            finding_classification(d)
                         ))
                         .collect::<Vec<_>>()
                 ));

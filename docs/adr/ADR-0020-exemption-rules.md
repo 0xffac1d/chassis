@@ -1,7 +1,7 @@
 ---
 id: ADR-0020
 title: "Exemption registry rule IDs (CH-EXEMPT-*) for Wave 2 verifier"
-status: draft
+status: accepted
 date: "2026-05-14"
 enforces:
   - rule: CH-EXEMPT-QUOTA-EXCEEDED
@@ -36,11 +36,9 @@ tags:
   - diagnostics
 ---
 
-> **Status note.** This ADR is a stub authored during Wave 2 Session E (exemption registry library). It will be promoted to `status: accepted` at Wave 2 close-out after both the contract-diff (Session D) and exemption (this session) Diagnostic structs have been hoisted to `crates/chassis-core/src/diagnostic.rs`. The rule IDs themselves are stable per ADR-0011.
-
 ## Context
 
-ADR-0004 establishes the substantive policy (90-day lifetime cap, 25 active ceiling, CODEOWNERS union approval) but does not enumerate the diagnostic surface. Wave 2 introduces the first Rust verifier for the registry, plus a sweeper. Both emit `Diagnostic` instances against the ADR-0018 envelope. Each finding needs a stable `ruleId` per ADR-0011 so CI gates, exemption tooling, and MCP surfaces can route on them without parsing message text.
+ADR-0004 establishes the substantive policy (90-day lifetime cap, 25 active ceiling, CODEOWNERS union approval) but does not enumerate the diagnostic surface. Wave 2 introduces the first Rust verifier for the registry in `crates/chassis-core/src/exempt/`, plus a sweeper. Both emit `crate::diagnostic::Diagnostic` values against the ADR-0018 envelope. Each finding uses a stable `ruleId` per ADR-0011 so CI gates, exemption tooling, and MCP surfaces can route without parsing message text.
 
 ## Decision
 

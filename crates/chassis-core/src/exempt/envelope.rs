@@ -5,24 +5,26 @@
 //! `source` field always set to `"chassis exempt"` and `subject` populated with
 //! the exemption id (or another stable identifier where no entry id is available).
 
-use crate::diagnostic::Diagnostic;
-use serde_json::{json, Value};
+use crate::diagnostic::{Diagnostic, Severity, Violated};
+use serde_json::Value;
 
 pub(crate) const SOURCE: &str = "chassis exempt";
 
 pub(crate) fn diag(
     rule_id: &str,
-    severity: &str,
+    severity: Severity,
     subject: impl Into<String>,
     message: impl Into<String>,
 ) -> Diagnostic {
     Diagnostic {
+        rule_id: rule_id.to_string(),
+        severity,
+        message: message.into(),
         source: Some(SOURCE.to_string()),
         subject: Some(subject.into()),
-        rule_id: rule_id.to_string(),
-        severity: severity.to_string(),
-        message: message.into(),
-        violated: Some(json!({ "convention": "ADR-0004" })),
+        violated: Some(Violated {
+            convention: "ADR-0020".to_string(),
+        }),
         docs: None,
         fix: None,
         location: None,
@@ -32,7 +34,7 @@ pub(crate) fn diag(
 
 pub(crate) fn diag_with_detail(
     rule_id: &str,
-    severity: &str,
+    severity: Severity,
     subject: impl Into<String>,
     message: impl Into<String>,
     detail: Value,

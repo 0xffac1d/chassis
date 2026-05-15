@@ -5,6 +5,8 @@ use std::collections::HashSet;
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
+use crate::diagnostic::Severity;
+
 use super::envelope::{diag, diag_with_detail};
 use super::{
     id_matches_grammar, is_expired, lifetime_days, rule_id, Codeowners, Diagnostic, Registry,
@@ -26,7 +28,7 @@ pub(crate) fn verify(
         if !seen.insert(entry.id.as_str()) && dup_reported.insert(entry.id.as_str()) {
             out.push(diag(
                 rule_id::DUPLICATE_ID,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 format!("duplicate exemption id `{}`", entry.id),
             ));
@@ -37,7 +39,7 @@ pub(crate) fn verify(
         if !id_matches_grammar(&entry.id) {
             out.push(diag(
                 rule_id::MALFORMED_ID,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 format!("exemption id `{}` does not match EX-YYYY-NNNN", entry.id),
             ));
@@ -46,7 +48,7 @@ pub(crate) fn verify(
         if entry.paths.is_empty() {
             out.push(diag(
                 rule_id::PATHS_EMPTY,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 "exemption has no paths; at least one is required (ADR-0004)",
             ));
@@ -56,7 +58,7 @@ pub(crate) fn verify(
         if lifetime < 0 || lifetime > MAX_LIFETIME_DAYS {
             out.push(diag_with_detail(
                 rule_id::LIFETIME_EXCEEDED,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 format!(
                     "lifetime {} days exceeds {}-day maximum (ADR-0004)",
@@ -74,7 +76,7 @@ pub(crate) fn verify(
         if is_expired(entry.expires_at, now) {
             out.push(diag_with_detail(
                 rule_id::EXPIRED,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 format!(
                     "exemption `{}` expired on {} but is still present (ADR-0004)",
@@ -93,7 +95,7 @@ pub(crate) fn verify(
         if !missing.is_empty() {
             out.push(diag_with_detail(
                 rule_id::MISSING_CODEOWNERS,
-                "error",
+                Severity::Error,
                 entry.id.clone(),
                 format!(
                     "missing CODEOWNERS acknowledgment(s): {}",
@@ -107,7 +109,7 @@ pub(crate) fn verify(
             if !known.iter().any(|r| r == &entry.rule_id) {
                 out.push(diag_with_detail(
                     rule_id::RULE_NOT_IN_ADR,
-                    "warning",
+                    Severity::Warning,
                     entry.id.clone(),
                     format!(
                         "rule_id `{}` does not resolve to any ADR enforces[]",
@@ -123,7 +125,7 @@ pub(crate) fn verify(
     if active > MAX_ACTIVE_ENTRIES {
         out.push(diag_with_detail(
             rule_id::QUOTA_EXCEEDED,
-            "error",
+            Severity::Error,
             "registry".to_string(),
             format!(
                 "active exemption count {} exceeds cap {} (ADR-0004)",

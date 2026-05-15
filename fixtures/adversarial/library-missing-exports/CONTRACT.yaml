@@ -1,0 +1,14 @@
+name: "rust-minimal"
+kind: library
+version: "0.1.0"
+purpose: "Smallest-possible Rust adoption fixture used to validate the canonical contract schema and the chassis-core CanonicalMetadataContractValidator."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+invariants:
+  - id: rust-minimal.compiles
+    text: "src/main.rs compiles under the host Rust toolchain"
+edge_cases:
+  - id: rust-minimal.empty-deps
+    text: "Cargo.toml has no [dependencies] section"

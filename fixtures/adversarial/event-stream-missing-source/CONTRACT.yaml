@@ -1,0 +1,23 @@
+name: "event-stream-minimal"
+kind: event-stream
+version: "0.1.0"
+purpose: "Minimal event-stream fixture exercising kind=event-stream payload format and delivery enum."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+payload:
+  format: "json"
+  schema_ref: "schemas/events/user-signed-up.schema.json"
+delivery: "at-least-once"
+consumers:
+  - "analytics-service"
+  - "crm-sync"
+invariants:
+  - id: event-stream-minimal.delivery-at-least-once
+    text: "Delivery guarantee is at-least-once; consumers must dedupe."
+  - id: event-stream-minimal.payload-json
+    text: "Payload format is json with an explicit schema_ref."
+edge_cases:
+  - id: event-stream-minimal.empty-consumers-allowed
+    text: "Schema permits an empty consumers array (orphan stream)."

@@ -3,6 +3,8 @@
 use chrono::{DateTime, Utc};
 use serde_json::json;
 
+use crate::diagnostic::Severity;
+
 use super::envelope::{diag, diag_with_detail};
 use super::{
     id_matches_grammar, is_expired, lifetime_days, rule_id, Codeowners, Diagnostic, Exemption,
@@ -21,7 +23,7 @@ pub(crate) fn add(
     if !id_matches_grammar(&entry.id) {
         errors.push(diag(
             rule_id::MALFORMED_ID,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             format!("exemption id `{}` does not match EX-YYYY-NNNN", entry.id),
         ));
@@ -30,7 +32,7 @@ pub(crate) fn add(
     if registry.entries.iter().any(|e| e.id == entry.id) {
         errors.push(diag(
             rule_id::DUPLICATE_ID,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             format!("an entry with id `{}` already exists", entry.id),
         ));
@@ -39,7 +41,7 @@ pub(crate) fn add(
     if entry.paths.is_empty() {
         errors.push(diag(
             rule_id::PATHS_EMPTY,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             "exemption has no paths; at least one is required (ADR-0004)",
         ));
@@ -49,7 +51,7 @@ pub(crate) fn add(
     if lifetime < 0 || lifetime > MAX_LIFETIME_DAYS {
         errors.push(diag_with_detail(
             rule_id::LIFETIME_EXCEEDED,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             format!(
                 "lifetime {} days exceeds {}-day maximum (ADR-0004)",
@@ -68,7 +70,7 @@ pub(crate) fn add(
     if active_after > MAX_ACTIVE_ENTRIES {
         errors.push(diag_with_detail(
             rule_id::QUOTA_EXCEEDED,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             format!(
                 "active exemption count would become {} (cap is {}; ADR-0004)",
@@ -90,7 +92,7 @@ pub(crate) fn add(
     if !missing.is_empty() {
         errors.push(diag_with_detail(
             rule_id::MISSING_CODEOWNERS,
-            "error",
+            Severity::Error,
             entry.id.clone(),
             format!(
                 "missing CODEOWNERS acknowledgment(s): {}",
@@ -104,7 +106,7 @@ pub(crate) fn add(
         if !known.iter().any(|r| r == &entry.rule_id) {
             errors.push(diag_with_detail(
                 rule_id::RULE_NOT_IN_ADR,
-                "warning",
+                Severity::Warning,
                 entry.id.clone(),
                 format!(
                     "rule_id `{}` does not resolve to any ADR enforces[]",
@@ -115,7 +117,7 @@ pub(crate) fn add(
         }
     }
 
-    let has_error = errors.iter().any(|d| d.severity == "error");
+    let has_error = errors.iter().any(|d| d.severity == Severity::Error);
     if has_error {
         return Err(errors);
     }
@@ -130,7 +132,7 @@ pub(crate) fn remove(mut registry: Registry, id: &str) -> Result<Registry, Diagn
     if registry.entries.len() == before {
         return Err(diag(
             rule_id::NOT_FOUND,
-            "error",
+            Severity::Error,
             id.to_string(),
             format!("no exemption with id `{}` found", id),
         ));
@@ -167,7 +169,7 @@ pub(crate) fn sweep(
         if is_expired(entry.expires_at, now) {
             removed.push(diag_with_detail(
                 rule_id::REMOVED_BY_SWEEPER,
-                "info",
+                Severity::Info,
                 entry.id.clone(),
                 format!(
                     "removed expired exemption `{}` (expired {})",

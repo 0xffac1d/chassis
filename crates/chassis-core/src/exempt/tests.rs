@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 
+use crate::diagnostic::Severity;
+
 use super::{
     add, codeowners::Codeowners, id_matches_grammar, list, remove, rule_id, sweep, verify,
     Diagnostic, Exemption, ListFilter, Registry, MAX_LIFETIME_DAYS,
@@ -195,7 +197,7 @@ fn remove_unknown_id_returns_diagnostic() {
     let registry = Registry::empty();
     let err = remove(registry, "EX-2026-9999").unwrap_err();
     assert_eq!(err.rule_id, rule_id::NOT_FOUND);
-    assert_eq!(err.severity, "error");
+    assert_eq!(err.severity, Severity::Error);
 }
 
 #[test]
@@ -264,7 +266,7 @@ fn sweep_removes_expired_entries() {
     assert_eq!(after.entries[0].id, "EX-2026-0002");
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].rule_id, rule_id::REMOVED_BY_SWEEPER);
-    assert_eq!(diags[0].severity, "info");
+    assert_eq!(diags[0].severity, Severity::Info);
 }
 
 // ---------- Verify ----------
@@ -415,7 +417,13 @@ fn fixture_driven_verify_cases() {
                     .find(|d| d.rule_id == want.rule_id)
                     .expect("rule_id present");
                 assert_eq!(
-                    d.severity, sev,
+                    d.severity,
+                    match sev.as_str() {
+                        "error" => Severity::Error,
+                        "warning" => Severity::Warning,
+                        "info" => Severity::Info,
+                        other => panic!("unknown severity {other}"),
+                    },
                     "fixture {}: rule {} severity",
                     name, want.rule_id
                 );
