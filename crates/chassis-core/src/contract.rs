@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 use jsonschema::Resource;
 
 /// Parsed CONTRACT.yaml document (`kind` discriminates the payload).
+// @claim chassis.contract-schema-kind-discriminated
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind")]
 pub enum Contract {

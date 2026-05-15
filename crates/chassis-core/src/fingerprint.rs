@@ -214,6 +214,7 @@ pub fn manifest_hash(manifest: &Value) -> Result<String, FingerprintError> {
 }
 
 /// Full fingerprint for the schemas tree under `repo_root` (= same as committed `fingerprint.sha256`).
+// @claim chassis.fingerprint-matches
 pub fn compute(repo_root: &Path) -> Result<String, FingerprintError> {
     let m = build_manifest(repo_root)?;
     manifest_hash(&m)
@@ -247,6 +248,7 @@ mod tests {
         );
     }
 
+    // @claim chassis.fingerprint-matches
     #[test]
     fn parity_with_node_when_available() {
         if Command::new("node").arg("--version").output().is_err() {

@@ -182,32 +182,7 @@ pub fn diff(old: &Value, new: &Value) -> Result<DiffReport, DiffError> {
     claims::diff_claim_sets(old_obj, new_obj, &subject_prefix, &mut findings);
 
     // 5. Assurance ladder.
-    let old_al = old_obj
-        .get("assurance_level")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    let new_al = new_obj
-        .get("assurance_level")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-    if old_al != new_al && !old_al.is_empty() && !new_al.is_empty() {
-        let (old_r, new_r) = (ladder_rank(old_al), ladder_rank(new_al));
-        match (old_r, new_r) {
-            (Some(o), Some(n)) if n < o => findings.push(envelope::breaking(
-                CH_DIFF_ASSURANCE_DEMOTED,
-                &format!("{subject_prefix}.assurance_level"),
-                format!("assurance_level demoted: {old_al} -> {new_al}"),
-                json!({ "before": old_al, "after": new_al }),
-            )),
-            (Some(o), Some(n)) if n > o => findings.push(envelope::non_breaking(
-                CH_DIFF_ASSURANCE_PROMOTED,
-                &format!("{subject_prefix}.assurance_level"),
-                format!("assurance_level promoted: {old_al} -> {new_al}"),
-                json!({ "before": old_al, "after": new_al }),
-            )),
-            _ => {}
-        }
-    }
+    classify_assurance_change(old_obj, new_obj, &subject_prefix, &mut findings);
 
     // 6. Status diff.
     let old_status = old_obj.get("status").and_then(|v| v.as_str()).unwrap_or("");
@@ -270,6 +245,42 @@ pub fn diff(old: &Value, new: &Value) -> Result<DiffReport, DiffError> {
 
 fn breaking_so_far(findings: &[Diagnostic]) -> bool {
     findings.iter().any(finding_is_breaking)
+}
+
+// @claim chassis.no-silent-assurance-demotion
+fn classify_assurance_change(
+    old_obj: &serde_json::Map<String, Value>,
+    new_obj: &serde_json::Map<String, Value>,
+    subject_prefix: &str,
+    findings: &mut Vec<Diagnostic>,
+) {
+    let old_al = old_obj
+        .get("assurance_level")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let new_al = new_obj
+        .get("assurance_level")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if old_al == new_al || old_al.is_empty() || new_al.is_empty() {
+        return;
+    }
+    let (old_r, new_r) = (ladder_rank(old_al), ladder_rank(new_al));
+    match (old_r, new_r) {
+        (Some(o), Some(n)) if n < o => findings.push(envelope::breaking(
+            CH_DIFF_ASSURANCE_DEMOTED,
+            &format!("{subject_prefix}.assurance_level"),
+            format!("assurance_level demoted: {old_al} -> {new_al}"),
+            json!({ "before": old_al, "after": new_al }),
+        )),
+        (Some(o), Some(n)) if n > o => findings.push(envelope::non_breaking(
+            CH_DIFF_ASSURANCE_PROMOTED,
+            &format!("{subject_prefix}.assurance_level"),
+            format!("assurance_level promoted: {old_al} -> {new_al}"),
+            json!({ "before": old_al, "after": new_al }),
+        )),
+        _ => {}
+    }
 }
 
 fn diff_version(

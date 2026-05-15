@@ -1,13 +1,5 @@
+# EX-2026-0100 retired by F1: chassis.no-silent-assurance-demotion is now
+# enforced by chassis-core::diff (CH-DIFF-ASSURANCE-DEMOTED) via
+# classify_assurance_change in crates/chassis-core/src/diff/mod.rs.
 version: 2
-entries:
-  - id: EX-2026-0100
-    rule_id: CH-DIFF-ASSURANCE-DEMOTED
-    reason: "Root CONTRACT still lists chassis.no-silent-assurance-demotion; Wave-5 attestation emitter is not merged yet — tracked as governance debt, not silent demotion."
-    owner: maintainers@chassis.invalid
-    created_at: "2026-05-15"
-    expires_at: "2026-08-12"
-    path:
-      - CONTRACT.yaml
-    linked_issue: "https://github.com/0xffac1d/chassis/issues/1"
-    codeowner_acknowledgments:
-      - "@chassis-core"
+entries: []

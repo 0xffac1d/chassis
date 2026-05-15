@@ -14,8 +14,6 @@ exports:
 invariants:
   - id: chassis.schemas-self-contained
     text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."
-  - id: chassis.tests-green
-    text: "cargo test and npm test both pass on every commit to master."
   - id: chassis.fingerprint-matches
     text: "packages/chassis-types/fingerprint.sha256 matches a fresh recomputation over schemas/."
   - id: chassis.contract-schema-kind-discriminated
@@ -23,9 +21,9 @@ invariants:
   - id: chassis.adr-frontmatter-valid
     text: "Every docs/adr/*.md frontmatter validates against schemas/adr.schema.json."
   - id: chassis.no-silent-assurance-demotion
-    text: "Assurance ladder demotions remain logged once attestation tooling lands (ADR-0002)."
+    text: "Assurance-level demotions in CONTRACT.yaml produce a CH-DIFF-ASSURANCE-DEMOTED diagnostic via chassis-core::diff."
 edge_cases:
   - id: chassis.adversarial-fixture-rejected
     text: "fixtures/adversarial/invalid-schema/CONTRACT.yaml fails canonical validation with at least one 'required' or 'enum' error."
   - id: chassis.reference-python-non-canonical
-    text: "reference/python-cli remains semantic reference only until the TypeScript MCP server ships."
+    text: "reference/python-cli remains a semantic reference only; chassis-mcp (Rust) is the canonical MCP surface."

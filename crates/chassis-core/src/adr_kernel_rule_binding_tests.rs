@@ -179,6 +179,104 @@ fn every_adr_enforces_ch_wire_rule_exists_in_kernel_set() {
     );
 }
 
+/// Asserts `kernel_wire_ch_rules()` is exactly the set of `CH-*` string literals
+/// emitted as `Diagnostic.rule_id` in non-`#[cfg(test)]` source, modulo
+/// documented carve-outs (ADR-0019 lists `CH-DIFF-PARSE-ERROR` as a non-wire
+/// error variant).
+#[test]
+fn kernel_wire_allowlist_matches_emission_sites() {
+    use regex::Regex;
+    use std::fs;
+
+    const CARVE_OUTS: &[&str] = &[
+        // ADR-0019: returned as DiffError::Parse, not a Diagnostic row.
+        "CH-DIFF-PARSE-ERROR",
+    ];
+
+    fn walk(dir: &Path, re: &Regex, out: &mut BTreeSet<String>) {
+        for ent in fs::read_dir(dir).unwrap_or_else(|e| panic!("read_dir {:?}: {}", dir, e)) {
+            let ent = ent.expect("dir entry");
+            let p = ent.path();
+            if p.is_dir() {
+                walk(&p, re, out);
+                continue;
+            }
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == "adr_kernel_rule_binding_tests.rs"
+                || name == "tests.rs"
+                || name.ends_with("_tests.rs")
+            {
+                continue;
+            }
+            if p.extension().and_then(|e| e.to_str()) != Some("rs") {
+                continue;
+            }
+            let s =
+                fs::read_to_string(&p).unwrap_or_else(|e| panic!("read {}: {}", p.display(), e));
+            // Strip `#[cfg(test)]`-attached items by running brace count. When the
+            // attribute applies to a forward decl like `mod tests;`, we drop only
+            // the attribute line so the rest of the file is still scanned for CH-*.
+            let lines: Vec<&str> = s.lines().collect();
+            let mut depth = 0i32;
+            let mut i = 0;
+            while i < lines.len() {
+                let line = lines[i];
+                if depth == 0 && line.contains("#[cfg(test)]") {
+                    let next_nb = lines
+                        .iter()
+                        .skip(i + 1)
+                        .find(|l| !l.trim().is_empty())
+                        .copied();
+                    match next_nb {
+                        Some(nl) if nl.trim_end().ends_with(';') => {
+                            // `#[cfg(test)] mod tests;` — no block to skip.
+                            i += 1;
+                            continue;
+                        }
+                        _ => {
+                            depth = 1;
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+                if depth > 0 {
+                    depth += line.matches('{').count() as i32;
+                    depth -= line.matches('}').count() as i32;
+                    if depth <= 0 {
+                        depth = 0;
+                    }
+                    i += 1;
+                    continue;
+                }
+                for cap in re.captures_iter(line) {
+                    out.insert(cap[1].to_string());
+                }
+                i += 1;
+            }
+        }
+    }
+
+    let root = repo_root_from_manifest().join("crates/chassis-core/src");
+    let re = Regex::new(r#""(CH-[A-Z0-9-]+)""#).expect("ch literal regex");
+    let mut emitted: BTreeSet<String> = BTreeSet::new();
+    walk(&root, &re, &mut emitted);
+
+    for c in CARVE_OUTS {
+        emitted.remove(*c);
+    }
+
+    let allowlist = kernel_wire_ch_rules();
+    let only_emitted: Vec<_> = emitted.difference(&allowlist).cloned().collect();
+    let only_allowlisted: Vec<_> = allowlist.difference(&emitted).cloned().collect();
+    assert!(
+        only_emitted.is_empty() && only_allowlisted.is_empty(),
+        "kernel_wire_ch_rules() out of sync with emission sites.\n  emitted but not allowlisted: {:?}\n  allowlisted but not emitted: {:?}",
+        only_emitted,
+        only_allowlisted
+    );
+}
+
 #[test]
 fn rejecting_fake_frontmatter_rule_that_kernel_does_not_emit() {
     let kern = kernel_wire_ch_rules();

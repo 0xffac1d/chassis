@@ -207,6 +207,7 @@ mod tests {
         validate_kind_fixture("feature-flag-minimal");
     }
 
+    // @claim chassis.adversarial-fixture-rejected
     #[test]
     fn adversarial_invalid_schema_fixture_fails_validation() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

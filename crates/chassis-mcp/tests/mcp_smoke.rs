@@ -108,7 +108,7 @@ fn trace_claim_hits_known_root_contract_claim() {
         writeln!(
             stdin,
             "{}",
-            json!({"jsonrpc":"2.0","id":10,"method":"trace_claim","params":{"claim_id":"chassis.tests-green"}})
+            json!({"jsonrpc":"2.0","id":10,"method":"trace_claim","params":{"claim_id":"chassis.fingerprint-matches"}})
         )
         .unwrap();
     }
@@ -117,7 +117,7 @@ fn trace_claim_hits_known_root_contract_claim() {
     let v: Value = serde_json::from_slice(&out.stdout).expect("reply");
     assert_eq!(
         v["result"]["claimId"].as_str().unwrap(),
-        "chassis.tests-green"
+        "chassis.fingerprint-matches"
     );
     assert!(
         v["result"]["contractPath"]

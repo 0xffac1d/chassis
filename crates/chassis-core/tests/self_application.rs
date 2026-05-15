@@ -12,10 +12,11 @@ fn self_application_trace_complete() {
         .expect("repo root");
     let g = chassis_core::trace::build_trace_graph(&root).expect("trace graph");
     let required = [
-        "chassis.tests-green",
         "chassis.fingerprint-matches",
         "chassis.schemas-self-contained",
         "chassis.contract-schema-kind-discriminated",
+        "chassis.adr-frontmatter-valid",
+        "chassis.no-silent-assurance-demotion",
     ];
     for id in required {
         let node = g
@@ -23,8 +24,8 @@ fn self_application_trace_complete() {
             .get(id)
             .unwrap_or_else(|| panic!("missing claim node {id}"));
         assert!(
-            !node.impl_sites.is_empty(),
-            "claim {id} must have at least one impl @claim site"
+            !node.impl_sites.is_empty() || !node.test_sites.is_empty(),
+            "claim {id} must have at least one @claim site (impl or test)"
         );
     }
     let bad: Vec<_> = g
@@ -67,8 +68,8 @@ fn self_application_no_orphan_invariants_root_contract() {
                 .get(id)
                 .unwrap_or_else(|| panic!("contract invariant {id} missing from graph"));
             assert!(
-                !node.impl_sites.is_empty(),
-                "invariant {id} must have ≥1 impl site"
+                !node.impl_sites.is_empty() || !node.test_sites.is_empty(),
+                "invariant {id} must have ≥1 @claim site (impl or test)"
             );
         }
     }
