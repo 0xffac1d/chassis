@@ -7,8 +7,10 @@ since: "0.1.0"
 assurance_level: declared
 owner: chassis maintainers
 exports:
-  - "crates/chassis-core/src/lib.rs"
-  - "packages/chassis-types/dist/index.d.ts"
+  - path: "crates/chassis-core/src/lib.rs"
+    kind: module
+  - path: "packages/chassis-types/dist/index.d.ts"
+    kind: module
 invariants:
   - id: chassis.schemas-self-contained
     text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."
