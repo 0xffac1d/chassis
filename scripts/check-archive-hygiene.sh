@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# check-archive-hygiene.sh -- fail if a candidate tree or archive contains
-# build artifacts, vendored caches, or stale developer-machine paths.
+# check-archive-hygiene.sh -- fail if a candidate tree or archive lacks required
+# source paths, contains build artifacts/vendored caches, or carries stale
+# developer-machine paths outside reference/**.
 #
 # Usage:
 #   scripts/check-archive-hygiene.sh <path>
@@ -26,7 +27,11 @@
 #     script itself, `scripts/docs-lint.sh`, and the supply-chain ADR are also
 #     exempt because they must embed or cite the literal pattern to enforce it.
 #
-# Exit code: 0 on clean, 1 on first violation (with diagnostic output).
+# Required paths (relative to the archive root directory — normally the prefix
+# from `git archive`, e.g. chassis-<sha>/) match files required by docs-lint,
+# README, CI evidence, and active documentation that cites reference/.
+#
+# Exit code: 0 on clean, 1 if any check fails (with diagnostic output).
 
 set -euo pipefail
 
@@ -151,6 +156,31 @@ for hit in "${hits[@]}"; do
     [[ -z "$hit" ]] && continue
     report "stale developer-machine path: ${hit#"$scan_dir/"}"
 done
+
+# ---------------------------------------------------------------------------
+# 3. Required archive contents (active docs / foundation verifier parity)
+# ---------------------------------------------------------------------------
+REQUIRED=(
+  "CLAUDE.md"
+  ".gitignore"
+  ".github/workflows/ci.yml"
+  "README.md"
+  "CONTRACT.yaml"
+  "docs/WAVE-PLAN.md"
+  "docs/ASSURANCE-LADDER.md"
+  "scripts/docs-lint.sh"
+  "scripts/verify-foundation.sh"
+  "packages/chassis-types/README.md"
+)
+for rel in "${REQUIRED[@]}"; do
+    p="$scan_dir/$rel"
+    if [[ ! -e "$p" ]]; then
+        report "missing required path: $rel"
+    fi
+done
+if [[ ! -d "$scan_dir/reference" ]]; then
+    report "missing required directory: reference/"
+fi
 
 # ---------------------------------------------------------------------------
 if [[ $violations -gt 0 ]]; then

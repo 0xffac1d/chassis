@@ -12,9 +12,12 @@
 #
 # The tarball is produced via `git archive`, which only includes
 # committed paths -- untracked files (target/, node_modules/, .env, etc.)
-# are excluded by construction. The hygiene check is a defense-in-depth
-# verification: it catches the case where a tracked file accidentally
-# carries a build artifact pattern.
+# are excluded by construction. Patterns in `.gitattributes` tagged
+# `export-ignore` are omitted as well — keep those limited to IDE/local-only
+# noise so release archives stay complete for `scripts/docs-lint.sh` and
+# `scripts/check-archive-hygiene.sh`.
+#
+# The hygiene script rejects build/cache leakage and verifies required paths.
 #
 # Acceptance: see ADR-0025 -- this script is the single chokepoint
 # through which release archives must be produced.
@@ -42,8 +45,8 @@ mkdir -p "$(dirname "$out")"
 
 echo "build-source-archive: ref=$ref prefix=$prefix out=$out"
 
-# git archive honors .gitattributes' export-ignore, so anything we mark
-# with `export-ignore` (e.g. CI-only paths) drops out of the tarball.
+# `git archive` honors `.gitattributes` export-ignore rules; consult that file
+# before adding new excludes.
 git archive \
     --format=tar.gz \
     --prefix="$prefix" \

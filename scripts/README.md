@@ -20,6 +20,27 @@ bash scripts/docs-lint.sh
 
 A line can opt out of a rule by including `chassis-lint-allow:<label>` (e.g., `chassis-lint-allow:mcp-server`) — used sparingly when an active doc must quote a forbidden phrase. The script also runs as the first step of `verify-foundation.sh`.
 
+## `check-archive-hygiene.sh`
+
+Validates release source trees or archives (`.tar.gz`, `.tgz`, `.tar`, `.zip`, or a directory):
+
+- Forbids root `.git/`, Cargo/npm/Python cache dirs, bytecode, and stale absolute paths (`/mnt/C/…/chassis`) outside `reference/`.
+- Asserts required paths present for parity with docs-lint and CI (`CLAUDE.md`, `.gitignore`, `.github/workflows/ci.yml`, core scripts and docs, and `reference/`).
+
+CI uses this after `./scripts/build-source-archive.sh`; run locally:
+
+```bash
+bash scripts/check-archive-hygiene.sh path/to/source.tar.gz
+```
+
+## `build-source-archive.sh`
+
+Produces `dist/chassis-source-<sha>.tar.gz` from `git archive` using `.gitattributes` export rules, then runs `check-archive-hygiene.sh` on the tarball.
+
+```bash
+./scripts/build-source-archive.sh [dist/out.tar.gz] [git-ref]
+```
+
 ## `verify-foundation.sh`
 
 Runs the canonical local verification gates before pushing:
