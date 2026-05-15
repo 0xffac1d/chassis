@@ -7,15 +7,14 @@
 //! The diff-specific `breaking` / `non-breaking` / `additive` classification
 //! lives inside each diagnostic's `detail.classification` key — the wire
 //! envelope keeps the ADR-0018-mandated `severity` of `error` / `warning` /
-//! `info`. [`Diagnostic::is_breaking`] and [`DiffReport::has_breaking`]
+//! `info`. `finding_is_breaking` and [`DiffReport::has_breaking`]
 //! preserve the consumer-facing semantic.
 //!
 //! # Rule IDs (CH-DIFF-*)
 //!
 //! Per ADR-0011 every rule ID is stable and ADR-bound. The rules emitted by
-//! this module are enumerated in the stub
-//! `docs/adr/TODO-ADR-0019-contract-diff-rules.md` and promoted to ADR-0019
-//! during Wave 2 close-out. Mirror constants:
+//! this module are enumerated in `docs/adr/ADR-0019-contract-diff-rules.md`.
+//! Mirror constants:
 //!
 //! - [`CH_DIFF_KIND_CHANGED`] (breaking)
 //! - [`CH_DIFF_NAME_CHANGED`] (breaking)
@@ -45,6 +44,7 @@ pub mod claims;
 pub mod classify;
 pub mod envelope;
 
+use crate::diagnostic::{Diagnostic, Severity};
 use crate::diff::classify::{kind_required_fields, ladder_rank};
 
 pub const CH_DIFF_KIND_CHANGED: &str = "CH-DIFF-KIND-CHANGED";
@@ -70,17 +70,8 @@ pub const CH_DIFF_PARSE_ERROR: &str = "CH-DIFF-PARSE-ERROR";
 pub const SOURCE: &str = "chassis diff";
 pub const ADR_REF: &str = "ADR-0019";
 
-/// Diagnostic schema version this module emits against.
-pub const DIAGNOSTIC_SCHEMA_VERSION: &str = "1.1.0";
-
-/// ADR-0018 envelope severity. Encoded on the wire as `error|warning|info`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
-}
+/// Diagnostic schema version this module emits against (ADR-0018 envelope).
+pub const DIAGNOSTIC_SCHEMA_VERSION: &str = "1.2.0";
 
 /// Diff-specific classification carried inside `detail.classification`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,36 +82,16 @@ pub enum Classification {
     Additive,
 }
 
-/// ADR-0018 `violated.convention` linkage.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Violated {
-    pub convention: String,
+/// Parse `detail.classification` from a canonical [`Diagnostic`].
+pub(crate) fn finding_classification(d: &Diagnostic) -> Option<Classification> {
+    d.detail.as_ref()?.get("classification").and_then(|v| {
+        serde_json::from_value::<Classification>(v.clone()).ok()
+    })
 }
 
-/// One finding. Serialized shape matches `schemas/diagnostic.schema.json`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Diagnostic {
-    #[serde(rename = "ruleId")]
-    pub rule_id: String,
-    pub severity: Severity,
-    pub source: String,
-    pub subject: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub violated: Option<Violated>,
-    pub detail: Value,
-}
-
-impl Diagnostic {
-    pub fn classification(&self) -> Option<Classification> {
-        self.detail
-            .get("classification")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-    }
-
-    pub fn is_breaking(&self) -> bool {
-        self.classification() == Some(Classification::Breaking)
-    }
+/// True when the finding carries diff-domain classification `breaking`.
+pub(crate) fn finding_is_breaking(d: &Diagnostic) -> bool {
+    finding_classification(d) == Some(Classification::Breaking)
 }
 
 /// Full diff result.
@@ -132,13 +103,13 @@ pub struct DiffReport {
 
 impl DiffReport {
     pub fn has_breaking(&self) -> bool {
-        self.findings.iter().any(|d| d.is_breaking())
+        self.findings.iter().any(|d| finding_is_breaking(d))
     }
 
     pub fn count_by_classification(&self, c: Classification) -> usize {
         self.findings
             .iter()
-            .filter(|d| d.classification() == Some(c))
+            .filter(|d| finding_classification(d) == Some(c))
             .count()
     }
 
@@ -299,7 +270,7 @@ pub fn diff(old: &Value, new: &Value) -> Result<DiffReport, DiffError> {
 }
 
 fn breaking_so_far(findings: &[Diagnostic]) -> bool {
-    findings.iter().any(|d| d.is_breaking())
+    findings.iter().any(|d| finding_is_breaking(d))
 }
 
 fn diff_version(

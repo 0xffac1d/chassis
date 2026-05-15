@@ -12,12 +12,12 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 
 | Path | Status | Role |
 |------|--------|------|
-| `schemas/` | canonical | 8 JSON Schemas — contract, ADR, exemption-registry, coherence-report, diagnostic, authority-index, tag-ontology, field-definition |
-| `crates/chassis-core/` | builds, tested | Rust types + `StaticValidator` + `CanonicalMetadataContractValidator`. `cargo check` + `cargo test` both clean on Rust ≥ 1.85 (verified on 1.95). 4 unit tests pass. |
-| `packages/chassis-types/` | builds | TypeScript `.d.ts` generated from the 8 canonical schemas via `json-schema-to-typescript`. `dist/` is committed; rebuild with `npm run build`. |
-| `fixtures/happy-path/` | valid | `rust-minimal` and `typescript-vite`. The `rust-minimal` CONTRACT.yaml is exercised by `chassis-core`'s integration test. |
-| `fixtures/adversarial/` | reference | `invalid-schema` — intentionally fails validation (exercised by `chassis-core`'s negative-fixture test) |
-| `docs/adr/` | active | ADRs: ADR-0001 scope; ADR-0002 ladder; ADR-0003 claims; ADR-0004 exemptions; ADR-0005 annotations; ADR-0008 schema semver; ADR-0011 rule IDs; ADR-0015 fingerprint; ADR-0016 deferrals. |
+| `schemas/` | canonical | Base metadata schemas plus eight per-kind contract branches under `schemas/contract-kinds/` (contract parent at `schemas/contract.schema.json` v3.x). |
+| `crates/chassis-core/` | builds, tested | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier). `cargo check` + `cargo test` clean on Rust ≥ 1.85. |
+| `packages/chassis-types/` | builds | TypeScript `.d.ts` generated from canonical schemas (contract + kinds + metadata) via `json-schema-to-typescript`. `dist/` is committed; rebuild with `npm run build`. |
+| `fixtures/happy-path/` | valid | One minimal contract per kind (`*-minimal`) plus `typescript-vite`; `rust-minimal` is exercised by `chassis-core` integration tests. |
+| `fixtures/adversarial/` | reference | Surgical invalid contracts per kind + `invalid-schema`; exercised by `chassis-core` validator tests. |
+| `docs/adr/` | active | Foundation ADRs through ADR-0021 (scope, ladder, claims, exemptions, schema semver, fingerprint, diff/exempt/kind rules). |
 | `docs/STABLE-IDS.md`, `docs/ASSURANCE-LADDER.md` | active | Load-bearing vocabulary docs |
 | `reference/python-cli/` | reference only | Original Python implementations; semantic spec for the Rust/TS implementations to come. **`mcp_server.py` is the highest-priority study target** — the primary integration path forward is an MCP server. |
 | `reference/schemas-extended/` | reference | Original schemas for component / api / data / service / event / state — design input for kind-discriminated subschemas |
@@ -28,7 +28,7 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 
 ## Contract schema status
 
-`schemas/contract.schema.json` is **tightened**: ten universal required fields (`name`, `kind`, `purpose`, `status`, `since`, `version`, `assurance_level`, `invariants`, `edge_cases`, `owner`) plus kind-specific requirements via `oneOf` across eight kinds (`library`, `cli`, `component`, `endpoint`, `entity`, `service`, `event-stream`, `feature-flag`). Legacy kinds (`crate`, `package`, …) migrate forward by picking the closest supported kind. Claims are structured `{id, text}` only. Schema semver is `2.x` starting Wave 1; consult `docs/WAVE-PLAN.md` for deeper per-kind tightening scheduled in Wave 2.
+`schemas/contract.schema.json` is **tightened**: ten universal required fields (`name`, `kind`, `purpose`, `status`, `since`, `version`, `assurance_level`, `invariants`, `edge_cases`, `owner`) plus kind-specific requirements via `oneOf` across eight kinds (`library`, `cli`, `component`, `endpoint`, `entity`, `service`, `event-stream`, `feature-flag`). Legacy kinds (`crate`, `package`, …) migrate forward by picking the closest supported kind. Claims are structured `{id, text}` only. Schema semver is `3.x` starting Wave 2 (`contract.schema.json` v3.0.0, kind branches refactored to `$ref` per-kind subschemas in `schemas/contract-kinds/`); consult `docs/WAVE-PLAN.md` for Wave 3 trace and enforcement work.
 
 ## Assurance ladder MVP
 
@@ -53,7 +53,7 @@ Per ADR-0001, the project does not use the word "runtime" in user-facing copy un
 
 ## Immediate next work
 
-1. **Wave 2 — see `docs/WAVE-PLAN.md`:** contract-diff, exemption CLI, deeper kind subschemas + coherence/trace prerequisites.
+1. **Wave 3 — see `docs/WAVE-PLAN.md`:** trace graph (spec ↔ code ↔ test), drift detection over git history, attestation emitter conforming to `reference/artifacts/release-gate.example.json`.
 2. Stand up a TypeScript CLI scaffold under `packages/chassis-cli/` that wraps `chassis-core` (via NAPI or WASM) and exposes the planned subcommands.
 3. Implement the MCP server in TypeScript, using `reference/python-cli/mcp_server.py` as the semantic spec.
 4. Publish `chassis-core` to crates.io and `@chassis/core-types` to npm.

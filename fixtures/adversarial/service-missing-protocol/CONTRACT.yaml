@@ -1,0 +1,29 @@
+name: "service-minimal"
+kind: service
+version: "0.1.0"
+purpose: "Minimal service boundary fixture exercising kind=service required protocol/endpoints/consumes/produces."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+endpoints:
+  - "v1/contracts/validate"
+  - "v1/contracts/attest"
+consumes:
+  - "user-store"
+produces:
+  - "contracts.validated"
+  - "contracts.attested"
+resilience:
+  timeout: "2s"
+  retry:
+    maxAttempts: 3
+    backoff: "exponential"
+invariants:
+  - id: service-minimal.protocol-rest
+    text: "Service is fronted by REST endpoints."
+  - id: service-minimal.timeout-bounded
+    text: "Outbound calls carry a 2s timeout."
+edge_cases:
+  - id: service-minimal.empty-endpoints-rejected
+    text: "An empty endpoints array would still validate (schema permits), but is documented here as a smell."

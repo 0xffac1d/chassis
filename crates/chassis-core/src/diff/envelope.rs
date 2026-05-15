@@ -3,7 +3,9 @@
 
 use serde_json::{json, Value};
 
-use super::{Diagnostic, Severity, Violated, ADR_REF, SOURCE};
+use crate::diagnostic::{Diagnostic, Severity, Violated};
+
+use super::{ADR_REF, SOURCE};
 
 fn build(
     rule_id: &str,
@@ -24,13 +26,16 @@ fn build(
     Diagnostic {
         rule_id: rule_id.to_string(),
         severity,
-        source: SOURCE.to_string(),
-        subject: subject.to_string(),
         message,
+        source: Some(SOURCE.to_string()),
+        subject: Some(subject.to_string()),
         violated: Some(Violated {
             convention: ADR_REF.to_string(),
         }),
-        detail,
+        docs: None,
+        fix: None,
+        location: None,
+        detail: Some(detail),
     }
 }
 

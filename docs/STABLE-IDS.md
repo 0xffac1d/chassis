@@ -25,3 +25,21 @@ Hard limits enforced by the registry: max 90-day lifetime per entry, max 25 acti
 Five-rung ladder: `declared → coherent → verified → enforced → observed`.
 Each rung is whatever its verifier outputs, not what the contract author claims.
 See `ASSURANCE-LADDER.md` for promotion semantics.
+
+## Namespaces in use
+
+Rule-ID prefixes claimed by accepted ADRs. Each prefix is governed by the listed ADR(s); adding a new ID under an existing prefix requires amending that ADR or authoring a superseder (ADR-0011).
+
+- `ASSURANCE-*` — ADR-0002
+- `CH-DIFF-*` — ADR-0019
+- `CH-EXEMPT-*` — ADR-0020
+- `CLAIM-*` — ADR-0003, ADR-0005
+- `DEFERRAL-*` — ADR-0016
+- `DIAGNOSTIC-*` — ADR-0018
+- `EXEMPTION-*` — ADR-0004
+- `FINGERPRINT-*` — ADR-0017
+- `INVARIANT-*` — ADR-0003
+- `KIND-*` — ADR-0021
+- `RULE-*` — ADR-0011
+- `SCHEMA-*` — ADR-0008, ADR-0015
+- `SCOPE-*` — ADR-0001

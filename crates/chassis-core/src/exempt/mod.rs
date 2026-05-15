@@ -3,8 +3,7 @@
 //! # Rule IDs
 //!
 //! All diagnostics emitted by this module use `ruleId`s of the form
-//! `CH-EXEMPT-*`. They are documented in `docs/adr/TODO-ADR-0020-exemption-rules.md`
-//! (promoted to ADR-0020 at Wave 2 close-out).
+//! `CH-EXEMPT-*`. They are documented in `docs/adr/ADR-0020-exemption-rules.md`.
 //!
 //! | Rule ID                            | Severity | Meaning                                                          |
 //! |------------------------------------|----------|------------------------------------------------------------------|

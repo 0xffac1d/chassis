@@ -1,0 +1,36 @@
+name: "feature-flag-minimal"
+kind: feature-flag
+version: "0.1.0"
+purpose: "Minimal feature-flag fixture exercising kind=feature-flag typed targeting rules and metrics."
+status: active
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+type: "bool"
+targeting:
+  rules:
+    - description: "Enable for internal staff during the rollout window."
+      variation: true
+      conditions:
+        - attribute: "user.role"
+          operator: "in"
+          value:
+            - "staff"
+            - "admin"
+      percentage: 100
+    - description: "Beta cohort sample."
+      variation: true
+      percentage: 5
+  default_variation: false
+metrics:
+  - "contracts.validate.latency_p95"
+  - "contracts.validate.success_rate"
+expiration: "2026-12-31"
+invariants:
+  - id: feature-flag-minimal.default-off
+    text: "Default variation is false (off) to honor safe-by-default rollout."
+  - id: feature-flag-minimal.has-metrics
+    text: "Tracks at least one metric while the flag is on."
+edge_cases:
+  - id: feature-flag-minimal.no-conditions-rule
+    text: "Second rule omits explicit conditions; the schema permits this for ramp-percentage rules."

@@ -20,7 +20,7 @@ export interface Diagnostic {
    */
   ruleId: string;
   /**
-   * error = hard-fail in non-advisory mode; warning = visible but non-blocking; info = observation only.
+   * Closed enum per ADR-0018 / Wave 2 close-out (schema 1.2.0). error = hard-fail in non-advisory mode; warning = visible but non-blocking; info = observation only.
    */
   severity: 'error' | 'warning' | 'info';
   /**

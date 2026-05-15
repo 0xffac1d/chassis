@@ -1,0 +1,34 @@
+name: "endpoint-minimal"
+kind: endpoint
+version: "0.1.0"
+purpose: "Minimal HTTP endpoint fixture exercising kind=endpoint structured request/response and auth payloads."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: chassis-fixtures
+path: "/v1/contracts/validate"
+auth:
+  type: "bearer"
+  scopes:
+    - "contracts:read"
+request:
+  content_type: "application/json"
+  schema_ref: "schemas/api/validate-request.schema.json"
+response:
+  content_type: "application/json"
+  schema_ref: "schemas/api/validate-response.schema.json"
+  status_code: 200
+request_examples:
+  - name: "valid-library-contract"
+    description: "Submit a library-kind CONTRACT.yaml body."
+response_examples:
+  - name: "success"
+    description: "Validation succeeded; no errors returned."
+invariants:
+  - id: endpoint-minimal.path-versioned
+    text: "Path is versioned under /v1/ to allow future migrations."
+  - id: endpoint-minimal.auth-bearer
+    text: "Auth uses bearer tokens; anonymous access is forbidden."
+edge_cases:
+  - id: endpoint-minimal.no-error-examples
+    text: "Error responses are not enumerated in this minimal fixture."

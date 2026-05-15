@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "$id": "https://chassis.dev/schemas/diagnostics/diagnostic.schema.json",
   "title": "Chassis diagnostic",
   "description": "Structured, agent-routable diagnostic emitted by Chassis gates, validators, and drift checks. Every finding surfaced via --json conforms to this schema. The ruleId + violated.convention pair binds the diagnostic to an ADR; the fix.applicability enum tells an agent whether to auto-apply.",
@@ -30,7 +30,7 @@
     "severity": {
       "type": "string",
       "enum": ["error", "warning", "info"],
-      "description": "error = hard-fail in non-advisory mode; warning = visible but non-blocking; info = observation only."
+      "description": "Closed enum per ADR-0018 / Wave 2 close-out (schema 1.2.0). error = hard-fail in non-advisory mode; warning = visible but non-blocking; info = observation only."
     },
     "message": {
       "type": "string",
