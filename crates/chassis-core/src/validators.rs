@@ -56,6 +56,7 @@ pub struct CanonicalMetadataContractValidator;
 impl Validator for CanonicalMetadataContractValidator {
     type Error = ValidationError;
 
+    // @claim chassis.adversarial-fixture-rejected
     fn validate(&self, value: &serde_json::Value) -> Result<(), Self::Error> {
         crate::contract::validate_metadata_contract(value).map_err(|errs| ValidationError {
             rule_id: "CH-RUST-METADATA-CONTRACT",
@@ -227,6 +228,7 @@ mod tests {
         assert_eq!(err.rule_id, "CH-RUST-METADATA-CONTRACT");
     }
 
+    // @claim chassis.contract-schema-kind-discriminated
     #[test]
     fn adversarial_cli_missing_kind_required_field_fails() {
         // CLI contract missing the kind-specific `entrypoint` field.

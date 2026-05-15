@@ -1,0 +1,9 @@
+{
+  "ruleId": "CH-DIFF-CLAIM-REMOVED",
+  "severity": "error",
+  "message": "claim `demo.alpha` was removed; this is a breaking change.",
+  "source": "chassis diff",
+  "subject": "contract<demo>.invariants[demo.alpha]",
+  "violated": { "convention": "ADR-0019" },
+  "detail": { "classification": "breaking", "before": "demo.alpha", "after": null }
+}

@@ -1,0 +1,10 @@
+{
+  "language": "rust",
+  "source": "dup.rs",
+  "sites": [
+    { "claim_id": "demo.alpha", "kind": "impl" }
+  ],
+  "diagnostics": [
+    { "rule_id": "CH-TRACE-DUPLICATE-CLAIM-AT-SITE", "severity": "info" }
+  ]
+}

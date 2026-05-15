@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "summary": { "stale": 1, "abandoned": 0, "missing": 0 },
+  "diagnostics": [
+    {
+      "ruleId": "CH-DRIFT-STALE-WARNING",
+      "severity": "warning",
+      "message": "drift score band=stale claim=`demo.alpha`",
+      "source": "drift::report",
+      "subject": "demo.alpha",
+      "violated": { "convention": "ADR-0024" }
+    }
+  ]
+}

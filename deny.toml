@@ -1,0 +1,124 @@
+# cargo-deny policy for the chassis workspace.
+#
+# Run locally with:
+#   cargo deny --workspace check
+#
+# Documentation: https://embarkstudios.github.io/cargo-deny/
+#
+# The "graph" / "output" sections use cargo-deny's v2 schema (default since
+# 0.14). Targets are restricted so we only audit the platforms we ship.
+
+[graph]
+all-features = false
+no-default-features = false
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+
+[output]
+feature-depth = 1
+
+# ---------------------------------------------------------------------------
+# advisories  -- RustSec advisory database
+# ---------------------------------------------------------------------------
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+yanked = "deny"
+ignore = [
+    # serde_yaml 0.9.34 is upstream-deprecated (RUSTSEC-2024-0320,
+    # informational "unmaintained"). Kept intentionally; see
+    # docs/adr/ADR-0025-supply-chain-policy.md for the rationale and
+    # the trigger that retires this exemption.
+    { id = "RUSTSEC-2024-0320", reason = "kept intentionally; see docs/adr/ADR-0025-supply-chain-policy.md" },
+]
+
+# ---------------------------------------------------------------------------
+# licenses  -- SPDX policy
+# ---------------------------------------------------------------------------
+[licenses]
+# Permissive only. Anything not in this list fails the build.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+    "MPL-2.0",
+    "0BSD",
+    "MIT-0",
+]
+confidence-threshold = 0.93
+
+# Per-crate exceptions for crates whose SPDX expression is non-standard or
+# whose license file is hand-written. Keep this list short and justified.
+exceptions = [
+    # ring uses a complex multi-license clause; not currently in the tree
+    # but listed here to document the policy if it lands transitively.
+]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[[licenses.clarify]]
+# unicode-ident ships under Unicode-3.0 OR (MIT AND Apache-2.0); the SPDX
+# parser sometimes flags the disjunction. Clarify by accepting either form.
+name = "unicode-ident"
+expression = "(MIT OR Apache-2.0) AND Unicode-3.0"
+license-files = []
+
+# ---------------------------------------------------------------------------
+# bans  -- duplicate versions, banned crates, feature audits
+# ---------------------------------------------------------------------------
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+
+# Crates we explicitly refuse to depend on. Add a `reason` so future
+# contributors understand why.
+deny = [
+    # Network/TLS stacks we do not want pulled in by accident. chassis is
+    # an offline-by-default tool; if any of these appear, flag it.
+    { name = "openssl",      reason = "use rustls or vendored libgit2 instead" },
+    { name = "openssl-sys",  reason = "use rustls or vendored libgit2 instead" },
+    { name = "native-tls",   reason = "no TLS clients in this workspace" },
+    { name = "reqwest",      reason = "no network clients in this workspace" },
+    { name = "hyper",        reason = "no HTTP server in this workspace" },
+    { name = "tokio",        reason = "the workspace is sync-only by design" },
+    { name = "async-std",    reason = "the workspace is sync-only by design" },
+]
+
+# Crates allowed to appear at multiple versions. Empty by default; add an
+# entry only with a justifying comment when a duplicate is unavoidable.
+skip = [
+    # `getrandom` 0.2 is pulled in by ed25519-dalek (rand_core 0.6); 0.3
+    # is pulled in via the wasi/icu chain. Both versions are upstream
+    # current; resolving requires waiting for ed25519-dalek to bump.
+    { name = "getrandom" },
+]
+
+skip-tree = []
+
+# ---------------------------------------------------------------------------
+# sources  -- where crates may come from
+# ---------------------------------------------------------------------------
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

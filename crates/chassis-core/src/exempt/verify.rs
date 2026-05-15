@@ -10,8 +10,8 @@ use crate::diagnostic::Severity;
 use super::envelope::{diag, diag_with_detail};
 use super::{
     entry_is_quota_active, entry_violates_global_policy, id_matches_grammar,
-    is_entry_expired_audit, lifetime_days, rule_id, Codeowners, Diagnostic, ExemptionStatus,
-    Registry, MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
+    is_entry_active_but_expired, is_entry_status_expired, lifetime_days, rule_id, Codeowners,
+    Diagnostic, ExemptionStatus, Registry, MAX_ACTIVE_ENTRIES, MAX_LIFETIME_DAYS,
 };
 
 pub(crate) fn verify(
@@ -103,14 +103,28 @@ pub(crate) fn verify(
             ));
         }
 
-        if is_entry_expired_audit(entry, now) {
+        if is_entry_active_but_expired(entry, now) {
             out.push(diag_with_detail(
                 rule_id::EXPIRED,
                 Severity::Error,
                 entry.id.clone(),
                 format!(
-                    "exemption `{}` expired on {} but is still present (ADR-0004)",
+                    "active exemption `{}` expired on {} but is still present (ADR-0004); move to status: expired or remove",
                     entry.id, entry.expires_at
+                ),
+                json!({
+                    "expiresAt": entry.expires_at.to_string(),
+                    "status": "active",
+                }),
+            ));
+        } else if is_entry_status_expired(entry) {
+            out.push(diag_with_detail(
+                rule_id::EXPIRED_RETAINED,
+                Severity::Info,
+                entry.id.clone(),
+                format!(
+                    "exemption `{}` retained with status: expired (audit-only, never suppresses)",
+                    entry.id
                 ),
                 json!({ "expiresAt": entry.expires_at.to_string() }),
             ));

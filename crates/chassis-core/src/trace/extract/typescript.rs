@@ -16,6 +16,14 @@ static CLAIM_RE: LazyLock<Regex> =
 static CLAIM_ID_OK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-z][a-z0-9_.-]*$").expect("claim id grammar per STABLE-IDS"));
 
+// Rejected pre-ADR-0023 JSDoc form. Matches `/** @claim id */`, `/* @claim id */`,
+// and a leading-` * @claim id` line inside a multi-line JSDoc block. Used only to
+// surface the rejected syntax as `CH-TRACE-MALFORMED-CLAIM` so it cannot fail
+// silently — see ADR-0023 for the accepted grammar.
+static REJECTED_JSDOC_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*(?:/\*+|\*)\s*@claim\b").expect("rejected jsdoc claim regex")
+});
+
 fn diag(rule: &str, sev: Severity, msg: String, subject: String) -> Diagnostic {
     Diagnostic {
         rule_id: rule.to_string(),
@@ -46,19 +54,14 @@ fn scan_for_jest(lines: &[String], upto: usize) -> bool {
 fn find_back_site_idx(lines: &[String], mut pos: usize) -> Option<usize> {
     while pos < lines.len() {
         let t = lines[pos].trim();
-        if t.is_empty() || t.starts_with("//") || t.starts_with("/*") {
+        if t.is_empty() || t.starts_with("//") || t.starts_with("/*") || t.starts_with("*") {
             pos += 1;
             continue;
         }
-        if t.starts_with("#[derive")
-            || t.starts_with("#[allow")
-            || t.starts_with("#[cfg")
-            || t.starts_with("#[instrument")
-            || t.starts_with("#![")
-            || t.starts_with("#[")
-            || t.starts_with("import ")
-            || t.starts_with("export ")
-        {
+        // `export { foo, bar }` re-exports and bare `import` statements are not
+        // binding sites; skip them. `export function`/`export const`/`export class`
+        // ARE binding sites and must not be skipped (see ADR-0023).
+        if t.starts_with("import ") || t.starts_with("export {") || t.starts_with("export *") {
             pos += 1;
             continue;
         }
@@ -77,6 +80,16 @@ pub fn scan_typescript(rel: &Path, lines: &[String]) -> (Vec<ClaimSite>, Vec<Dia
     let mut idx = 0usize;
     while idx < lines.len() {
         if !CLAIM_RE.is_match(&lines[idx]) {
+            if REJECTED_JSDOC_RE.is_match(&lines[idx]) {
+                diags.push(diag(
+                    RULE_MALFORMED,
+                    Severity::Error,
+                    "JSDoc `@claim` form is rejected by ADR-0023 (supersedes ADR-0005); \
+                     use `// @claim <id>` on its own line immediately before the backed item"
+                        .to_string(),
+                    format!("{}:{}", rel.display(), idx + 1),
+                ));
+            }
             idx += 1;
             continue;
         }
@@ -198,6 +211,20 @@ mod tests {
     fn ls(s: &str) -> Vec<String> {
         s.lines().map(|l| l.to_string()).collect()
     }
+
+    #[test]
+    fn line_comment_is_accepted() {
+        let src = r##"
+// @claim demo.alpha
+export function demo() {}
+"##;
+        let (sites, diags) = scan_typescript(Path::new("pkg/demo.ts"), &ls(src));
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].claim_id, "demo.alpha");
+        assert!(matches!(sites[0].kind, SiteKind::Impl));
+        assert!(diags.iter().all(|d| d.rule_id != RULE_MALFORMED));
+    }
+
     #[test]
     fn malformed_dup_like_rust() {
         let src = r##"
@@ -207,5 +234,69 @@ export const x = 1;
         let (sites, diags) = scan_typescript(Path::new("pkg/x.ts"), &ls(src));
         assert!(sites.is_empty());
         assert!(diags.iter().any(|d| d.rule_id == RULE_MALFORMED));
+    }
+
+    #[test]
+    fn jsdoc_form_is_rejected_loudly() {
+        let src = r##"
+/** @claim demo.alpha */
+export function demo() {}
+"##;
+        let (sites, diags) = scan_typescript(Path::new("pkg/demo.ts"), &ls(src));
+        assert!(
+            sites.is_empty(),
+            "JSDoc claim must not be admitted as a site"
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.rule_id == RULE_MALFORMED && d.severity == Severity::Error),
+            "JSDoc form must surface CH-TRACE-MALFORMED-CLAIM, got {diags:?}"
+        );
+    }
+
+    #[test]
+    fn jsdoc_block_inner_star_form_is_rejected() {
+        let src = r##"
+/**
+ * @claim demo.alpha
+ */
+export function demo() {}
+"##;
+        let (sites, diags) = scan_typescript(Path::new("pkg/demo.ts"), &ls(src));
+        assert!(sites.is_empty());
+        assert!(diags
+            .iter()
+            .any(|d| d.rule_id == RULE_MALFORMED && d.message.contains("ADR-0023")));
+    }
+
+    #[test]
+    fn duplicate_same_site_two_lines() {
+        let src = r##"
+// @claim demo.alpha
+// @claim demo.alpha
+export function demo() {}
+"##;
+        let (_sites, diags) = scan_typescript(Path::new("pkg/dup.ts"), &ls(src));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.rule_id == RULE_DUPLICATE_SITE && d.severity == Severity::Info),
+            "{diags:?}"
+        );
+    }
+
+    #[test]
+    fn test_call_is_classified_as_test_site() {
+        let src = r##"
+// @claim demo.alpha
+test("returns 1", () => { /* ... */ });
+"##;
+        let (sites, _) = scan_typescript(Path::new("pkg/x.test.ts"), &ls(src));
+        assert_eq!(sites.len(), 1);
+        assert!(
+            matches!(sites[0].kind, SiteKind::Test),
+            "test(...) site must classify as SiteKind::Test"
+        );
     }
 }

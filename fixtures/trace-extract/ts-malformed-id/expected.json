@@ -1,0 +1,8 @@
+{
+  "language": "typescript",
+  "source": "bad.ts",
+  "sites": [],
+  "diagnostics": [
+    { "rule_id": "CH-TRACE-MALFORMED-CLAIM", "severity": "error" }
+  ]
+}

@@ -15,6 +15,8 @@ enforces:
     description: "Predicate JSON does not conform to the release-gate predicate schema."
   - rule: CH-ATTEST-NOT-FOUND
     description: "A cached attestation artifact (e.g. release_gate) was requested but the file is absent."
+  - rule: CH-ATTEST-ENVELOPE-SCHEMA
+    description: "DSSE envelope does not conform to schemas/dsse-envelope.schema.json (sign or verify side)."
 ---
 
 # ADR-0022 — Attestation envelope

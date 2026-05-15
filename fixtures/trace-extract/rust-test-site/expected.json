@@ -1,0 +1,8 @@
+{
+  "language": "rust",
+  "source": "test_mod.rs",
+  "sites": [
+    { "claim_id": "demo.alpha", "kind": "test" }
+  ],
+  "diagnostics": []
+}

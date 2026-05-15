@@ -71,7 +71,7 @@ export type Entry = {
    */
   severity_override?: 'info' | 'warning' | 'error';
   /**
-   * Lifecycle state. `active` participates in suppression; `expired` is informational only and surfaces as an `expired_exemptions` audit entry; `revoked` is retained as historical evidence and never suppresses.
+   * Lifecycle state. `active` participates in suppression while `created_at <= today <= expires_at`; an `active` entry whose `expires_at` is in the past fires CH-EXEMPT-EXPIRED (error) and is never used for suppression. `expired` is curated audit-only state — owners move entries here to acknowledge the waiver is dead and resolve the CH-EXEMPT-EXPIRED error without losing history; emits CH-EXEMPT-EXPIRED-RETAINED (info) and never suppresses. `revoked` is retained as historical evidence and never suppresses.
    */
   status?: 'active' | 'expired' | 'revoked';
   /**

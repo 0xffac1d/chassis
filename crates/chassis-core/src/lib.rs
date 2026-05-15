@@ -3,14 +3,18 @@
 
 #![forbid(unsafe_code)]
 
+pub mod artifact;
 pub mod attest;
 pub mod contract;
 pub mod diagnostic;
+pub mod diagnostic_registry;
 pub mod diff;
 pub mod drift;
 pub mod exempt;
 pub mod exemption;
+pub mod exports;
 pub mod fingerprint;
+pub mod supply;
 pub mod trace;
 pub mod validators;
 

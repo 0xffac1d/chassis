@@ -1,0 +1,22 @@
+name: demo-rust-library
+kind: library
+version: "0.1.0"
+purpose: "Minimal Rust library used to demonstrate Chassis contract, trace, drift, and exemption checks."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: "@demo-rust"
+exports:
+  - path: "crates/demo-rust/src/lib.rs"
+    kind: module
+    description: "Greeting helper with explicit contract-backed behavior."
+invariants:
+  - id: demo.rust.greeting
+    text: "The library returns the stable greeting format `hello, <name>`."
+    test_linkage:
+      - "crates/demo-rust/tests/greeting.rs::returns_stable_greeting"
+edge_cases:
+  - id: demo.rust.empty-name
+    text: "Blank or whitespace-only names are treated as `friend`."
+    test_linkage:
+      - "crates/demo-rust/tests/greeting.rs::defaults_blank_name"

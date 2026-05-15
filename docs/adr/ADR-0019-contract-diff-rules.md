@@ -55,6 +55,8 @@ tags:
 
 Wave 2 Session D landed the contract-diff engine in `crates/chassis-core/src/diff/`. Per ADR-0011, every emitted `ruleId` must resolve to an accepted ADR `enforces[]` entry. Rule IDs were enumerated in a temporary stub during parallel development; this ADR promotes that list to normative form.
 
+The root self-governance claim `chassis.no-silent-assurance-demotion` binds this ADR back to `CONTRACT.yaml`: demoting `assurance_level` must emit `CH-DIFF-ASSURANCE-DEMOTED`, never disappear as prose-only drift.
+
 Finding shape follows ADR-0018 (`schemas/diagnostic.schema.json`): each diagnostic sets `ruleId`, envelope `severity` (`error` \| `warning` \| `info`), `source` (`chassis diff`), `subject`, optional `violated.convention` (`ADR-0019`), and `detail.classification` (`breaking` \| `non-breaking` \| `additive`) as the diff-domain semantic distinct from envelope severity.
 
 ## Decision

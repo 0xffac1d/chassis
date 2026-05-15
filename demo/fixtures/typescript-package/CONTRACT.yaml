@@ -1,0 +1,22 @@
+name: demo-typescript-package
+kind: library
+version: "0.1.0"
+purpose: "Minimal TypeScript package used to demonstrate Chassis contract, trace, drift, and exemption checks."
+status: stable
+since: "0.1.0"
+assurance_level: declared
+owner: "@demo-ts"
+exports:
+  - path: "packages/demo-ts/src/index.ts"
+    kind: module
+    description: "Greeting helper with explicit contract-backed behavior."
+invariants:
+  - id: demo.ts.greeting
+    text: "The package returns the stable greeting format `hello, <name>`."
+    test_linkage:
+      - "packages/demo-ts/src/index.test.ts::returns stable greeting"
+edge_cases:
+  - id: demo.ts.empty-name
+    text: "Blank or whitespace-only names are treated as `friend`."
+    test_linkage:
+      - "packages/demo-ts/src/index.test.ts::defaults blank name"

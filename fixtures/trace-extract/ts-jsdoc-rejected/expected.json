@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "source": "mod.ts",
+  "sites": [],
+  "diagnostics": [
+    { "rule_id": "CH-TRACE-MALFORMED-CLAIM", "severity": "error" },
+    { "rule_id": "CH-TRACE-MALFORMED-CLAIM", "severity": "error" }
+  ]
+}

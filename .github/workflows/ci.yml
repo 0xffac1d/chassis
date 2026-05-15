@@ -32,7 +32,7 @@ jobs:
           workspaces: |
             crates/chassis-cli
             crates/chassis-core
-            crates/chassis-mcp
+            crates/chassis-jsonrpc
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -51,7 +51,17 @@ jobs:
             npm-${{ runner.os }}-
 
       - name: verify-foundation.sh
+        env:
+          CHASSIS_VERIFY_LOG_DIR: ${{ github.workspace }}/verify-foundation-logs
         run: ./scripts/verify-foundation.sh
+
+      - name: Upload verify-foundation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-foundation-logs-${{ matrix.os }}
+          path: verify-foundation-logs/
+          if-no-files-found: warn
 
   fingerprint-parity:
     name: fingerprint Node vs Rust
@@ -72,7 +82,7 @@ jobs:
           workspaces: |
             crates/chassis-cli
             crates/chassis-core
-            crates/chassis-mcp
+            crates/chassis-jsonrpc
 
       - name: Node digest
         id: node
@@ -97,6 +107,45 @@ jobs:
           fi
           echo "OK ${{ steps.node.outputs.digest }}"
 
+  supply-chain:
+    name: supply-chain (audit + deny + archive hygiene)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-jsonrpc
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+
+      - name: Install cargo-deny
+        run: cargo install --locked cargo-deny
+
+      - name: cargo audit
+        run: cargo audit --deny warnings
+
+      - name: cargo deny check
+        run: cargo deny --workspace check
+
+      - name: Build source archive
+        run: ./scripts/build-source-archive.sh dist/chassis-source-ci.tar.gz HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chassis-source-archive
+          path: dist/chassis-source-ci.tar.gz
+
   self-attest:
     name: self-attest (CLI trace + drift + DSSE)
     runs-on: ubuntu-latest
@@ -112,14 +161,15 @@ jobs:
           workspaces: |
             crates/chassis-cli
             crates/chassis-core
-            crates/chassis-mcp
+            crates/chassis-jsonrpc
 
       - name: self-attest.sh
         env:
-          SELF_ATTEST_ARTIFACT: ${{ github.workspace }}/release-gate.dsse
+          SELF_ATTEST_DIR: ${{ github.workspace }}/self-attest-artifacts
+          SELF_ATTEST_ARTIFACT: ${{ github.workspace }}/self-attest-artifacts/release-gate.dsse
         run: ./scripts/self-attest.sh
 
       - uses: actions/upload-artifact@v4
         with:
-          name: release-gate-dsse
-          path: release-gate.dsse
+          name: self-attest-artifacts
+          path: self-attest-artifacts/

@@ -21,6 +21,8 @@ tags:
 
 Consumers need a deterministic identity for “which chassis vocabulary did we compile against?” distinct from Cargo semver alone. `reference/adrs-original/ADR-0015-schema-fingerprint-identity.md` described Python + release manifest artifacts; this repository ships a Node reference implementation co-located with TypeScript typings.
 
+The root self-governance claim `chassis.fingerprint-matches` is the repository-level check for this identity: the committed TypeScript package fingerprint must match a fresh recomputation over `schemas/`.
+
 ## Decision
 
 ### Identity definition

@@ -33,7 +33,7 @@ import type { Contract, Adr, ExemptionRegistry } from '@chassis/core-types';
 
 ## What gets generated
 
-- **16 `.d.ts` modules** mapped from matching schema paths (examples: root `schemas/contract.schema.json`, kinds under `schemas/contract-kinds/*.schema.json`, plus metadata schemas such as `diagnostic`, `adr`, etc.).
+- **25 `.d.ts` modules** mapped one-to-one from `schemas/**/*.schema.json`: 17 root schemas (`contract`, `adr`, `authority-index`, `cedar-facts`, `coherence-report`, `diagnostic`, `drift-report`, `dsse-envelope`, `eventcatalog-metadata`, `exemption-registry`, `field-definition`, `in-toto-statement-v1`, `opa-input`, `policy-input`, `release-gate`, `tag-ontology`, `trace-graph`) plus 8 kind subschemas under `dist/contract-kinds/` (`cli`, `component`, `endpoint`, `entity`, `event-stream`, `feature-flag`, `library`, `service`). The committed `manifest.json` lists all 25 schema sources with their SHA-256 digests.
 - A barrel [`dist/index.d.ts`](dist/index.d.ts) re-exports namespaces for every leaf module and collision-free top-level aliases where names are globally unique.
 
 ## Build locally

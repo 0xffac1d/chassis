@@ -9,7 +9,8 @@
 //! |------------------------------------|----------|------------------------------------------------------------------|
 //! | `CH-EXEMPT-QUOTA-EXCEEDED`         | error    | > 25 active entries.                                             |
 //! | `CH-EXEMPT-LIFETIME-EXCEEDED`      | error    | `expires_at - created_at > 90 days`.                             |
-//! | `CH-EXEMPT-EXPIRED`                | error    | Entry's `expires_at < now` but still present in registry.        |
+//! | `CH-EXEMPT-EXPIRED`                | error    | `status: active` AND `expires_at < now` — silent persistence past expiry. |
+//! | `CH-EXEMPT-EXPIRED-RETAINED`       | info     | Entry retained with `status: expired` (audit-only). Never suppresses.     |
 //! | `CH-EXEMPT-MISSING-CODEOWNERS`     | error    | Required CODEOWNERS signoff missing from acknowledgments.        |
 //! | `CH-EXEMPT-DUPLICATE-ID`           | error    | Two entries share the same `id`.                                 |
 //! | `CH-EXEMPT-MALFORMED-ID`           | error    | `id` doesn't match `^EX-\d{4}-\d{4}$`.                           |
@@ -17,10 +18,11 @@
 //! | `CH-EXEMPT-REMOVED-BY-SWEEPER`     | info     | Sweeper removed an expired entry.                                |
 //! | `CH-EXEMPT-PATHS-EMPTY`            | error    | `paths` array is empty.                                          |
 //! | `CH-EXEMPT-CODEOWNERS-PARSE-ERROR` | error    | The CODEOWNERS file couldn't be parsed.                          |
-//! | `CH-EXEMPT-REVOKED`               | info     | Entry retained with `status: revoked` (audit-only).              |
-//! | `CH-EXEMPT-LEGACY-ALIAS`          | info     | v1 aliases detected via `registry_parse_str_with_diagnostics`.     |
-//! | `CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN`       | error    | Wildcard / repo-root scope without registry + entry `allow_global`.       |
-//! | `CH-EXEMPT-MISSING-RULE-OR-FINDING`     | error    | Entry lacks `rule_id`, `finding_id`, and legacy `rule`.                     |
+//! | `CH-EXEMPT-REVOKED`                | info     | Entry retained with `status: revoked` (audit-only).              |
+//! | `CH-EXEMPT-LEGACY-ALIAS`           | info     | v1 aliases detected via `registry_parse_str_with_diagnostics`.   |
+//! | `CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN`  | error    | Wildcard / repo-root scope without registry + entry `allow_global`. |
+//! | `CH-EXEMPT-MISSING-RULE-OR-FINDING`| error    | Entry lacks `rule_id`, `finding_id`, and legacy `rule`.          |
+//! | `CH-EXEMPT-APPLIED`                | info     | Apply pipeline suppressed or downgraded a finding (audit trail). |
 //!
 //! Cross-session note: `Diagnostic` is shared via [`crate::diagnostic::Diagnostic`].
 //! Session D (contract-diff) also emits diagnostics through the same envelope.
@@ -33,6 +35,7 @@ use crate::diagnostic::Severity;
 
 use envelope::diag_with_detail;
 
+pub mod apply;
 pub mod codeowners;
 mod envelope;
 mod lifecycle;
@@ -56,6 +59,7 @@ pub mod rule_id {
     pub const QUOTA_EXCEEDED: &str = "CH-EXEMPT-QUOTA-EXCEEDED";
     pub const LIFETIME_EXCEEDED: &str = "CH-EXEMPT-LIFETIME-EXCEEDED";
     pub const EXPIRED: &str = "CH-EXEMPT-EXPIRED";
+    pub const EXPIRED_RETAINED: &str = "CH-EXEMPT-EXPIRED-RETAINED";
     pub const MISSING_CODEOWNERS: &str = "CH-EXEMPT-MISSING-CODEOWNERS";
     pub const DUPLICATE_ID: &str = "CH-EXEMPT-DUPLICATE-ID";
     pub const MALFORMED_ID: &str = "CH-EXEMPT-MALFORMED-ID";
@@ -69,6 +73,7 @@ pub mod rule_id {
     pub const LEGACY_ALIAS: &str = "CH-EXEMPT-LEGACY-ALIAS";
     pub const GLOBAL_WITHOUT_OPT_IN: &str = "CH-EXEMPT-GLOBAL-WITHOUT-OPT-IN";
     pub const MISSING_RULE_OR_FINDING: &str = "CH-EXEMPT-MISSING-RULE-OR-FINDING";
+    pub const APPLIED: &str = "CH-EXEMPT-APPLIED";
 }
 
 /// Lifecycle states for exemption entries (`schemas/exemption-registry.schema.json`).
@@ -342,10 +347,31 @@ pub(crate) fn entry_is_quota_active(entry: &Exemption, today: NaiveDate) -> bool
     }
 }
 
-/// Expired audit signal: calendar expiry or explicit lifecycle `expired`.
+/// True when the entry is `status: active` with a past `expires_at` — the
+/// **error** condition for ADR-0004 (silent persistence past expiry).
+/// `status: expired` and `status: revoked` are explicitly excluded so that
+/// curated-historical entries do not re-fire CH-EXEMPT-EXPIRED.
 #[inline]
-pub(crate) fn is_entry_expired_audit(entry: &Exemption, now: DateTime<Utc>) -> bool {
-    is_expired(entry.expires_at, now) || entry.status == ExemptionStatus::Expired
+pub(crate) fn is_entry_active_but_expired(entry: &Exemption, now: DateTime<Utc>) -> bool {
+    entry.status == ExemptionStatus::Active && is_expired(entry.expires_at, now)
+}
+
+/// True when the entry carries the curated `status: expired` lifecycle — an
+/// **info** audit signal, not an error. Symmetric to `status: revoked`.
+#[inline]
+pub(crate) fn is_entry_status_expired(entry: &Exemption) -> bool {
+    entry.status == ExemptionStatus::Expired
+}
+
+/// True when the entry is eligible to suppress findings today: `status: active`
+/// and `created_at <= today <= expires_at`. Fail-closed: a revoked entry, a
+/// `status: expired` entry, a calendar-expired active entry, and a future-dated
+/// active entry all return false.
+#[inline]
+pub fn entry_is_suppression_eligible(entry: &Exemption, now: DateTime<Utc>) -> bool {
+    matches!(entry.status, ExemptionStatus::Active)
+        && entry.created_at <= now.date_naive()
+        && now.date_naive() <= entry.expires_at
 }
 
 /// True iff `id` matches the canonical EX-YYYY-NNNN grammar.

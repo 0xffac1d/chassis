@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chassis.dev/schemas/coherence-report.schema.json",
   "version": "1.0.0",
   "title": "Chassis repository coherence report",
   "description": "Machine-readable longitudinal coherence signals: authority alignment, stale metadata, schema validation, and trust ladder for agent context ranking. Produced by `chassis coherence`.",

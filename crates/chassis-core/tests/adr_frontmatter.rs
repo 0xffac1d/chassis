@@ -3,6 +3,18 @@ use std::fs;
 use std::path::Path;
 
 // @claim chassis.adr-frontmatter-valid
+fn frontmatter_block(path: &Path, raw: &str) -> String {
+    let body = raw
+        .strip_prefix("---\n")
+        .unwrap_or_else(|| panic!("no leading frontmatter in {}", path.display()));
+    let end = body
+        .find("\n---\n")
+        .or_else(|| body.find("\n---"))
+        .unwrap_or_else(|| panic!("no closing frontmatter delimiter in {}", path.display()));
+    body[..end].to_string()
+}
+
+// @claim chassis.adr-frontmatter-valid
 #[test]
 fn every_adr_frontmatter_validates_against_schema() {
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -23,16 +35,9 @@ fn every_adr_frontmatter_validates_against_schema() {
             continue;
         }
         let raw = fs::read_to_string(&p).expect("read adr");
-        let body = raw
-            .strip_prefix("---\n")
-            .unwrap_or_else(|| panic!("no leading frontmatter in {}", p.display()));
-        let end = body
-            .find("\n---\n")
-            .or_else(|| body.find("\n---"))
-            .unwrap_or_else(|| panic!("no closing frontmatter delimiter in {}", p.display()));
-        let fm = &body[..end];
+        let fm = frontmatter_block(&p, &raw);
         let v: serde_json::Value =
-            serde_yaml::from_str(fm).unwrap_or_else(|e| panic!("yaml in {}: {e}", p.display()));
+            serde_yaml::from_str(&fm).unwrap_or_else(|e| panic!("yaml in {}: {e}", p.display()));
         let errs: Vec<String> = validator.iter_errors(&v).map(|e| e.to_string()).collect();
         assert!(
             errs.is_empty(),

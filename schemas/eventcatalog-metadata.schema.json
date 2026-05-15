@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/eventcatalog-metadata/v1",
+  "version": "1.0.0",
+  "title": "Chassis EventCatalog-style metadata export (v1)",
+  "description": "Metadata derived only from current Chassis service and event-stream contract fields. This is not an EventCatalog engine or OpenLineage run event emitter.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "services", "messages", "metadata"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/service" }
+    },
+    "messages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/message" }
+    },
+    "metadata": { "type": "object" }
+  },
+  "$defs": {
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "owner", "contract_path", "protocol", "endpoints", "consumes", "produces"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "owner": { "type": "string" },
+        "contract_path": { "type": "string" },
+        "protocol": {},
+        "endpoints": { "type": "array" },
+        "consumes": { "type": "array" },
+        "produces": { "type": "array" }
+      }
+    },
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "owner", "contract_path", "source", "payload", "delivery", "consumers"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "owner": { "type": "string" },
+        "contract_path": { "type": "string" },
+        "source": {},
+        "payload": {},
+        "delivery": {},
+        "consumers": { "type": "array" }
+      }
+    }
+  }
+}

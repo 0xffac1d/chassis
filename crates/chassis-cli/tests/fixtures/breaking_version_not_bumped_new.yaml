@@ -1,0 +1,17 @@
+name: cli-tests-fixture
+kind: library
+purpose: "New side of a breaking-without-version-bump diff fixture: claim removed and version held constant."
+status: stable
+since: "0.1.0"
+version: "0.1.0"
+assurance_level: declared
+owner: cli-tests
+exports:
+  - path: "src/lib.rs"
+    kind: module
+invariants:
+  - id: cli.tests.alpha
+    text: "first invariant"
+edge_cases:
+  - id: cli.tests.edge.one
+    text: "first edge case"

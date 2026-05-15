@@ -1,0 +1,8 @@
+{
+  "language": "typescript",
+  "source": "thing.test.ts",
+  "sites": [
+    { "claim_id": "demo.alpha", "kind": "test" }
+  ],
+  "diagnostics": []
+}

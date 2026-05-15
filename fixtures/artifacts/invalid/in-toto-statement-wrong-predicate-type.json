@@ -1,0 +1,11 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "chassis-schemas-manifest",
+      "digest": { "sha256": "0000000000000000000000000000000000000000000000000000000000000000" }
+    }
+  ],
+  "predicateType": "https://example.com/some-other/predicate/v1",
+  "predicate": {}
+}

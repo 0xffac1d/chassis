@@ -2,11 +2,14 @@
 
 //! DSSE envelope (Ed25519) over an in-toto JSON payload.
 
+use std::sync::LazyLock;
+
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::assemble::Statement;
 use super::AttestError;
@@ -15,6 +18,37 @@ pub const CH_ATTEST_SIGN_FAILED: &str = "CH-ATTEST-SIGN-FAILED";
 pub const CH_ATTEST_VERIFY_FAILED: &str = "CH-ATTEST-VERIFY-FAILED";
 pub const CH_ATTEST_SUBJECT_MISMATCH: &str = "CH-ATTEST-SUBJECT-MISMATCH";
 pub const CH_ATTEST_NOT_FOUND: &str = "CH-ATTEST-NOT-FOUND";
+pub const CH_ATTEST_ENVELOPE_SCHEMA: &str = "CH-ATTEST-ENVELOPE-SCHEMA";
+
+static DSSE_SCHEMA_STR: &str = include_str!("../../../../schemas/dsse-envelope.schema.json");
+
+static DSSE_COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+    let schema: Value = serde_json::from_str(DSSE_SCHEMA_STR).expect("dsse-envelope schema JSON");
+    jsonschema::validator_for(&schema).expect("compile dsse-envelope schema")
+});
+
+/// Validate a DSSE envelope JSON value against `schemas/dsse-envelope.schema.json`.
+///
+/// Field names stay camelCase (`payloadType`) because the DSSE specification
+/// requires it — this is the documented exception to the project-wide
+/// snake_case preference.
+pub fn validate_dsse_envelope_json(value: &Value) -> Result<(), Vec<String>> {
+    let errors: Vec<String> = DSSE_COMPILED
+        .iter_errors(value)
+        .map(|e| e.to_string())
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+/// Typed wrapper over [`validate_dsse_envelope_json`].
+pub fn validate_dsse_envelope(envelope: &DsseEnvelope) -> Result<(), Vec<String>> {
+    let v = serde_json::to_value(envelope).map_err(|e| vec![e.to_string()])?;
+    validate_dsse_envelope_json(&v)
+}
 
 /// `payloadType` for in-toto Statement bytes (`application/vnd.in-toto+json`).
 pub const PAYLOAD_TYPE_IN_TOTO_JSON: &str = "application/vnd.in-toto+json";
@@ -92,20 +126,23 @@ pub fn sign_statement(stmt: &Statement, key: &SigningKey) -> Result<DsseEnvelope
     let payload_bytes = serde_json::to_vec(stmt).map_err(|e| AttestError::Json(e.to_string()))?;
     let pae = dsse_pae(PAYLOAD_TYPE_IN_TOTO_JSON, &payload_bytes);
     let sig = key.sign(&pae);
-    Ok(DsseEnvelope {
+    let envelope = DsseEnvelope {
         payload: B64.encode(&payload_bytes),
         payload_type: PAYLOAD_TYPE_IN_TOTO_JSON.to_string(),
         signatures: vec![DsseSignature {
             keyid: None,
             sig: B64.encode(sig.to_bytes()),
         }],
-    })
+    };
+    validate_dsse_envelope(&envelope).map_err(AttestError::EnvelopeSchema)?;
+    Ok(envelope)
 }
 
 pub fn verify_envelope(
     envelope: &DsseEnvelope,
     public_key: &VerifyingKey,
 ) -> Result<Statement, AttestError> {
+    validate_dsse_envelope(envelope).map_err(AttestError::EnvelopeSchema)?;
     if envelope.payload_type != PAYLOAD_TYPE_IN_TOTO_JSON {
         return Err(AttestError::Sign(CH_ATTEST_VERIFY_FAILED.to_string()));
     }

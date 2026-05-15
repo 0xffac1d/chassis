@@ -26,6 +26,8 @@ Wave 2 introduces multiple verifiers (contract-diff, exemption flows, deeper kin
 
 `schemas/diagnostic.schema.json` already defines the core finding shape used across the repository.
 
+The root self-governance claim `chassis.adr-frontmatter-valid` supports this diagnostic contract by keeping ADR metadata machine-readable enough for rule-to-ADR governance checks.
+
 ## Decision
 
 ### Canonical schema

@@ -5,32 +5,53 @@ Staging map. Wave numbers advance when foundational contracts land; later waves 
 ## Wave 1 — Foundations ✅
 
 - Kind-discriminated `schemas/contract.schema.json` with semver metadata per ADR-0008.
-- ADRs 0002–0016 accepted.
+- ADRs 0001–0016 accepted.
 - Regenerated Rust + `@chassis/core-types` artifacts + schema fingerprint.
 - Repository-root `CONTRACT.yaml` validating against the tightened schema.
 
 ## Wave 2 — Contract tooling ✅
 
-- ADR-0017 (Rust fingerprint port) — **`crates/chassis-core/src/fingerprint.rs`** (parity-tested against `packages/chassis-types/scripts/fingerprint-schemas.mjs`).
+- ADR-0017 (Rust fingerprint port) — `crates/chassis-core/src/fingerprint.rs`, parity-tested against `packages/chassis-types/scripts/fingerprint-schemas.mjs`.
 - `crates/chassis-core/src/diff/` — contract-diff engine emitting `CH-DIFF-*` diagnostics (ADR-0019).
 - `crates/chassis-core/src/exempt/` — exemption registry + sweeper + CODEOWNERS resolver (ADR-0020).
 - 8 per-kind subschemas under `schemas/contract-kinds/`; `contract.schema.json` bumped to `3.0.0` (ADR-0021).
-- 9 happy-path fixtures (one per kind + extra library), 17 diff fixtures, 14 exempt fixtures.
+- 9 happy-path fixtures (one per kind plus `rust-minimal` and `typescript-vite`), 20 diff fixtures, 14 exempt fixtures.
 
-## Wave 3 — Trace + drift + attestation (active)
+## Wave 3 — Trace + drift + attestation ✅ (in tree; polish ongoing)
 
-- **Static claim scanner** (ADR-0005): walks Rust + TypeScript sources, extracts `@claim <id>` annotations, builds a graph of `claim_id → implementing_files → covering_tests → governing_adrs → active_exemptions`. Module: `crates/chassis-core/src/trace/`. Output JSON + Mermaid. Rule IDs: `CH-TRACE-*`.
-- **Drift detector**: per-claim drift score from git history (last claim edit vs last impl edit + churn between). Module: `crates/chassis-core/src/drift/`. Rule IDs: `CH-DRIFT-*`. Depends on the trace graph.
-- **Attestation emitter**: assembles trace + drift + diff + exempt state into a signed release artifact conforming to `reference/artifacts/release-gate.example.json`. Module: `crates/chassis-core/src/attest/`. Signing: cosign or in-toto (pick in Wave 3 prep ADR). Rule IDs: `CH-ATTEST-*`.
+Shipped:
+
+- `crates/chassis-core/src/trace/` — static claim scanner (ADR-0023, supersedes ADR-0005). Walks Rust + TypeScript sources, extracts the canonical `// @claim <id>` line-comment annotation (identical grammar for both languages), builds a graph of `claim_id → contract → implementing_files → covering_tests`. The pre-ADR-0023 TypeScript JSDoc form (`/** @claim ... */`) is rejected with `CH-TRACE-MALFORMED-CLAIM` so it cannot fail silently. JSON + Mermaid output. Rule IDs: `CH-TRACE-*`.
+- `crates/chassis-core/src/drift/` — per-claim drift score from git history via `git2` (ADR-0024). Rule IDs: `CH-DRIFT-*`.
+- `crates/chassis-core/src/attest/` — DSSE-style attestation envelope: assemble → sign (Ed25519) → verify (ADR-0022). Subject is the schema-manifest digest plus repo metadata. Rule IDs: `CH-ATTEST-*`.
+- `crates/chassis-cli/` — single binary `chassis` exposing `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `attest sign`, `attest verify`.
+- `crates/chassis-jsonrpc/` — newline-delimited JSON-RPC 2.0 sidecar exposing six chassis methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Explicitly **not** the Model Context Protocol.
+- CI job `self-attest` runs `scripts/self-attest.sh` (trace → drift → attest sign → attest verify) and uploads the DSSE artifact.
+
+Open polish items:
+
+- Decide on signing transport beyond raw Ed25519 (cosign or in-toto) and capture in a Wave-3-close ADR.
+- Drop unused imports in `crates/chassis-cli/src/main.rs` (the `validate_*_value` re-exports).
+- Add a `doctor` subcommand to the CLI surface.
 
 ## Wave 4 — Operator interfaces
 
-- Consolidated TypeScript CLI under `packages/chassis-cli/` wrapping `chassis-core` (NAPI or WASM per Wave 4 prep ADR). Subcommands: `validate`, `diff`, `exempt`, `trace`, `drift`, `attest`, `doctor`.
-- MCP server (TypeScript) in `packages/chassis-mcp/` exposing `what_governs`, `what_breaks_if_i_change`, `is_exempt`, `validate_contract`. Reference semantics in `reference/python-cli/mcp_server.py`.
+Reality-aligned scope:
+
+- `chassis-cli` is the supported operator surface (shipped Wave 3). Wave 4 work here is feature polish: `doctor`, schema-manifest digest printing, optional `--repo` discovery beyond cwd.
+- `chassis-jsonrpc` is the **experimental** machine surface (shipped Wave 3). Wave 4 decision: either add a real Model Context Protocol shim on top of the existing JSON-RPC methods, or formalize and version the JSON-RPC surface as a chassis-specific protocol. The shim option requires an ADR specifying the MCP method/capability mapping.
+- TypeScript CLI is **not** currently planned. If a Node-only consumer needs `chassis-core` capability without the Rust toolchain, the path is a thin wrapper (NAPI or WASM) — captured in a future Wave 4 prep ADR if/when a consumer surfaces.
 
 ## Wave 5 — Self-application
 
-- The chassis repo's own `CONTRACT.yaml` annotated with `@claim` markers in source.
-- Trace graph runs against this repo; drift detector runs against this repo; release attestation is generated and signed for chassis itself.
-- Exemption registry has at least one real entry covering a known gap.
-- Finish-line bar (per `docs/STABLE-IDS.md` and `docs/ASSURANCE-LADDER.md`): chassis describes and verifies itself using its own machinery.
+In tree:
+
+- `CONTRACT.yaml` at repo root with structured invariants and edge cases, all `declared`.
+- `scripts/self-attest.sh` and the `self-attest` CI job exercise the full pipeline against this repo.
+- Trace graph + drift report + DSSE envelope are produced for every push.
+
+Remaining:
+
+- Annotate every CONTRACT claim with at least one `@claim` marker in Rust or TypeScript source so the trace graph has no orphans for chassis itself.
+- Add at least one real exemption to `.chassis/exemptions.yaml` exercising the registry.
+- Promote claims past `declared` once the per-rung verifiers (per `docs/ASSURANCE-LADDER.md`) ship.

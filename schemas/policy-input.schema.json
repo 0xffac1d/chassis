@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/policy-input/v1",
+  "version": "1.0.0",
+  "title": "Chassis policy input export (v1)",
+  "description": "Export-only Chassis facts for downstream governance systems. This is not a policy language or enforcement engine.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "repo", "contracts", "claims", "diagnostics", "exemptions", "drift_summary"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root"],
+      "properties": {
+        "root": { "type": "string" },
+        "git_commit": { "type": "string" },
+        "schema_fingerprint": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contractFact" }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claimFact" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "exemptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostics"],
+      "properties": {
+        "registry": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" }
+          ]
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "drift_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale", "abandoned", "missing"],
+      "properties": {
+        "stale": { "type": "integer", "minimum": 0 },
+        "abandoned": { "type": "integer", "minimum": 0 },
+        "missing": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "contractFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "name", "kind", "version", "owner", "assurance_level", "status", "document"],
+      "properties": {
+        "path": { "type": "string" },
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "version": { "type": "string" },
+        "owner": { "type": "string" },
+        "assurance_level": { "type": "string" },
+        "status": { "type": "string" },
+        "document": { "type": "object" }
+      }
+    },
+    "claimFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "contract_path", "contract_kind", "claim_record", "impl_sites", "test_sites", "adr_refs", "active_exemptions"],
+      "properties": {
+        "claim_id": { "type": "string" },
+        "contract_path": { "type": "string" },
+        "contract_kind": { "type": "string", "enum": ["invariant", "edge_case"] },
+        "claim_record": { "type": "object" },
+        "impl_sites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claimSite" }
+        },
+        "test_sites": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claimSite" }
+        },
+        "adr_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "active_exemptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "claimSite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "line", "claim_id", "kind"],
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 0 },
+        "claim_id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["impl", "test"] }
+      }
+    }
+  }
+}

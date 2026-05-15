@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chassis.dev/schemas/field-definition.schema.json",
   "version": "1.0.0",
   "title": "Shared field definition",
   "description": "Reusable field definition for entity, event, and store schemas. Referenced via $ref from consuming schemas.",

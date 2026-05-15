@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chassis.dev/schemas/tag-ontology.schema.json",
   "version": "1.0.0",
   "title": "Chassis tag ontology registry",
   "description": "Registry-backed tags (P1.1): stable ids, optional namespaces, owners, allowed targets, synonyms, and deprecation. Used as a sidecar or embedded slice; not required for all manifests.",

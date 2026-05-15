@@ -37,6 +37,7 @@ fn walk(dir: &Path, f: &mut dyn FnMut(&Path, &str)) {
     }
 }
 
+// @claim chassis.schemas-self-contained
 fn find_refs(v: &serde_json::Value, mut cb: impl FnMut(&str)) {
     fn rec(v: &serde_json::Value, cb: &mut dyn FnMut(&str)) {
         match v {

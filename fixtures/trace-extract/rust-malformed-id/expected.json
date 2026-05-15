@@ -1,0 +1,8 @@
+{
+  "language": "rust",
+  "source": "bad.rs",
+  "sites": [],
+  "diagnostics": [
+    { "rule_id": "CH-TRACE-MALFORMED-CLAIM", "severity": "error" }
+  ]
+}

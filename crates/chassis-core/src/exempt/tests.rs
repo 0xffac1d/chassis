@@ -439,14 +439,47 @@ fn legacy_aliases_emit_info_via_parse_helper() {
 }
 
 #[test]
-fn verify_flags_explicit_expired_status() {
+fn verify_flags_status_expired_as_info_not_error() {
+    // status: expired is curated audit-only state — fires EXPIRED-RETAINED (info),
+    // never CH-EXEMPT-EXPIRED (error). This is the per-ADR-0020 expired policy:
+    // owners move entries to `expired` to resolve the error without losing audit history.
     let mut registry = Registry::empty();
     let mut entry = sample_entry("EX-2026-8888");
     entry.expires_at = date(2027, 12, 31);
     entry.status = ExemptionStatus::Expired;
     registry.entries.push(entry);
     let diags = verify(&registry, at(2026, 5, 1), &Codeowners::empty());
-    assert!(diags.iter().any(|d| d.rule_id == rule_id::EXPIRED));
+    assert!(
+        !diags.iter().any(|d| d.rule_id == rule_id::EXPIRED),
+        "status:expired must NOT fire CH-EXEMPT-EXPIRED error: {diags:?}"
+    );
+    let retained = diags
+        .iter()
+        .find(|d| d.rule_id == rule_id::EXPIRED_RETAINED)
+        .expect("status:expired should fire CH-EXEMPT-EXPIRED-RETAINED info");
+    assert_eq!(retained.severity, Severity::Info);
+}
+
+#[test]
+fn verify_active_with_past_expires_at_is_error() {
+    // The error case: status: active + calendar-expired. Never matches the
+    // info rule — strictly one or the other.
+    let mut registry = Registry::empty();
+    let mut entry = sample_entry("EX-2026-8889");
+    entry.created_at = date(2026, 1, 1);
+    entry.expires_at = date(2026, 1, 31);
+    entry.status = ExemptionStatus::Active;
+    registry.entries.push(entry);
+    let diags = verify(&registry, at(2026, 5, 1), &Codeowners::empty());
+    let err = diags
+        .iter()
+        .find(|d| d.rule_id == rule_id::EXPIRED)
+        .expect("active+past must fire EXPIRED error");
+    assert_eq!(err.severity, Severity::Error);
+    assert!(
+        !diags.iter().any(|d| d.rule_id == rule_id::EXPIRED_RETAINED),
+        "the two rules are mutually exclusive"
+    );
 }
 
 #[test]

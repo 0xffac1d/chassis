@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/cedar-facts/v1",
+  "version": "1.0.0",
+  "title": "Chassis Cedar-style facts export (v1)",
+  "description": "Cedar-style entity/action/resource facts for external authorization systems. Chassis does not evaluate Cedar policies.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "entities", "actions", "resources"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entity" }
+    },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/resource" }
+    }
+  },
+  "$defs": {
+    "uid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "type": "string" }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "attrs", "parents"],
+      "properties": {
+        "uid": { "$ref": "#/$defs/uid" },
+        "attrs": { "type": "object" },
+        "parents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uid" }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "applies_to"],
+      "properties": {
+        "name": { "type": "string" },
+        "applies_to": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "attrs"],
+      "properties": {
+        "uid": { "$ref": "#/$defs/uid" },
+        "attrs": { "type": "object" }
+      }
+    }
+  }
+}

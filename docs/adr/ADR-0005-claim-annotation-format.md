@@ -1,15 +1,9 @@
 ---
 id: ADR-0005
 title: "Claim annotation format — Rust line comments and TypeScript JSDoc tags"
-status: accepted
-date: "2026-05-14"
-enforces:
-  - rule: CLAIM-ANNOTATION-FORMAT-RUST
-    description: "Rust sources MUST use `// @claim <claim_id>` immediately associated items."
-  - rule: CLAIM-ANNOTATION-FORMAT-TS
-    description: "TypeScript sources MUST use `/** @claim <claim_id> */` attached to associated declarations."
-  - rule: CLAIM-ANNOTATION-PLACEMENT
-    description: "Annotations MUST immediately precede their bound AST item (module decl, class, function, or method)."
+status: superseded
+date: "2026-05-15"
+superseded_by: ADR-0023
 applies_to:
   - "crates/**/*.rs"
   - "packages/**/*.ts"
@@ -17,53 +11,41 @@ applies_to:
 tags:
   - foundation
   - trace
+  - historical
 ---
 
-## Context
+## Status
 
-The trace graph wave needs deterministic extraction of `claim_id` bindings from Rust + TypeScript sources **without** proc-macros (the prior `chassis-capability-derive` crate was deliberately dropped per ADR-0001). Decorators require experimental TS configuration and often imply runtime emission — unacceptable for static scanning.
+Superseded by [ADR-0023](ADR-0023-claim-annotations.md) on 2026-05-15.
 
-## Decision
+The original decision admitted **two** syntaxes — `// @claim <id>` for Rust and `/** @claim <id> */` (JSDoc) for TypeScript. The trace-graph scanner (`crates/chassis-core/src/trace/extract/`) implements a single line-oriented grammar (`// @claim <id>`) for both languages. The divergence caused TypeScript `@claim` annotations written in JSDoc form to be silently dropped during trace-graph construction.
 
-### Rust
+ADR-0023 unifies the grammar on the line-comment form for both languages and requires the scanner to surface `CH-TRACE-MALFORMED-CLAIM` on the rejected JSDoc form so the mismatch can no longer fail silently.
 
-Use a **line comment** immediately above the bound item:
+## Historical context
+
+The text below is preserved for historical reference. **Do not rely on it.** The authoritative grammar for `@claim` annotations is ADR-0023.
+
+### Rust (still accepted under ADR-0023)
+
+Use a line comment immediately above the bound item:
 
 ```rust
 // @claim bucket.never-exceeds-capacity
 pub fn refill(tokens: u32) -> Result<(), Error> { ... }
 ```
 
-Attributes such as `#[doc("@claim ...")]` are **not** used — rustdoc is for humans, not scanners. A proc-macro attribute (`#[chassis::claim]`) remains **out of scope** until/unless a dedicated ADR reintroduces proc-macros.
+### TypeScript (no longer accepted — see ADR-0023)
 
-### TypeScript
-
-Use a **JSDoc tag** attached to the declaration:
+The original decision called for a JSDoc tag attached to the declaration:
 
 ```ts
 /** @claim api.allow-returns-deterministic-decision */
 export function allow(...): Decision { ... }
 ```
 
-Decorators (`@Claim(...)`) are **forbidden** for annotations because they require decorator semantics and transpiler support beyond static parsing.
+Under ADR-0023 the accepted TypeScript form is the same as the Rust form (`// @claim <id>` on its own line, immediately above the backed declaration).
 
-### Placement
+### Placement / multiplicity / tests
 
-The annotation MUST appear **immediately before** its bound syntactic item (module-level `fn`, `struct`, `enum`, `impl` method, TS `function`, `class`, or exported `const` arrow). Scanning tools MAY reject ambiguous spacing (blank lines with intervening comments are allowed if they remain contiguous documentation blocks in TS).
-
-### Multiple claims
-
-Use **one annotation per line/tag** (repeat the comment/JSDoc lines). Comma-separated bundling is **not** valid — simplifies scanners and diffs.
-
-### Tests
-
-Tests use the **same** formats (`// @claim` in Rust test modules, `/** @claim */` above test functions). Divergent markers would duplicate scanner logic without benefit.
-
-## Consequences
-
-- Trace tooling can rely on lexer/parser-adjacent scans without executing rustc or `tsc`.
-- IDE folding treats annotations as standard comments/docstrings.
-
-## Relationship to predecessor
-
-No direct predecessor existed for this cross-language annotation contract; this ADR codifies new discipline aligned with the dropped proc-macro path.
+Unchanged from ADR-0023: annotations precede their bound item, one claim per line, tests use the same markers as production code.

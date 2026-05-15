@@ -1,5 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chassis.dev/schemas/authority-index.schema.json",
   "version": "1.0.0",
   "title": "Chassis authority index",
   "description": "Optional repo-local sidecar listing verification and invalidation rules for manifests and IR. Does not replace JSON Schema validation.",

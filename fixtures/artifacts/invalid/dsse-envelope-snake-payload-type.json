@@ -1,0 +1,9 @@
+{
+  "payload": "ZmFrZS1wYXlsb2FkLWJ5dGVz",
+  "payload_type": "application/vnd.in-toto+json",
+  "signatures": [
+    {
+      "sig": "ZmFrZS1zaWduYXR1cmU="
+    }
+  ]
+}

@@ -91,6 +91,7 @@ fn parse_expected(v: &Value) -> Expected {
     }
 }
 
+// @claim chassis.no-silent-assurance-demotion
 #[test]
 fn fixture_driven_diff_cases() {
     let root = fixtures_root();

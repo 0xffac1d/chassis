@@ -20,12 +20,14 @@ use crate::diff::{
     CH_DIFF_VERSION_MAJOR_WITHOUT_BREAKING, CH_DIFF_VERSION_MISSING, CH_DIFF_VERSION_NOT_BUMPED,
 };
 use crate::exempt::rule_id as exempt_rid;
+use crate::supply::rule_id as supply_rid;
 
 const CH_ATTEST_SIGN_FAILED: &str = "CH-ATTEST-SIGN-FAILED";
 const CH_ATTEST_VERIFY_FAILED: &str = "CH-ATTEST-VERIFY-FAILED";
 const CH_ATTEST_SUBJECT_MISMATCH: &str = "CH-ATTEST-SUBJECT-MISMATCH";
 const CH_ATTEST_PREDICATE_INVALID: &str = "CH-ATTEST-PREDICATE-INVALID";
 const CH_ATTEST_NOT_FOUND: &str = "CH-ATTEST-NOT-FOUND";
+const CH_ATTEST_ENVELOPE_SCHEMA: &str = "CH-ATTEST-ENVELOPE-SCHEMA";
 
 const CH_TRACE_MALFORMED_CLAIM: &str = "CH-TRACE-MALFORMED-CLAIM";
 const CH_TRACE_CLAIM_NOT_IN_CONTRACT: &str = "CH-TRACE-CLAIM-NOT-IN-CONTRACT";
@@ -60,6 +62,7 @@ fn kernel_wire_ch_rules() -> BTreeSet<String> {
         exempt_rid::QUOTA_EXCEEDED,
         exempt_rid::LIFETIME_EXCEEDED,
         exempt_rid::EXPIRED,
+        exempt_rid::EXPIRED_RETAINED,
         exempt_rid::MISSING_CODEOWNERS,
         exempt_rid::DUPLICATE_ID,
         exempt_rid::MALFORMED_ID,
@@ -72,11 +75,17 @@ fn kernel_wire_ch_rules() -> BTreeSet<String> {
         exempt_rid::LEGACY_ALIAS,
         exempt_rid::GLOBAL_WITHOUT_OPT_IN,
         exempt_rid::MISSING_RULE_OR_FINDING,
+        exempt_rid::APPLIED,
         CH_ATTEST_SIGN_FAILED,
         CH_ATTEST_VERIFY_FAILED,
         CH_ATTEST_SUBJECT_MISMATCH,
         CH_ATTEST_PREDICATE_INVALID,
         CH_ATTEST_NOT_FOUND,
+        CH_ATTEST_ENVELOPE_SCHEMA,
+        supply_rid::LICENSE_ALLOW,
+        supply_rid::ADVISORY_CLEAN,
+        supply_rid::NO_NETWORK_CRATES,
+        supply_rid::ARCHIVE_HYGIENE,
         CH_TRACE_MALFORMED_CLAIM,
         CH_TRACE_CLAIM_NOT_IN_CONTRACT,
         CH_TRACE_DUPLICATE_CLAIM_AT_SITE,

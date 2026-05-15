@@ -1,0 +1,19 @@
+name: cli-tests-fixture
+kind: library
+purpose: "Inline fixture used by chassis-cli integration tests; same shape as library_minimal but with version bumped to 0.2.0 and an additive claim."
+status: stable
+since: "0.1.0"
+version: "0.2.0"
+assurance_level: declared
+owner: cli-tests
+exports:
+  - path: "src/lib.rs"
+    kind: module
+invariants:
+  - id: cli.tests.alpha
+    text: "first invariant"
+  - id: cli.tests.beta
+    text: "additive invariant"
+edge_cases:
+  - id: cli.tests.edge.one
+    text: "first edge case"

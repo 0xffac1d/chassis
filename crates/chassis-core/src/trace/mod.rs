@@ -23,8 +23,13 @@ static TRACE_COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
 /// Validate a serialized trace graph against `schemas/trace-graph.schema.json`.
 pub fn validate_trace_graph(graph: &TraceGraph) -> Result<(), Vec<String>> {
     let v = serde_json::to_value(graph).expect("serde TraceGraph");
+    validate_trace_graph_json(&v)
+}
+
+/// Validate a JSON value against `schemas/trace-graph.schema.json`.
+pub fn validate_trace_graph_json(value: &Value) -> Result<(), Vec<String>> {
     let errors: Vec<String> = TRACE_COMPILED
-        .iter_errors(&v)
+        .iter_errors(value)
         .map(|e| e.to_string())
         .collect();
     if errors.is_empty() {

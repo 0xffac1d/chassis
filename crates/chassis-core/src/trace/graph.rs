@@ -45,6 +45,7 @@ fn discover_contracts(root: &Path) -> Result<Vec<PathBuf>, TraceError> {
                     p.file_name().and_then(|n| n.to_str()),
                     Some("fixtures") | Some("reference")
                 ) {
+                    // @claim chassis.reference-python-non-canonical
                     continue;
                 }
                 walk(&p, out)?;

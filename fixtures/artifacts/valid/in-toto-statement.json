@@ -1,0 +1,21 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "subject": [
+    {
+      "name": "chassis-schemas-manifest",
+      "digest": {
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    }
+  ],
+  "predicateType": "https://chassis.dev/attestation/release-gate/v1",
+  "predicate": {
+    "schema_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+    "git_commit": "deadbeef",
+    "built_at": "2026-05-15T12:00:00Z",
+    "trace_summary": { "claims": 0, "orphan_sites": 0 },
+    "drift_summary": { "stale": 0, "abandoned": 0, "missing": 0 },
+    "exempt_summary": { "active": 0, "expired_present": 0 },
+    "commands_run": []
+  }
+}

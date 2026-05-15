@@ -9,21 +9,55 @@ owner: chassis maintainers
 exports:
   - path: "crates/chassis-core/src/lib.rs"
     kind: module
+    description: "chassis-core (supported): Rust kernel — validators, contract diff, exemption registry, fingerprint, trace graph, drift, export facts, DSSE attestation."
+  - path: "crates/chassis-cli/src/main.rs"
+    kind: module
+    description: "chassis-cli (supported): `chassis` binary with subcommands validate, diff, exempt verify, trace, drift, export, attest sign, attest verify."
+  - path: "crates/chassis-jsonrpc/src/main.rs"
+    kind: module
+    description: "chassis-jsonrpc (experimental): newline-delimited JSON-RPC 2.0 server over stdio exposing six methods. Not a Model Context Protocol implementation."
   - path: "packages/chassis-types/dist/index.d.ts"
     kind: module
+    description: "@chassis/core-types (supported): generated TypeScript .d.ts barrel for 20 schema modules (12 root + 8 contract-kinds)."
 invariants:
   - id: chassis.schemas-self-contained
     text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."
+    test_linkage:
+      - "crates/chassis-core/tests/schemas_self_contained.rs::no_schema_has_external_refs"
   - id: chassis.fingerprint-matches
     text: "packages/chassis-types/fingerprint.sha256 matches a fresh recomputation over schemas/."
+    test_linkage:
+      - "crates/chassis-core/src/fingerprint.rs::tests::committed_fingerprint_matches_rust_digest"
+      - "crates/chassis-core/src/fingerprint.rs::tests::parity_with_node_when_available"
   - id: chassis.contract-schema-kind-discriminated
     text: "schemas/contract.schema.json remains kind-discriminated with explicit required slices per supported kind."
+    test_linkage:
+      - "crates/chassis-core/src/validators.rs::tests::adversarial_cli_missing_kind_required_field_fails"
   - id: chassis.adr-frontmatter-valid
     text: "Every docs/adr/*.md frontmatter validates against schemas/adr.schema.json."
+    test_linkage:
+      - "crates/chassis-core/tests/adr_frontmatter.rs::every_adr_frontmatter_validates_against_schema"
   - id: chassis.no-silent-assurance-demotion
     text: "Assurance-level demotions in CONTRACT.yaml produce a CH-DIFF-ASSURANCE-DEMOTED diagnostic via chassis-core::diff."
+    test_linkage:
+      - "crates/chassis-core/src/diff/tests.rs::fixture_driven_diff_cases"
+  - id: chassis.jsonrpc-not-mcp
+    text: "chassis-jsonrpc exposes a custom JSON-RPC 2.0 surface, not the Model Context Protocol; user-facing copy must not call it an MCP server."
+    test_linkage:
+      - "crates/chassis-jsonrpc/tests/jsonrpc_smoke.rs::jsonrpc_surface_is_documented_as_not_mcp"
+  - id: chassis.exports-not-policy-engines
+    text: "Export adapters serialize Chassis facts for downstream governance systems without implementing a Chassis policy language or enforcement engine."
+    test_linkage:
+      - "crates/chassis-core/src/exports.rs::tests::policy_input_validates"
+      - "crates/chassis-core/src/exports.rs::tests::opa_input_wraps_policy_input"
+      - "crates/chassis-core/src/exports.rs::tests::cedar_facts_are_export_facts_not_policy_decisions"
+      - "crates/chassis-core/src/exports.rs::tests::eventcatalog_metadata_uses_supported_event_contract_fields"
 edge_cases:
   - id: chassis.adversarial-fixture-rejected
     text: "fixtures/adversarial/invalid-schema/CONTRACT.yaml fails canonical validation with at least one 'required' or 'enum' error."
+    test_linkage:
+      - "crates/chassis-core/src/validators.rs::tests::adversarial_invalid_schema_fixture_fails_validation"
   - id: chassis.reference-python-non-canonical
-    text: "reference/python-cli remains a semantic reference only; chassis-mcp (Rust) is the canonical MCP surface."
+    text: "reference/python-cli remains a semantic reference only; the canonical agent surface is the Rust chassis-jsonrpc sidecar (custom JSON-RPC 2.0 over stdio, not Model Context Protocol)."
+    test_linkage:
+      - "crates/chassis-core/tests/self_application.rs::reference_python_tree_is_not_canonical_trace_surface"

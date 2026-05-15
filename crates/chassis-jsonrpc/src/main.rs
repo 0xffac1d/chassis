@@ -1,13 +1,19 @@
 #![forbid(unsafe_code)]
 
-//! Exactly six newline-delimited JSON-RPC 2.0 methods over stdio (scoped Wave 5 surface).
+//! Custom newline-delimited JSON-RPC 2.0 server over stdio exposing six chassis methods
+//! (scoped Wave 5 surface). This is **not** a Model Context Protocol (MCP) implementation —
+//! see `docs/future-mcp.md` for the requirements a real MCP surface would have to meet.
 
+// @claim chassis.jsonrpc-not-mcp
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use serde_json::{json, Value};
 
+use chassis_core::artifact::{
+    validate_drift_report_value, validate_dsse_envelope_value, validate_trace_graph_value,
+};
 use chassis_core::attest::CH_ATTEST_NOT_FOUND;
 use chassis_core::contract::validate_metadata_contract;
 use chassis_core::diagnostic::{Diagnostic, Severity, Violated};
@@ -33,22 +39,37 @@ fn load_registry_optional(repo: &Path) -> Option<ExemptionRegistry> {
     serde_json::from_value(j).ok()
 }
 
+/// Build wire diagnostics for `validate_contract` failures.
+///
+/// Rule binding: `CH-RUST-METADATA-CONTRACT` is enforced by ADR-0021 (kind
+/// subschemas), so `violated.convention` is the ADR id — not the previously
+/// used `chassis.contract` literal, which is not an ADR file and would fail
+/// both `schemas/diagnostic.schema.json` (`^ADR-\d{4,}$`) and the rule-ID
+/// registry check.
 fn diagnostics_from_contract_errors(messages: &[String]) -> Vec<Diagnostic> {
     messages
         .iter()
-        .map(|msg| Diagnostic {
-            rule_id: "CH-RUST-METADATA-CONTRACT".to_string(),
-            severity: Severity::Error,
-            message: msg.clone(),
-            source: Some("mcp.validate_contract".into()),
-            subject: None,
-            violated: Some(Violated {
-                convention: "chassis.contract".into(),
-            }),
-            docs: None,
-            fix: None,
-            location: None,
-            detail: None,
+        .map(|msg| {
+            let d = Diagnostic {
+                rule_id: "CH-RUST-METADATA-CONTRACT".to_string(),
+                severity: Severity::Error,
+                message: msg.clone(),
+                source: Some("jsonrpc.validate_contract".into()),
+                subject: None,
+                violated: Some(Violated {
+                    convention: "ADR-0021".into(),
+                }),
+                docs: None,
+                fix: None,
+                location: None,
+                detail: None,
+            };
+            debug_assert!(
+                d.validate_envelope().is_ok(),
+                "validate_contract diagnostic violates schemas/diagnostic.schema.json: {:?}",
+                d.validate_envelope().err()
+            );
+            d
         })
         .collect()
 }
@@ -132,6 +153,15 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
                     .ok_or_else(|| rpc_error(&id, -32602, "params.claim_id required"))?;
                 let g = build_trace_graph(repo)
                     .map_err(|e| rpc_error(&id, -32603, format!("trace: {e}")))?;
+                let graph_v = serde_json::to_value(&g)
+                    .map_err(|e| rpc_error(&id, -32603, format!("trace: serde: {e}")))?;
+                validate_trace_graph_value(&graph_v).map_err(|errs| {
+                    rpc_error(
+                        &id,
+                        -32603,
+                        format!("trace: schema validation failed: {errs:?}"),
+                    )
+                })?;
                 Ok(match g.claims.get(claim_id) {
                     Some(n) => serde_json::to_value(n).unwrap(),
                     None => Value::Null,
@@ -140,9 +170,27 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
             "drift_report" => {
                 let trace = build_trace_graph(repo)
                     .map_err(|e| rpc_error(&id, -32603, format!("trace: {e}")))?;
+                let trace_v = serde_json::to_value(&trace)
+                    .map_err(|e| rpc_error(&id, -32603, format!("trace: serde: {e}")))?;
+                validate_trace_graph_value(&trace_v).map_err(|errs| {
+                    rpc_error(
+                        &id,
+                        -32603,
+                        format!("trace: schema validation failed: {errs:?}"),
+                    )
+                })?;
                 let r = build_drift_report(repo, &trace, Utc::now())
                     .map_err(|e| rpc_error(&id, -32603, format!("drift: {e}")))?;
-                Ok(serde_json::to_value(r).unwrap())
+                let r_v = serde_json::to_value(&r)
+                    .map_err(|e| rpc_error(&id, -32603, format!("drift: serde: {e}")))?;
+                validate_drift_report_value(&r_v).map_err(|errs| {
+                    rpc_error(
+                        &id,
+                        -32603,
+                        format!("drift: schema validation failed: {errs:?}"),
+                    )
+                })?;
+                Ok(r_v)
             }
             "release_gate" => {
                 let path = repo.join("release-gate.dsse");
@@ -150,6 +198,13 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
                     .map_err(|_| rpc_error(&id, -32603, CH_ATTEST_NOT_FOUND))?;
                 let v: Value = serde_json::from_str(&raw)
                     .map_err(|_| rpc_error(&id, -32603, CH_ATTEST_NOT_FOUND))?;
+                validate_dsse_envelope_value(&v).map_err(|errs| {
+                    rpc_error(
+                        &id,
+                        -32603,
+                        format!("release_gate: DSSE envelope schema validation failed: {errs:?}"),
+                    )
+                })?;
                 Ok(v)
             }
             "list_exemptions" => {

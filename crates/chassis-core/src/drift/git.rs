@@ -40,7 +40,14 @@ fn rel(repo: &Repository, file: &Path) -> Result<PathBuf, GitError> {
         let base = workdir
             .canonicalize()
             .map_err(|e| GitError(e.to_string()))?;
-        let abs = file.canonicalize().map_err(|e| GitError(e.to_string()))?;
+        let candidate = if file.is_absolute() {
+            file.to_path_buf()
+        } else {
+            workdir.join(file)
+        };
+        let abs = candidate
+            .canonicalize()
+            .map_err(|e| GitError(e.to_string()))?;
         return abs
             .strip_prefix(&base)
             .map(|p| p.to_path_buf())

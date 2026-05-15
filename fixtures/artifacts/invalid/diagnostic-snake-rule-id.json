@@ -1,0 +1,5 @@
+{
+  "rule_id": "CH-DIFF-CLAIM-REMOVED",
+  "severity": "error",
+  "message": "snake_case rule_id is rejected — diagnostic.schema.json requires camelCase ruleId."
+}

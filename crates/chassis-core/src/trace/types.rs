@@ -10,16 +10,20 @@ use crate::contract::Claim;
 use crate::diagnostic::Diagnostic;
 
 /// Whether a traced site backs implementation behaviour or automated tests.
+///
+/// Serialized as snake_case to match `schemas/trace-graph.schema.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum SiteKind {
     Impl,
     Test,
 }
 
 /// One occurrence of `@claim` in Rust or TS source before a backed site.
+///
+/// Serialized as snake_case to match `schemas/trace-graph.schema.json#/$defs/claimSite`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ClaimSite {
     pub file: PathBuf,
     pub line: usize,
@@ -36,8 +40,10 @@ pub enum ClaimContractKind {
 }
 
 /// Contract-backed claim joined with traced sites plus optional references.
+///
+/// Serialized as snake_case to match `schemas/trace-graph.schema.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ClaimNode {
     pub claim_id: String,
     pub contract_path: PathBuf,
@@ -50,8 +56,10 @@ pub struct ClaimNode {
 }
 
 /// Resolved trace graph keyed by canonical claim IDs.
+///
+/// Serialized as snake_case to match `schemas/trace-graph.schema.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct TraceGraph {
     pub claims: BTreeMap<String, ClaimNode>,
     pub orphan_sites: Vec<ClaimSite>,

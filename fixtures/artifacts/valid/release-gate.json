@@ -1,0 +1,11 @@
+{
+  "schema_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+  "git_commit": "deadbeef",
+  "built_at": "2026-05-15T12:00:00Z",
+  "trace_summary": { "claims": 7, "orphan_sites": 0 },
+  "drift_summary": { "stale": 1, "abandoned": 0, "missing": 0 },
+  "exempt_summary": { "active": 0, "expired_present": 0 },
+  "commands_run": [
+    { "argv": ["cargo", "test", "--workspace"], "exit_code": 0 }
+  ]
+}

@@ -75,9 +75,23 @@ pub fn scan_rust_source(rel: &Path, lines: &[String]) -> (Vec<ClaimSite>, Vec<Di
     let mut sites = Vec::new();
     let mut diags = Vec::new();
     let mut seen_at_site: HashMap<(usize, String), usize> = HashMap::new();
+    let mut raw_string_end: Option<String> = None;
 
     let mut idx = 0usize;
     while idx < lines.len() {
+        if let Some(end) = raw_string_end.as_deref() {
+            if lines[idx].contains(end) {
+                raw_string_end = None;
+            }
+            idx += 1;
+            continue;
+        }
+        if let Some(end) = raw_string_end_delimiter(&lines[idx]) {
+            raw_string_end = Some(end);
+            idx += 1;
+            continue;
+        }
+
         if !CLAIM_RE.is_match(&lines[idx]) {
             idx += 1;
             continue;
@@ -144,6 +158,34 @@ pub fn scan_rust_source(rel: &Path, lines: &[String]) -> (Vec<ClaimSite>, Vec<Di
     }
 
     (sites, diags)
+}
+
+fn raw_string_end_delimiter(line: &str) -> Option<String> {
+    let bytes = line.as_bytes();
+    let mut i = 0usize;
+    while i + 1 < bytes.len() {
+        if bytes[i] != b'r' {
+            i += 1;
+            continue;
+        }
+
+        let mut j = i + 1;
+        while j < bytes.len() && bytes[j] == b'#' {
+            j += 1;
+        }
+        if j >= bytes.len() || bytes[j] != b'"' {
+            i += 1;
+            continue;
+        }
+
+        let hashes = j - (i + 1);
+        let end = format!("\"{}", "#".repeat(hashes));
+        if line[j + 1..].contains(&end) {
+            return None;
+        }
+        return Some(end);
+    }
+    None
 }
 
 /// Walk `crates/**/*.rs`.
@@ -254,5 +296,50 @@ fn t() {}
                 .any(|x| x.rule_id == RULE_DUPLICATE_SITE && x.severity == Severity::Info),
             "{d:?}"
         );
+    }
+
+    #[test]
+    fn test_attr_classifies_as_test_site() {
+        let src = r##"
+#[test]
+// @claim a.b
+fn covers() {}
+"##;
+        let (sites, _) = scan_rust_source(Path::new("test_attr.rs"), &ls(src));
+        assert_eq!(sites.len(), 1);
+        assert!(matches!(sites[0].kind, SiteKind::Test));
+    }
+
+    #[test]
+    fn block_comment_form_is_not_accepted() {
+        let src = r##"
+/* @claim a.b */
+pub fn demo() {}
+"##;
+        let (sites, _diags) = scan_rust_source(Path::new("blk.rs"), &ls(src));
+        assert!(
+            sites.is_empty(),
+            "block-comment @claim must not produce a Rust site (ADR-0023)"
+        );
+    }
+
+    #[test]
+    fn raw_string_fixture_claims_are_not_extracted_from_rust_source() {
+        let src = r##"
+const FIXTURE: &str = r#"
+// @claim demo.fixture
+export function demo() {}
+"#;
+
+// @claim demo.real
+pub fn demo() {}
+"##;
+        let (sites, diags) = scan_rust_source(Path::new("fixture_host.rs"), &ls(src));
+        assert!(
+            diags.is_empty(),
+            "raw-string fixture contents must not produce trace diagnostics: {diags:?}"
+        );
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].claim_id, "demo.real");
     }
 }

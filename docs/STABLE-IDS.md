@@ -36,7 +36,7 @@ Rule-ID prefixes claimed by accepted ADRs. Each prefix is governed by the listed
 - `CH-DRIFT-*` — ADR-0024
 - `CH-EXEMPT-*` — ADR-0020
 - `CH-TRACE-*` — ADR-0023
-- `CLAIM-*` — ADR-0003, ADR-0005
+- `CLAIM-*` — ADR-0003 (ADR-0005 superseded by ADR-0023; source-annotation grammar moved to `CH-TRACE-*`)
 - `DEFERRAL-*` — ADR-0016
 - `DIAGNOSTIC-*` — ADR-0018
 - `EXEMPTION-*` — ADR-0004

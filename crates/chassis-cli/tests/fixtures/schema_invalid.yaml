@@ -1,0 +1,15 @@
+# Intentionally schema-invalid: invariants is empty (minItems: 1 violated for library kind)
+# and assurance_level uses a value outside the allowed enum.
+name: cli-tests-broken
+kind: library
+purpose: "Schema-invalid library contract used by chassis-cli tests; violates assurance_level enum and invariants minItems."
+status: stable
+since: "0.1.0"
+version: "0.1.0"
+assurance_level: not-a-real-rung
+owner: cli-tests
+exports:
+  - path: "src/lib.rs"
+    kind: module
+invariants: []
+edge_cases: []

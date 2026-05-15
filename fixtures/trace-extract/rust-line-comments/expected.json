@@ -1,0 +1,9 @@
+{
+  "language": "rust",
+  "source": "lib.rs",
+  "sites": [
+    { "claim_id": "demo.alpha", "kind": "impl" },
+    { "claim_id": "demo.beta",  "kind": "impl" }
+  ],
+  "diagnostics": []
+}

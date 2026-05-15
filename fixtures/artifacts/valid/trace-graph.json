@@ -1,0 +1,23 @@
+{
+  "claims": {
+    "demo.alpha": {
+      "claim_id": "demo.alpha",
+      "contract_path": "CONTRACT.yaml",
+      "contract_kind": "invariant",
+      "claim_record": {
+        "id": "demo.alpha",
+        "text": "Alpha invariant holds."
+      },
+      "impl_sites": [
+        { "file": "src/lib.rs", "line": 42, "claim_id": "demo.alpha", "kind": "impl" }
+      ],
+      "test_sites": [
+        { "file": "tests/alpha.rs", "line": 7, "claim_id": "demo.alpha", "kind": "test" }
+      ],
+      "adr_refs": ["ADR-0023"],
+      "active_exemptions": []
+    }
+  },
+  "orphan_sites": [],
+  "diagnostics": []
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/opa-input/v1",
+  "version": "1.0.0",
+  "title": "Chassis OPA input export (v1)",
+  "description": "OPA adapter wrapping Chassis policy-input facts under the standard input key. Chassis does not evaluate Rego.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["version", "repo", "contracts", "claims", "diagnostics", "exemptions", "drift_summary"],
+      "properties": {
+        "version": { "type": "integer", "const": 1 },
+        "repo": { "type": "object" },
+        "contracts": { "type": "array" },
+        "claims": { "type": "array" },
+        "diagnostics": { "type": "array" },
+        "exemptions": { "type": "object" },
+        "drift_summary": { "type": "object" }
+      }
+    }
+  }
+}

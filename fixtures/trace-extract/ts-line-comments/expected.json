@@ -1,0 +1,9 @@
+{
+  "language": "typescript",
+  "source": "mod.ts",
+  "sites": [
+    { "claim_id": "demo.alpha", "kind": "impl" },
+    { "claim_id": "demo.beta",  "kind": "impl" }
+  ],
+  "diagnostics": []
+}

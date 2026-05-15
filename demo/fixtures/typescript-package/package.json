@@ -1,0 +1,11 @@
+{
+  "name": "demo-typescript-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p packages/demo-ts/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -17,9 +17,10 @@ pub use predicate::{
     TraceSummary, CH_ATTEST_PREDICATE_INVALID,
 };
 pub use sign::{
-    dsse_pae, generate_keypair, sign_statement, signing_key_from_hex, verify_envelope,
-    verify_subject_matches_repo, verifying_key_for, verifying_key_from_hex, DsseEnvelope,
-    DsseSignature, CH_ATTEST_NOT_FOUND, CH_ATTEST_SIGN_FAILED, CH_ATTEST_SUBJECT_MISMATCH,
+    dsse_pae, generate_keypair, sign_statement, signing_key_from_hex, validate_dsse_envelope,
+    validate_dsse_envelope_json, verify_envelope, verify_subject_matches_repo, verifying_key_for,
+    verifying_key_from_hex, DsseEnvelope, DsseSignature, CH_ATTEST_ENVELOPE_SCHEMA,
+    CH_ATTEST_NOT_FOUND, CH_ATTEST_SIGN_FAILED, CH_ATTEST_SUBJECT_MISMATCH,
     CH_ATTEST_VERIFY_FAILED, PAYLOAD_TYPE_IN_TOTO_JSON,
 };
 
@@ -32,6 +33,7 @@ pub enum AttestError {
     Json(String),
     PredicateSchema(Vec<String>),
     StatementSchema(Vec<String>),
+    EnvelopeSchema(Vec<String>),
     Sign(String),
 }
 
@@ -43,6 +45,9 @@ impl fmt::Display for AttestError {
             AttestError::Json(s) => write!(f, "{s}"),
             AttestError::PredicateSchema(v) => write!(f, "{v:?}"),
             AttestError::StatementSchema(v) => write!(f, "{v:?}"),
+            AttestError::EnvelopeSchema(v) => {
+                write!(f, "{} {v:?}", sign::CH_ATTEST_ENVELOPE_SCHEMA)
+            }
             AttestError::Sign(s) => write!(f, "{s}"),
         }
     }

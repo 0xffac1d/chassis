@@ -24,6 +24,8 @@ tags:
 
 Wave 1 tightened `schemas/contract.schema.json` so every `kind` carries a small required-field set, but those fields were shallow (`request: {}` validated). The schema file ballooned to thousands of lines of duplicated branch bodies. Wave 2 deepens each kind's payload while making the parent schema discriminator-only and maintaining semver discipline under ADR-0008.
 
+The root self-governance claims `chassis.contract-schema-kind-discriminated` and `chassis.adversarial-fixture-rejected` are direct checks on this decision: each supported kind must select an explicit subschema, and adversarial contracts must fail canonical validation instead of slipping through the parent schema.
+
 ## Decision
 
 ### Kinds that received deeper subschemas
