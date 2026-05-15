@@ -15,6 +15,7 @@ pub mod exemption;
 pub mod exports;
 pub mod fingerprint;
 pub mod gate;
+pub mod spec_index;
 pub mod supply;
 pub mod trace;
 pub mod validators;

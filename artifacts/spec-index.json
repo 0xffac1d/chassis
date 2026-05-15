@@ -1,0 +1,48 @@
+{
+  "chassis_preset_version": 1,
+  "constitution_principles": [
+    {
+      "id": "P1",
+      "text": "Policy sees spec intent only through schema-valid artifacts."
+    }
+  ],
+  "feature_id": "chassis-self",
+  "implementation_constraints": [
+    "serde_yaml workspace dependency per ADR-0025 retention decision"
+  ],
+  "non_goals": [
+    "Parsing arbitrary Spec Kit Markdown in CI"
+  ],
+  "requirements": [
+    {
+      "acceptance_criteria": [
+        "`chassis export` attaches spec_kit when artifacts/spec-index.json exists"
+      ],
+      "claim_ids": [
+        "chassis.exports-not-policy-engines"
+      ],
+      "description": "Deterministic spec-index.json and linker diagnostics.",
+      "id": "REQ-001",
+      "related_task_ids": [
+        "TASK-001"
+      ],
+      "title": "Spec bridge",
+      "touched_paths": [
+        "crates/chassis-core/src/exports.rs"
+      ]
+    }
+  ],
+  "summary": "Tracks Spec Kit bridge work against root CONTRACT.yaml claims.",
+  "tasks": [
+    {
+      "depends_on": [],
+      "id": "TASK-001",
+      "title": "Integrate spec-index",
+      "touched_paths": [
+        "crates/chassis-core/src/exports.rs"
+      ]
+    }
+  ],
+  "title": "Chassis self-application spec index",
+  "version": 1
+}

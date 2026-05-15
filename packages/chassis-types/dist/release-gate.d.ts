@@ -13,6 +13,10 @@ export interface ReleaseGate {
   drift_failed: boolean;
   exemption_failed: boolean;
   attestation_failed: boolean;
+  spec_index_present: boolean;
+  spec_index_digest: null | string;
+  spec_failed: boolean;
+  spec_error_count: number;
   unsuppressed_blocking: number;
   suppressed: number;
   severity_overridden: number;

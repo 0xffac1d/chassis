@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "chassis_preset_version": 1,
+  "feature_id": "fixture-bad",
+  "constitution_principles": [{ "id": "P1", "text": "x" }],
+  "non_goals": [],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "r",
+      "description": "d",
+      "acceptance_criteria": ["a"],
+      "claim_ids": ["this.claim.does.not.exist"],
+      "related_task_ids": ["TASK-001"],
+      "touched_paths": ["crates/demo/src/lib.rs"]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "t",
+      "depends_on": [],
+      "touched_paths": ["crates/demo/src/lib.rs"]
+    }
+  ],
+  "implementation_constraints": []
+}

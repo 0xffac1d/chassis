@@ -31,6 +31,7 @@ export type { OpaInput } from './opa-input';
 export type { PolicyInput } from './policy-input';
 export type { ReleaseGate } from './release-gate';
 export type { Service } from './contract-kinds/service';
+export type { SpecIndex } from './spec-index';
 export type { TagOntology } from './tag-ontology';
 export type { TraceGraph } from './trace-graph';
 
@@ -58,5 +59,6 @@ export * as InTotoStatementV1_InTotoStatementV1 from './in-toto-statement-v1';
 export * as OpaInput_OpaInput from './opa-input';
 export * as PolicyInput_PolicyInput from './policy-input';
 export * as ReleaseGate_ReleaseGate from './release-gate';
+export * as SpecIndex_SpecIndex from './spec-index';
 export * as TagOntology_TagOntology from './tag-ontology';
 export * as TraceGraph_TraceGraph from './trace-graph';

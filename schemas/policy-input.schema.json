@@ -57,6 +57,14 @@
         "abandoned": { "type": "integer", "minimum": 0 },
         "missing": { "type": "integer", "minimum": 0 }
       }
+    },
+    "spec_kit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec_index_digest"],
+      "properties": {
+        "spec_index_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
     }
   },
   "$defs": {

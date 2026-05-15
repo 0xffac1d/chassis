@@ -1,5 +1,7 @@
 mod common;
 
+use std::fs;
+
 use chassis_core::artifact::{
     validate_cedar_facts_value, validate_eventcatalog_metadata_value, validate_opa_input_value,
     validate_policy_input_value,
@@ -117,4 +119,73 @@ fn export_eventcatalog_uses_event_stream_metadata_only() {
         .as_str()
         .unwrap()
         .contains("Export-only metadata"));
+}
+
+#[test]
+fn export_includes_spec_kit_digest_when_spec_index_present() {
+    let dir = TempDir::new().unwrap();
+    write(dir.path(), "CONTRACT.yaml", VALID_LIBRARY_YAML);
+    write(
+        dir.path(),
+        "crates/demo/src/lib.rs",
+        r#"
+// @claim cli.tests.alpha
+pub fn alpha() {}
+// @claim cli.tests.edge.one
+pub fn edge() {}
+#[test]
+// @claim cli.tests.alpha
+fn t1() {}
+#[test]
+// @claim cli.tests.edge.one
+fn t2() {}
+"#,
+    );
+    git_init_with_initial_commit(dir.path());
+    fs::create_dir_all(dir.path().join("artifacts")).unwrap();
+    write(
+        dir.path(),
+        "artifacts/spec-index.json",
+        include_str!("fixtures/spec_index_link_clean.json"),
+    );
+
+    let assert = chassis()
+        .args(["--json", "--repo"])
+        .arg(dir.path())
+        .args(["export", "--format", "chassis"])
+        .assert()
+        .code(exit::OK);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON policy input");
+    validate_policy_input_value(&v).expect("policy input export validates");
+    let sk = v["spec_kit"].as_object().expect("spec_kit object");
+    assert_eq!(sk["spec_index_digest"].as_str().unwrap().len(), 64);
+}
+
+#[test]
+fn export_merges_spec_link_diagnostics_into_policy_diagnostics() {
+    let dir = repo_with_contract(VALID_LIBRARY_YAML);
+    fs::create_dir_all(dir.path().join("artifacts")).unwrap();
+    write(
+        dir.path(),
+        "artifacts/spec-index.json",
+        include_str!("fixtures/spec_index_bad_unknown_claim.json"),
+    );
+
+    let assert = chassis()
+        .args(["--json", "--repo"])
+        .arg(dir.path())
+        .args(["export", "--format", "chassis"])
+        .assert()
+        .code(exit::OK);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON policy input");
+    validate_policy_input_value(&v).expect("policy input export validates");
+    let diags = v["diagnostics"].as_array().expect("diagnostics");
+    assert!(
+        diags
+            .iter()
+            .any(|d| d["ruleId"] == "CH-SPEC-UNKNOWN-CLAIM-REF"),
+        "expected spec linker diagnostic in policy export"
+    );
 }

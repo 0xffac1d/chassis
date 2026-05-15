@@ -28,6 +28,7 @@ use crate::exempt::{
     apply::apply_exemptions, list, verify as exempt_verify, Codeowners, ListFilter, Registry,
 };
 use crate::fingerprint;
+use crate::spec_index::{digest_sha256_hex, link_spec_index, validate_spec_index_value, SpecIndex};
 use crate::trace::{build_trace_graph, types::TraceGraph, validate_trace_graph};
 
 /// Stable rule ids surfaced when the gate computation itself fails. Bound to
@@ -69,6 +70,29 @@ impl std::fmt::Display for GateError {
 
 impl std::error::Error for GateError {}
 
+/// Optional Spec Kit index (`artifacts/spec-index.json`) linkage state for the gate.
+#[derive(Debug, Clone)]
+pub struct SpecGateState {
+    pub present: bool,
+    pub digest: Option<String>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+impl SpecGateState {
+    pub fn failed(&self) -> bool {
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error)
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count()
+    }
+}
+
 /// Resolved gate state — everything needed to derive the predicate, the
 /// blocking reasons, and the human-readable verdict envelope. Owned values
 /// so callers can re-use parts (e.g. a CLI prints contract validation, a
@@ -77,6 +101,7 @@ impl std::error::Error for GateError {}
 pub struct GateRun {
     pub trace: TraceGraph,
     pub drift: DriftReport,
+    pub spec: SpecGateState,
     pub exempt_registry: Option<Registry>,
     pub exempt_diagnostics: Vec<Diagnostic>,
     pub unsuppressed_drift: Vec<Diagnostic>,
@@ -90,13 +115,15 @@ pub struct GateRun {
 }
 
 impl GateRun {
-    /// True iff the trace graph has any orphan @claim site — a `// @claim X`
-    /// in code with no matching CONTRACT.yaml entry. Missing impl/test sites
-    /// on a CONTRACT-declared claim are emitted as drift diagnostics
-    /// (`CH-DRIFT-IMPL-MISSING`) which exemptions can suppress, so they are
-    /// NOT counted here. Orphan sites stay structural and unexemptable.
+    /// True if the trace has orphan sites, or if any contract claim lacks
+    /// implementation or test sites (matches `chassis release-gate` semantics).
     pub fn trace_failed(&self) -> bool {
         !self.trace.orphan_sites.is_empty()
+            || self
+                .trace
+                .claims
+                .values()
+                .any(|n| n.impl_sites.is_empty() || n.test_sites.is_empty())
     }
 
     /// True iff `fail_on_drift` is set AND at least one unsuppressed drift
@@ -140,6 +167,10 @@ impl GateRun {
         }
     }
 
+    pub fn spec_failed(&self) -> bool {
+        self.spec.failed()
+    }
+
     /// Build the per-axis [`GateOutcome`] embedded into the signed predicate.
     /// `attestation_failed` reflects whether signing succeeded (false when the
     /// caller did not attempt to sign).
@@ -147,11 +178,21 @@ impl GateRun {
         let trace_failed = self.trace_failed();
         let drift_failed = self.drift_failed();
         let exemption_failed = self.exemption_failed();
-        let passed = !trace_failed && !drift_failed && !exemption_failed && !attestation_failed;
+        let spec_failed = self.spec_failed();
+        let passed = !spec_failed
+            && !trace_failed
+            && !drift_failed
+            && !exemption_failed
+            && !attestation_failed;
+        // Exit code precedence matches `chassis release-gate`.
         let final_exit_code = if passed {
             0
         } else if attestation_failed {
             6
+        } else if spec_failed {
+            2
+        } else if trace_failed || drift_failed {
+            5
         } else if exemption_failed {
             3
         } else {
@@ -164,6 +205,10 @@ impl GateRun {
             drift_failed,
             exemption_failed,
             attestation_failed,
+            spec_index_present: self.spec.present,
+            spec_index_digest: self.spec.digest.clone(),
+            spec_failed,
+            spec_error_count: self.spec.error_count(),
             unsuppressed_blocking: self.unsuppressed_blocking(),
             suppressed: self.suppressed,
             severity_overridden: self.overridden,
@@ -227,6 +272,10 @@ impl GateRun {
             drift_failed: outcome.drift_failed,
             exemption_failed: outcome.exemption_failed,
             attestation_failed: outcome.attestation_failed,
+            spec_index_present: outcome.spec_index_present,
+            spec_index_digest: outcome.spec_index_digest.clone(),
+            spec_failed: outcome.spec_failed,
+            spec_error_count: outcome.spec_error_count,
             unsuppressed_blocking: outcome.unsuppressed_blocking,
             suppressed: outcome.suppressed,
             severity_overridden: outcome.severity_overridden,
@@ -274,6 +323,8 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         )
     })?;
 
+    let spec = load_spec_index_gate(repo, &trace)?;
+
     let drift = build_drift_report(repo, &trace, now).map_err(|e| {
         GateError::new(
             rule_id::SUBSYSTEM_FAILURE,
@@ -302,6 +353,7 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
     Ok(GateRun {
         trace,
         drift,
+        spec,
         exempt_registry: exempt.registry,
         exempt_diagnostics: exempt.diagnostics,
         unsuppressed_drift: exempt.unsuppressed_drift,
@@ -312,6 +364,49 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         git_commit,
         fail_on_drift,
         now,
+    })
+}
+
+fn load_spec_index_gate(repo: &Path, trace: &TraceGraph) -> Result<SpecGateState, GateError> {
+    let p = repo.join("artifacts/spec-index.json");
+    if !p.is_file() {
+        return Ok(SpecGateState {
+            present: false,
+            digest: None,
+            diagnostics: Vec::new(),
+        });
+    }
+    let raw = std::fs::read_to_string(&p).map_err(|e| {
+        GateError::new(
+            rule_id::SCHEMA_INVALID,
+            format!("read {}: {e}", p.display()),
+        )
+    })?;
+    let v: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
+        GateError::new(
+            rule_id::SCHEMA_INVALID,
+            format!("{}: JSON: {e}", p.display()),
+        )
+    })?;
+    validate_spec_index_value(&v).map_err(|errs| {
+        GateError::new(
+            rule_id::SCHEMA_INVALID,
+            format!("{}: {}", p.display(), errs.join("; ")),
+        )
+    })?;
+    let spec: SpecIndex = serde_json::from_value(v).map_err(|e| {
+        GateError::new(
+            rule_id::SCHEMA_INVALID,
+            format!("{}: spec index shape: {e}", p.display()),
+        )
+    })?;
+    let digest =
+        digest_sha256_hex(&spec).map_err(|e| GateError::new(rule_id::SCHEMA_INVALID, e))?;
+    let diagnostics = link_spec_index(&spec, repo, trace);
+    Ok(SpecGateState {
+        present: true,
+        digest: Some(digest),
+        diagnostics,
     })
 }
 

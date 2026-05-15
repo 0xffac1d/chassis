@@ -12,6 +12,7 @@
 //!   - **diagnostic** (`ruleId`) — load-bearing across ADR-0001/0011/0018.
 //!   - **in-toto Statement v1** (`_type`, `predicateType`) — vendored spec.
 //!   - **DSSE envelope** (`payloadType`) — vendored spec.
+//!   - **spec-index** (`version`, `chassis_preset_version`) — Spec Kit bridge artifact.
 //!
 //! Every emitter that produces one of these artifacts MUST call the matching
 //! validator before printing or returning, so a serde/schema drift turns into
@@ -29,7 +30,8 @@ pub use crate::exports::{
     validate_cedar_facts_value, validate_eventcatalog_metadata_value, validate_opa_input_value,
     validate_policy_input_value,
 };
-pub use crate::trace::validate_trace_graph;
+/// Validate a JSON value against `schemas/spec-index.schema.json`.
+pub use crate::spec_index::validate_spec_index_value;
 
 /// Validate a JSON value against `schemas/trace-graph.schema.json`.
 ///

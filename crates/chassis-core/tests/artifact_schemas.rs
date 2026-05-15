@@ -17,7 +17,8 @@ use serde_json::Value;
 
 use chassis_core::artifact::{
     validate_diagnostic_value, validate_drift_report_value, validate_dsse_envelope_value,
-    validate_in_toto_statement_value, validate_release_gate_value, validate_trace_graph_value,
+    validate_in_toto_statement_value, validate_release_gate_value, validate_spec_index_value,
+    validate_trace_graph_value,
 };
 use chassis_core::contract::Claim;
 use chassis_core::drift::report::build_drift_report;
@@ -250,5 +251,20 @@ fn fixture_invalid_dsse_envelope_snake_payload_type_rejected() {
     assert_invalid(
         "invalid/dsse-envelope-snake-payload-type.json",
         validate_dsse_envelope_value,
+    );
+}
+
+// ---- spec-index ----------------------------------------------------------
+
+#[test]
+fn fixture_valid_spec_index_validates() {
+    assert_valid("valid/spec-index.json", validate_spec_index_value);
+}
+
+#[test]
+fn fixture_invalid_spec_index_empty_acceptance_rejected() {
+    assert_invalid(
+        "invalid/spec-index-empty-acceptance.json",
+        validate_spec_index_value,
     );
 }

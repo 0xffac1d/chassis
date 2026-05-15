@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use chassis_core::artifact::{
     validate_cedar_facts_value, validate_drift_report_value, validate_dsse_envelope_value,
     validate_eventcatalog_metadata_value, validate_opa_input_value, validate_policy_input_value,
-    validate_release_gate_value, validate_trace_graph_value,
+    validate_release_gate_value, validate_spec_index_value, validate_trace_graph_value,
 };
 use chassis_core::attest::predicate::{CommandRun, Verdict};
 use chassis_core::attest::GateOutcome;
@@ -26,6 +26,10 @@ use chassis_core::exempt;
 use chassis_core::exempt::Codeowners;
 use chassis_core::exports;
 use chassis_core::fingerprint;
+use chassis_core::gate::compute as gate_compute;
+use chassis_core::spec_index::{
+    digest_sha256_hex, export_from_source_yaml_path, link_spec_index, SpecIndex,
+};
 use chassis_core::trace::{build_trace_graph, render_mermaid};
 
 /// Stable CLI exit codes. This surface is part of the public CLI contract —
@@ -57,7 +61,7 @@ mod rule {
 #[command(
     name = "chassis",
     version,
-    about = "Chassis governance CLI: validate, diff, trace, drift, export, exempt, attest.",
+    about = "Chassis governance CLI: validate, diff, trace, drift, export, spec-index, exempt, attest.",
     long_about = LONG_ABOUT,
 )]
 struct Cli {
@@ -82,6 +86,9 @@ Stable subcommands:
   trace [--mermaid]           Build the @claim ↔ CONTRACT trace graph for --repo.
   drift                       Compute the drift report (claim vs implementation churn).
   export --format <FORMAT>    Emit facts for external governance systems.
+  spec-index export           Emit deterministic spec-index.json from YAML source.
+  spec-index validate         Schema-validate spec-index.json.
+  spec-index link             Link spec requirements to CONTRACT.yaml claims.
   exempt verify               Statically verify .chassis/exemptions.yaml against CODEOWNERS.
   release-gate                Run validate + trace + drift + exemptions + optional attestation.
   attest sign --out <FILE>    Assemble + sign a DSSE-wrapped release-gate Statement.
@@ -138,6 +145,9 @@ enum Command {
         #[arg(long, value_enum, default_value_t = ExportFormat::Chassis)]
         format: ExportFormat,
     },
+    /// Spec Kit index: export YAML → JSON, validate, or link to contracts.
+    #[command(subcommand)]
+    SpecIndex(SpecIndexCmd),
     /// Run the end-to-end release gate over --repo.
     ReleaseGate {
         /// Fail when unsuppressed drift diagnostics remain.
@@ -216,6 +226,30 @@ enum AttestCmd {
         public_key: Option<PathBuf>,
         /// Path to the DSSE envelope JSON file.
         file: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum SpecIndexCmd {
+    /// Write canonical spec-index.json from YAML (Chassis Spec Kit preset).
+    Export {
+        /// Path to the YAML source (for example `.chassis/spec-index-source.yaml`).
+        #[arg(long)]
+        from: PathBuf,
+        /// Output JSON path (for example `artifacts/spec-index.json`).
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Validate spec-index.json against the canonical JSON Schema.
+    Validate {
+        /// Path to a spec-index.json file.
+        path: PathBuf,
+    },
+    /// Map requirements to CONTRACT.yaml claims; print diagnostics.
+    Link {
+        /// Path to spec-index.json.
+        #[arg(long)]
+        index: PathBuf,
     },
 }
 
@@ -336,6 +370,11 @@ fn main() {
         Command::Trace { mermaid } => run_trace(&root, mermaid, json),
         Command::Drift => run_drift(&root, json),
         Command::Export { format } => run_export(&root, format, json),
+        Command::SpecIndex(cmd) => match cmd {
+            SpecIndexCmd::Export { from, out } => run_spec_index_export(&from, &out, json),
+            SpecIndexCmd::Validate { path } => run_spec_index_validate(&path, json),
+            SpecIndexCmd::Link { index } => run_spec_index_link(&root, &index, json),
+        },
         Command::ReleaseGate {
             fail_on_drift,
             attest,
@@ -505,6 +544,120 @@ fn run_drift(root: &Path, json: bool) -> Result<i32, CliError> {
     }
 }
 
+// -- spec-index ---------------------------------------------------------------
+
+fn run_spec_index_export(from: &Path, out: &Path, json: bool) -> Result<i32, CliError> {
+    let idx = export_from_source_yaml_path(from).map_err(|e| CliError {
+        code: exit::MALFORMED_INPUT,
+        rule: e.rule_id,
+        message: e.message,
+        path: Some(from.to_path_buf()),
+    })?;
+    let v = serde_json::to_value(&idx)
+        .map_err(|e| CliError::internal(format!("serialize spec index: {e}")))?;
+    validate_spec_index_value(&v).map_err(|errs| {
+        CliError::internal(format!("spec index schema invalid after export: {errs:?}"))
+    })?;
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| CliError::internal(format!("create_dir {}: {e}", parent.display())))?;
+    }
+    let pretty = serde_json::to_string_pretty(&v)
+        .map_err(|e| CliError::internal(format!("pretty spec index json: {e}")))?;
+    fs::write(out, pretty + "\n").map_err(|e| CliError::missing_file(out, e))?;
+
+    let digest = digest_sha256_hex(&idx).map_err(CliError::internal)?;
+    if json {
+        println!(
+            "{}",
+            json!({
+                "ok": true,
+                "out": out.display().to_string(),
+                "digest": digest,
+            })
+        );
+    } else {
+        println!("wrote {} (spec_index digest {digest})", out.display());
+    }
+    Ok(exit::OK)
+}
+
+fn run_spec_index_validate(path: &Path, json: bool) -> Result<i32, CliError> {
+    let raw = read_text(path)?;
+    let v: Value = serde_json::from_str(&raw).map_err(|e| CliError::malformed(path, e))?;
+    match validate_spec_index_value(&v) {
+        Ok(()) => {
+            if json {
+                println!(
+                    "{}",
+                    json!({"ok": true, "path": path.display().to_string()})
+                );
+            } else {
+                println!("ok {}", path.display());
+            }
+            Ok(exit::OK)
+        }
+        Err(errs) => {
+            if json {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": false,
+                        "path": path.display().to_string(),
+                        "errors": errs,
+                    })
+                );
+            } else {
+                eprintln!(
+                    "validate failed: {} ({} error(s))",
+                    path.display(),
+                    errs.len()
+                );
+                for e in &errs {
+                    eprintln!("  - {e}");
+                }
+            }
+            Ok(exit::VALIDATE_FAILED)
+        }
+    }
+}
+
+fn run_spec_index_link(root: &Path, index_path: &Path, json: bool) -> Result<i32, CliError> {
+    let raw = read_text(index_path)?;
+    let v: Value = serde_json::from_str(&raw).map_err(|e| CliError::malformed(index_path, e))?;
+    validate_spec_index_value(&v)
+        .map_err(|errs| CliError::internal(format!("spec index schema: {errs:?}")))?;
+    let spec: SpecIndex = serde_json::from_value(v)
+        .map_err(|e| CliError::malformed(index_path, format!("spec index serde: {e}")))?;
+    let trace = build_trace_graph(root)
+        .map_err(|e| CliError::internal(format!("trace (for spec-index link): {e}")))?;
+    let diags = link_spec_index(&spec, root, &trace);
+    let has_err = diags.iter().any(|d| d.severity == Severity::Error);
+
+    if json {
+        println!(
+            "{}",
+            json!({
+                "ok": !has_err,
+                "diagnostics": diags,
+            })
+        );
+    } else {
+        for d in &diags {
+            println!("{} {:?} {}", d.rule_id, d.severity, d.message);
+        }
+        if !has_err {
+            println!("spec-index link: clean ({} diagnostic(s))", diags.len());
+        }
+    }
+
+    if has_err {
+        Ok(exit::VALIDATE_FAILED)
+    } else {
+        Ok(exit::OK)
+    }
+}
+
 // -- export -------------------------------------------------------------------
 
 fn run_export(root: &Path, format: ExportFormat, json: bool) -> Result<i32, CliError> {
@@ -649,6 +802,10 @@ fn run_release_gate(
             "drift_failed": false,
             "exemption_failed": false,
             "attestation_failed": false,
+            "spec_index_present": false,
+            "spec_index_digest": Value::Null,
+            "spec_link_failed": false,
+            "spec_link_diagnostics": Value::Array(vec![]),
             "unsuppressed_blocking": 0,
             "suppressed": 0,
             "severity_overridden": 0,
@@ -666,24 +823,18 @@ fn run_release_gate(
         return Ok(final_exit_code);
     }
 
-    let trace = build_trace_graph(root)
-        .map_err(|e| CliError::internal(format!("trace (for release gate): {e}")))?;
-    let trace_v = serde_json::to_value(&trace)
-        .map_err(|e| CliError::internal(format!("serialize trace graph: {e}")))?;
-    validate_trace_graph_value(&trace_v)
-        .map_err(|errs| CliError::internal(format!("trace schema invalid: {errs:?}")))?;
+    let run = gate_compute(root, now, fail_on_drift)
+        .map_err(|e| CliError::internal(format!("release gate: {}: {}", e.rule_id, e.message)))?;
+    let trace = &run.trace;
+    let drift = &run.drift;
 
-    let drift = build_drift_report(root, &trace, now)
-        .map_err(|e| CliError::internal(format!("drift (for release gate): {e}")))?;
-    let drift_v = serde_json::to_value(&drift)
-        .map_err(|e| CliError::internal(format!("serialize drift report: {e}")))?;
-    validate_drift_report_value(&drift_v)
-        .map_err(|errs| CliError::internal(format!("drift schema invalid: {errs:?}")))?;
+    let spec_index_present = run.spec.present;
+    let spec_index_digest = run.spec.digest.clone();
+    let spec_link_failed = run.spec.failed();
+    let spec_link_diagnostics = run.spec.diagnostics.clone();
 
-    let exemption_gate = load_and_apply_exemptions(root, drift.diagnostics.clone(), now)?;
-    let schema_fingerprint =
-        fingerprint::compute(root).map_err(|e| CliError::internal(format!("fingerprint: {e}")))?;
-    let git_commit = git_head(root)?;
+    let schema_fingerprint = run.schema_fingerprint.clone();
+    let git_commit = run.git_commit.clone();
 
     // Fail closed on attestation: when --attest is requested, resolve the
     // signing key BEFORE any predicate is assembled. If there is no explicit
@@ -701,63 +852,17 @@ fn run_release_gate(
         None
     };
 
-    let unsuppressed_drift_blocking = exemption_gate
-        .unsuppressed_drift
-        .iter()
-        .any(|d| matches!(d.severity, Severity::Error | Severity::Warning));
-    let drift_failed = fail_on_drift && unsuppressed_drift_blocking;
-    let trace_failed = trace.orphan_sites.len()
-        + trace
-            .claims
-            .values()
-            .filter(|n| n.impl_sites.is_empty())
-            .count()
-        + trace
-            .claims
-            .values()
-            .filter(|n| n.test_sites.is_empty())
-            .count()
-        > 0;
-    let exemption_failed = exemption_gate.error_count > 0;
-    let unsuppressed_blocking = exemption_gate.unsuppressed_blocking_count();
-    let suppressed = exemption_gate.suppressed_count;
-    let severity_overridden = exemption_gate.overridden_count;
-
-    // Pre-attestation outcome: the verdict we would report if --attest is absent
-    // or signing succeeds. Encoded once into the predicate that we sign, write,
-    // and print so the three views agree.
-    let pre_exit = if trace_failed || drift_failed {
-        exit::DRIFT_DETECTED
-    } else if exemption_failed {
-        exit::EXEMPT_VIOLATION
-    } else {
-        exit::OK
-    };
-    let pre_outcome = GateOutcome {
-        verdict: if pre_exit == exit::OK {
-            Verdict::Pass
-        } else {
-            Verdict::Fail
-        },
-        fail_on_drift,
-        trace_failed,
-        drift_failed,
-        exemption_failed,
-        attestation_failed: false,
-        unsuppressed_blocking,
-        suppressed,
-        severity_overridden,
-        final_exit_code: pre_exit,
-    };
+    // Pre-attestation outcome from shared gate semantics (must match JSON-RPC).
+    let pre_outcome = run.outcome(false);
     let pre_commands = vec![CommandRun {
         argv: argv.clone(),
         exit_code: pre_outcome.final_exit_code,
     }];
     let pre_statement = chassis_core::attest::assemble(
         root,
-        &trace,
-        &drift,
-        exemption_gate.registry.as_ref(),
+        trace,
+        drift,
+        run.exempt_registry.as_ref(),
         pre_commands,
         pre_outcome.clone(),
         now,
@@ -820,9 +925,9 @@ fn run_release_gate(
         }];
         chassis_core::attest::assemble(
             root,
-            &trace,
-            &drift,
-            exemption_gate.registry.as_ref(),
+            trace,
+            drift,
+            run.exempt_registry.as_ref(),
             final_commands,
             final_outcome.clone(),
             now,
@@ -836,19 +941,25 @@ fn run_release_gate(
         .map_err(|errs| CliError::internal(format!("release-gate schema invalid: {errs:?}")))?;
     write_json_file(&artifact_path, &predicate_v)?;
 
-    let trace_summary = trace_summary_json(&trace);
+    let trace_summary = trace_summary_json(trace);
     let passed = final_outcome.verdict == Verdict::Pass;
+    let spec_link_diagnostics_v = serde_json::to_value(&spec_link_diagnostics)
+        .map_err(|e| CliError::internal(format!("serialize spec link diagnostics: {e}")))?;
     let output = json!({
         "ok": passed,
         "verdict": if passed { "pass" } else { "fail" },
         "fail_on_drift": fail_on_drift,
-        "trace_failed": trace_failed,
-        "drift_failed": drift_failed,
-        "exemption_failed": exemption_failed,
+        "trace_failed": run.trace_failed(),
+        "drift_failed": run.drift_failed(),
+        "exemption_failed": run.exemption_failed(),
         "attestation_failed": attestation_failed,
-        "unsuppressed_blocking": unsuppressed_blocking,
-        "suppressed": suppressed,
-        "severity_overridden": severity_overridden,
+        "spec_index_present": spec_index_present,
+        "spec_index_digest": spec_index_digest,
+        "spec_link_failed": spec_link_failed,
+        "spec_link_diagnostics": spec_link_diagnostics_v,
+        "unsuppressed_blocking": run.unsuppressed_blocking(),
+        "suppressed": run.suppressed,
+        "severity_overridden": run.overridden,
         "final_exit_code": final_outcome.final_exit_code,
         "schema_fingerprint": schema_fingerprint,
         "git_commit": git_commit,
@@ -858,9 +969,9 @@ fn run_release_gate(
             "stale": drift.summary.stale,
             "abandoned": drift.summary.abandoned,
             "missing": drift.summary.missing,
-            "unsuppressed_blocking": unsuppressed_blocking,
+            "unsuppressed_blocking": run.unsuppressed_blocking(),
         },
-        "exemption_summary": exemption_gate.to_summary_json(),
+        "exemption_summary": exemption_summary_from_gate(&run),
         "artifact_path": artifact_path.display().to_string(),
         "attestation_path": attestation_written
             .as_ref()
@@ -950,6 +1061,7 @@ fn build_export_policy_input(root: &Path) -> Result<exports::PolicyInput, CliErr
         .map_err(|errs| CliError::internal(format!("drift schema invalid: {errs:?}")))?;
 
     let exemptions = load_export_exemption_facts(root)?;
+    let (spec_kit, spec_link_diags) = load_optional_spec_kit(root, &trace)?;
     let schema_fingerprint =
         fingerprint::compute(root).map_err(|e| CliError::internal(format!("fingerprint: {e}")))?;
     let repo = exports::RepoFacts {
@@ -965,6 +1077,42 @@ fn build_export_policy_input(root: &Path) -> Result<exports::PolicyInput, CliErr
         drift.summary.clone(),
         drift.diagnostics,
         exemptions,
+        spec_kit,
+        spec_link_diags,
+    ))
+}
+
+fn load_optional_spec_kit(
+    root: &Path,
+    trace: &chassis_core::trace::TraceGraph,
+) -> Result<
+    (
+        Option<exports::SpecKitExtension>,
+        Vec<chassis_core::diagnostic::Diagnostic>,
+    ),
+    CliError,
+> {
+    let p = root.join("artifacts/spec-index.json");
+    if !p.is_file() {
+        return Ok((None, Vec::new()));
+    }
+    let raw = read_text(&p)?;
+    let v: Value = serde_json::from_str(&raw).map_err(|e| CliError::malformed(&p, e))?;
+    validate_spec_index_value(&v).map_err(|errs| {
+        CliError::malformed(
+            &p,
+            format!("artifacts/spec-index.json: {}", errs.join("; ")),
+        )
+    })?;
+    let spec: SpecIndex = serde_json::from_value(v)
+        .map_err(|e| CliError::malformed(&p, format!("spec index typed parse: {e}")))?;
+    let digest = digest_sha256_hex(&spec).map_err(CliError::internal)?;
+    let diags = link_spec_index(&spec, root, trace);
+    Ok((
+        Some(exports::SpecKitExtension {
+            spec_index_digest: digest,
+        }),
+        diags,
     ))
 }
 
@@ -1040,89 +1188,6 @@ fn discover_contract_files(root: &Path) -> Result<Vec<PathBuf>, CliError> {
     Ok(out)
 }
 
-struct ExemptionGate {
-    registry: Option<exempt::Registry>,
-    diagnostics: Vec<chassis_core::diagnostic::Diagnostic>,
-    error_count: usize,
-    active_count: usize,
-    unsuppressed_drift: Vec<chassis_core::diagnostic::Diagnostic>,
-    suppressed_count: usize,
-    overridden_count: usize,
-    audit_count: usize,
-}
-
-impl ExemptionGate {
-    fn unsuppressed_blocking_count(&self) -> usize {
-        self.unsuppressed_drift
-            .iter()
-            .filter(|d| matches!(d.severity, Severity::Error | Severity::Warning))
-            .count()
-    }
-
-    fn to_summary_json(&self) -> Value {
-        json!({
-            "registry_present": self.registry.is_some(),
-            "active": self.active_count,
-            "diagnostics": self.diagnostics.len(),
-            "errors": self.error_count,
-            "suppressed": self.suppressed_count,
-            "overridden": self.overridden_count,
-            "audit": self.audit_count,
-        })
-    }
-}
-
-fn load_and_apply_exemptions(
-    root: &Path,
-    drift_diagnostics: Vec<chassis_core::diagnostic::Diagnostic>,
-    now: chrono::DateTime<Utc>,
-) -> Result<ExemptionGate, CliError> {
-    let registry = load_exemptions_strict(root)?;
-    let Some(registry) = registry else {
-        return Ok(ExemptionGate {
-            registry: None,
-            diagnostics: Vec::new(),
-            error_count: 0,
-            active_count: 0,
-            unsuppressed_drift: drift_diagnostics,
-            suppressed_count: 0,
-            overridden_count: 0,
-            audit_count: 0,
-        });
-    };
-
-    let co_path = root.join("CODEOWNERS");
-    let co_raw = fs::read_to_string(&co_path).unwrap_or_default();
-    let codeowners = Codeowners::parse(&co_raw)
-        .map_err(|e| CliError::malformed(&co_path, format!("CODEOWNERS: {e}")))?;
-    let diagnostics = exempt::verify(&registry, now, &codeowners);
-    let error_count = diagnostics
-        .iter()
-        .filter(|d| d.severity == Severity::Error)
-        .count();
-    let active_count = exempt::list(
-        &registry,
-        exempt::ListFilter {
-            rule_id: None,
-            path: None,
-            active_at: Some(now.date_naive()),
-        },
-    )
-    .len();
-    let applied = exempt::apply::apply_exemptions(drift_diagnostics, &registry, now);
-
-    Ok(ExemptionGate {
-        registry: Some(registry),
-        diagnostics,
-        error_count,
-        active_count,
-        unsuppressed_drift: applied.unsuppressed,
-        suppressed_count: applied.suppressed.len(),
-        overridden_count: applied.overridden.len(),
-        audit_count: applied.audit.len(),
-    })
-}
-
 fn load_exemptions_strict(root: &Path) -> Result<Option<exempt::Registry>, CliError> {
     let p = root.join(".chassis/exemptions.yaml");
     if !p.exists() {
@@ -1135,6 +1200,23 @@ fn load_exemptions_strict(root: &Path) -> Result<Option<exempt::Registry>, CliEr
     serde_json::from_value(j)
         .map(Some)
         .map_err(|e| CliError::malformed(&p, format!("registry: {e}")))
+}
+
+fn exemption_summary_from_gate(run: &chassis_core::gate::GateRun) -> Value {
+    let error_count = run
+        .exempt_diagnostics
+        .iter()
+        .filter(|d| d.severity == Severity::Error)
+        .count();
+    json!({
+        "registry_present": run.exempt_registry.is_some(),
+        "active": run.exempt_active(),
+        "diagnostics": run.exempt_diagnostics.len(),
+        "errors": error_count,
+        "suppressed": run.suppressed,
+        "overridden": run.overridden,
+        "audit": run.audit,
+    })
 }
 
 fn trace_summary_json(trace: &chassis_core::trace::TraceGraph) -> Value {
@@ -1373,55 +1455,14 @@ fn run_attest_sign(
     use chassis_core::attest::assemble;
 
     let now = Utc::now();
-    let trace = build_trace_graph(root)
-        .map_err(|e| CliError::internal(format!("trace (for attest): {e}")))?;
-    let drift = build_drift_report(root, &trace, now)
-        .map_err(|e| CliError::internal(format!("drift (for attest): {e}")))?;
-    let exemption_gate = load_and_apply_exemptions(root, drift.diagnostics.clone(), now)?;
+    let run = gate_compute(root, now, true).map_err(|e| {
+        CliError::internal(format!("attest sign (gate): {}: {}", e.rule_id, e.message))
+    })?;
 
     let ctx = resolve_signing_key(root, private_key, ephemeral_key, out)?;
 
-    let unsuppressed_drift_blocking = exemption_gate
-        .unsuppressed_drift
-        .iter()
-        .any(|d| matches!(d.severity, Severity::Error | Severity::Warning));
-    let trace_failed = trace.orphan_sites.len()
-        + trace
-            .claims
-            .values()
-            .filter(|n| n.impl_sites.is_empty())
-            .count()
-        + trace
-            .claims
-            .values()
-            .filter(|n| n.test_sites.is_empty())
-            .count()
-        > 0;
-    let drift_failed = unsuppressed_drift_blocking;
-    let exemption_failed = exemption_gate.error_count > 0;
-    let exit_code = if trace_failed || drift_failed {
-        exit::DRIFT_DETECTED
-    } else if exemption_failed {
-        exit::EXEMPT_VIOLATION
-    } else {
-        exit::OK
-    };
-    let outcome = GateOutcome {
-        verdict: if exit_code == exit::OK {
-            Verdict::Pass
-        } else {
-            Verdict::Fail
-        },
-        fail_on_drift: true,
-        trace_failed,
-        drift_failed,
-        exemption_failed,
-        attestation_failed: false,
-        unsuppressed_blocking: exemption_gate.unsuppressed_blocking_count(),
-        suppressed: exemption_gate.suppressed_count,
-        severity_overridden: exemption_gate.overridden_count,
-        final_exit_code: exit_code,
-    };
+    let outcome = run.outcome(false);
+    let exit_code = outcome.final_exit_code;
     let mut argv = vec![
         "chassis".to_string(),
         "attest".to_string(),
@@ -1436,9 +1477,9 @@ fn run_attest_sign(
 
     let stmt = assemble(
         root,
-        &trace,
-        &drift,
-        exemption_gate.registry.as_ref(),
+        &run.trace,
+        &run.drift,
+        run.exempt_registry.as_ref(),
         commands,
         outcome,
         now,

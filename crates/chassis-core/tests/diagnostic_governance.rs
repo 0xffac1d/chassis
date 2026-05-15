@@ -236,6 +236,63 @@ fn drift_report_diagnostics_are_governance_safe() {
     }
 }
 
+// -------- spec-index linker --------
+
+use chassis_core::spec_index::{
+    link_spec_index, ConstitutionPrinciple, Requirement, SpecIndex, SpecTask,
+};
+use chassis_core::trace::types::TraceGraph;
+
+#[test]
+fn spec_link_unbound_requirement_diagnostic_is_governance_safe() {
+    let reg = load_registry();
+    let spec = SpecIndex {
+        version: 1,
+        chassis_preset_version: 1,
+        feature_id: "fixture".into(),
+        title: None,
+        summary: None,
+        constitution_principles: vec![ConstitutionPrinciple {
+            id: "P1".into(),
+            text: "p".into(),
+        }],
+        non_goals: vec![],
+        requirements: vec![Requirement {
+            id: "REQ-001".into(),
+            title: "x".into(),
+            description: "y".into(),
+            acceptance_criteria: vec!["ac".into()],
+            claim_ids: vec![],
+            related_task_ids: vec![],
+            touched_paths: vec![],
+        }],
+        tasks: vec![SpecTask {
+            id: "TASK-001".into(),
+            title: "t".into(),
+            description: None,
+            depends_on: vec![],
+            parallel_group: None,
+            touched_paths: vec![],
+        }],
+        implementation_constraints: vec![],
+    };
+    let graph = TraceGraph {
+        claims: Default::default(),
+        orphan_sites: vec![],
+        diagnostics: vec![],
+    };
+    let diags = link_spec_index(&spec, &repo(), &graph);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.rule_id == chassis_core::spec_index::CH_SPEC_UNBOUND_REQUIREMENT),
+        "expected unbound requirement diagnostic"
+    );
+    for d in &diags {
+        assert_governance_safe(d, "spec_index::link", &reg);
+    }
+}
+
 // -------- internal carve-out --------
 
 #[test]

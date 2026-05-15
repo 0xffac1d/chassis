@@ -5,7 +5,7 @@ Staging map. Wave numbers advance when foundational contracts land; later waves 
 ## Wave 1 — Foundations ✅
 
 - Kind-discriminated `schemas/contract.schema.json` with semver metadata per ADR-0008.
-- ADRs 0001–0016 accepted (Wave 1 set; later waves bring the count to ADR-0025).
+- ADRs 0001–0016 accepted (Wave 1 set; later waves bring the count to ADR-0026).
 - Regenerated Rust + `@chassis/core-types` artifacts + schema fingerprint.
 - Repository-root `CONTRACT.yaml` validating against the tightened schema.
 
@@ -24,14 +24,22 @@ Shipped:
 - `crates/chassis-core/src/trace/` — static claim scanner (ADR-0023, supersedes ADR-0005). Walks Rust + TypeScript sources, extracts the canonical `// @claim <id>` line-comment annotation (identical grammar for both languages), builds a graph of `claim_id → contract → implementing_files → covering_tests`. The pre-ADR-0023 TypeScript JSDoc form (`/** @claim ... */`) is rejected with `CH-TRACE-MALFORMED-CLAIM` so it cannot fail silently. JSON + Mermaid output. Rule IDs: `CH-TRACE-*`.
 - `crates/chassis-core/src/drift/` — per-claim drift score from git history via `git2` (ADR-0024). Rule IDs: `CH-DRIFT-*`.
 - `crates/chassis-core/src/attest/` — DSSE-style attestation envelope: assemble → sign (Ed25519) → verify (ADR-0022). Subject is the schema-manifest digest plus repo metadata. Rule IDs: `CH-ATTEST-*`.
-- `crates/chassis-cli/` — single binary `chassis` exposing `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `export`, `release-gate`, `attest sign`, `attest verify`.
+- `crates/chassis-cli/` — single binary `chassis` exposing `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `export`, `spec-index …`, `release-gate`, `attest sign`, `attest verify`.
 - `crates/chassis-jsonrpc/` — newline-delimited JSON-RPC 2.0 sidecar exposing six chassis methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Explicitly **not** the Model Context Protocol; see `docs/future-mcp.md` for the requirements a real MCP surface would have to meet.
 - CI job `self-attest` runs `scripts/self-attest.sh` (trace → drift → attest sign → attest verify) and uploads the DSSE artifact.
+- OPA policy gate: `policy/chassis_release.rego` plus `scripts/policy-gate.sh` and CI job `policy-opa` evaluate Rego over `chassis export --format opa`. Chassis exports evidence; OPA returns `allow` and `policy-result.json`.
 
 Open polish items:
 
 - Decide on signing transport beyond raw Ed25519 (cosign or in-toto) and capture in a Wave-3-close ADR.
 - Add the planned `doctor` subcommand to the CLI surface.
+
+## Wave 3.5 — Spec Kit bridge ✅ (in tree)
+
+- `schemas/spec-index.schema.json` — canonical Spec Kit index wire format (ADR-0008 metadata).
+- `docs/spec-kit-chassis-preset.md` + `.chassis/spec-index-source.yaml` — human workflow; `chassis spec-index export` writes deterministic `artifacts/spec-index.json`.
+- `crates/chassis-core/src/spec_index.rs` — YAML→JSON export validation, SHA-256 digest, spec-to-contract linker (`CH-SPEC-*`, ADR-0026).
+- Policy input (`schemas/policy-input.schema.json`) optional `spec_kit.spec_index_digest`; `chassis export` and `release-gate` consume `artifacts/spec-index.json` when present. Release-gate predicate v1.2 (`schemas/release-gate.schema.json`) records `spec_index_digest`, `spec_failed`, and `spec_error_count` so JSON-RPC, CLI, and DSSE artifacts agree.
 
 ## Wave 4 — Operator interfaces
 

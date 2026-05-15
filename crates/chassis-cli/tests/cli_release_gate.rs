@@ -1,5 +1,7 @@
 mod common;
 
+use std::fs;
+
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use chassis_core::artifact::{
@@ -767,4 +769,54 @@ fn t2() {}
     .unwrap();
     validate_release_gate_value(&predicate).expect("predicate matches schema");
     assert_eq!(predicate["severity_overridden"], v["severity_overridden"]);
+}
+
+/// When `artifacts/spec-index.json` fails spec-to-contract linkage, both the
+/// CLI verdict and the signed predicate name the spec axis (exit 2 / spec_failed).
+#[test]
+fn release_gate_fails_closed_on_spec_link_errors_with_matching_predicate() {
+    let dir = TempDir::new().unwrap();
+    write(dir.path(), "CONTRACT.yaml", VALID_LIBRARY_YAML);
+    write(
+        dir.path(),
+        "crates/demo/src/lib.rs",
+        r#"
+// @claim cli.tests.alpha
+pub fn alpha() {}
+// @claim cli.tests.edge.one
+pub fn edge() {}
+#[test]
+// @claim cli.tests.alpha
+fn t1() {}
+#[test]
+// @claim cli.tests.edge.one
+fn t2() {}
+"#,
+    );
+    fs::create_dir_all(dir.path().join("artifacts")).unwrap();
+    write(
+        dir.path(),
+        "artifacts/spec-index.json",
+        include_str!("fixtures/spec_index_bad_unknown_claim.json"),
+    );
+    git_init_with_initial_commit(dir.path());
+
+    let assert = chassis()
+        .args(["--json", "release-gate", "--fail-on-drift", "--repo"])
+        .arg(dir.path())
+        .assert()
+        .code(exit::VALIDATE_FAILED);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON envelope");
+    assert_eq!(v["spec_link_failed"], true);
+    assert_eq!(v["final_exit_code"], exit::VALIDATE_FAILED);
+
+    let predicate: Value =
+        serde_json::from_str(&fs::read_to_string(dir.path().join("release-gate.json")).unwrap())
+            .unwrap();
+    validate_release_gate_value(&predicate).expect("predicate matches schema");
+    assert_eq!(predicate["spec_failed"], true);
+    assert_eq!(predicate["spec_index_present"], true);
+    assert!(predicate["spec_error_count"].as_u64().unwrap() >= 1);
+    assert_eq!(predicate["final_exit_code"], exit::VALIDATE_FAILED);
 }

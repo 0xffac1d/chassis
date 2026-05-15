@@ -25,6 +25,9 @@ export interface PolicyInput {
     abandoned: number;
     missing: number;
   };
+  spec_kit?: {
+    spec_index_digest: string;
+  };
 }
 export interface ContractFact {
   path: string;

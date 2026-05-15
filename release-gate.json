@@ -1,6 +1,10 @@
 {
   "attestation_failed": false,
   "built_at": "2026-05-15T21:53:00.741035375+00:00",
+  "spec_index_present": false,
+  "spec_index_digest": null,
+  "spec_failed": false,
+  "spec_error_count": 0,
   "commands_run": [
     {
       "argv": [

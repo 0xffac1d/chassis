@@ -77,6 +77,12 @@ pub struct ExemptionFacts {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// Optional facts when `artifacts/spec-index.json` is present (digest for policy consumers).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecKitExtension {
+    pub spec_index_digest: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyInput {
     pub version: i32,
@@ -86,6 +92,8 @@ pub struct PolicyInput {
     pub diagnostics: Vec<Diagnostic>,
     pub exemptions: ExemptionFacts,
     pub drift_summary: DriftSummaryCounts,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spec_kit: Option<SpecKitExtension>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,6 +143,7 @@ pub struct EventCatalogMetadata {
     pub metadata: Value,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn build_policy_input(
     repo: RepoFacts,
     contracts: Vec<ContractFact>,
@@ -142,11 +151,14 @@ pub fn build_policy_input(
     drift_summary: DriftSummaryCounts,
     drift_diagnostics: Vec<Diagnostic>,
     exemptions: ExemptionFacts,
+    spec_kit: Option<SpecKitExtension>,
+    mut spec_link_diagnostics: Vec<Diagnostic>,
 ) -> PolicyInput {
     let mut diagnostics = Vec::new();
     diagnostics.extend(trace.diagnostics.clone());
     diagnostics.extend(drift_diagnostics);
     diagnostics.extend(exemptions.diagnostics.clone());
+    diagnostics.append(&mut spec_link_diagnostics);
 
     PolicyInput {
         version: 1,
@@ -169,6 +181,7 @@ pub fn build_policy_input(
         diagnostics,
         exemptions,
         drift_summary,
+        spec_kit,
     }
 }
 
@@ -431,6 +444,8 @@ mod tests {
                 registry: None,
                 diagnostics: vec![],
             },
+            None,
+            vec![],
         )
     }
 

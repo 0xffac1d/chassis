@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "chassis_preset_version": 1,
+  "feature_id": "fixture",
+  "constitution_principles": [{ "id": "P1", "text": "Principle one." }],
+  "non_goals": [],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Example",
+      "description": "Example requirement for schema fixture.",
+      "acceptance_criteria": ["Done when tests pass."],
+      "claim_ids": ["example.claim"],
+      "related_task_ids": [],
+      "touched_paths": ["src/lib.rs"]
+    }
+  ],
+  "tasks": [],
+  "implementation_constraints": []
+}

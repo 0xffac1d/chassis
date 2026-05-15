@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://chassis.dev/schemas/release-gate-predicate/v1",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Chassis release-gate attestation predicate (v1)",
   "type": "object",
   "additionalProperties": false,
@@ -15,6 +15,10 @@
     "drift_failed",
     "exemption_failed",
     "attestation_failed",
+    "spec_index_present",
+    "spec_index_digest",
+    "spec_failed",
+    "spec_error_count",
     "unsuppressed_blocking",
     "suppressed",
     "severity_overridden",
@@ -46,6 +50,15 @@
     "drift_failed": { "type": "boolean" },
     "exemption_failed": { "type": "boolean" },
     "attestation_failed": { "type": "boolean" },
+    "spec_index_present": { "type": "boolean" },
+    "spec_index_digest": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      ]
+    },
+    "spec_failed": { "type": "boolean" },
+    "spec_error_count": { "type": "integer", "minimum": 0 },
     "unsuppressed_blocking": { "type": "integer", "minimum": 0 },
     "suppressed": { "type": "integer", "minimum": 0 },
     "severity_overridden": { "type": "integer", "minimum": 0 },

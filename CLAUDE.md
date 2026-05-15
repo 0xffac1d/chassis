@@ -12,16 +12,17 @@ The repo started as a salvage of a prior, much larger codebase (also called Chas
 
 | Path | Status | Role |
 |------|--------|------|
-| `schemas/` | canonical | 17 root metadata schemas plus 8 per-kind contract branches under `schemas/contract-kinds/` (contract parent at `schemas/contract.schema.json` v3.x). 25 schema files total. |
-| `crates/chassis-core/` | supported | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier) + `fingerprint.rs` + `trace/` + `drift/` + `exports.rs` (export-only governance facts) + `attest/` (DSSE). `cargo check` + `cargo test` clean on Rust ≥ 1.86 (`rust-toolchain.toml`). |
-| `crates/chassis-cli/` | supported | Binary `chassis`. Subcommands: `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `export`, `release-gate`, `attest sign`, `attest verify`. (`doctor` is planned, not implemented.) |
+| `schemas/` | canonical | 18 root metadata schemas plus 8 per-kind contract branches under `schemas/contract-kinds/` (contract parent at `schemas/contract.schema.json` v3.x). 26 schema files total. |
+| `crates/chassis-core/` | supported | Rust types + validators + `diff/` (contract-diff) + `exempt/` (registry verifier) + `fingerprint.rs` + `spec_index/` (Spec Kit index + linker) + `trace/` + `drift/` + `exports.rs` (export-only governance facts) + `attest/` (DSSE). `cargo check` + `cargo test` clean on Rust ≥ 1.86 (`rust-toolchain.toml`). |
+| `crates/chassis-cli/` | supported | Binary `chassis`. Subcommands: `validate`, `diff`, `exempt verify`, `trace [--mermaid]`, `drift`, `export`, `spec-index export|validate|link`, `release-gate`, `attest sign`, `attest verify`. `release-gate` / `attest sign` use `chassis_core::gate::compute` so the JSON-RPC `release_gate` method, CLI JSON, on-disk `release-gate.json`, and DSSE predicates stay aligned (including optional `artifacts/spec-index.json` linkage fields on the predicate). (`doctor` is planned, not implemented.) |
 | `crates/chassis-jsonrpc/` | **experimental** | Binary `chassis-jsonrpc`. Newline-delimited JSON-RPC 2.0 over stdio, six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). **Not** a Model Context Protocol implementation — a real MCP surface is future work and is intentionally out of scope for the kernel surface. |
-| `packages/chassis-types/` | supported | TypeScript `.d.ts` generated from canonical schemas via `json-schema-to-typescript` (25 leaf modules: 17 root + 8 contract-kinds). `dist/`, `fingerprint.sha256`, and `manifest.json` are committed; rebuild with `npm run build`. |
+| `policy/` | supported | OPA/Rego release policy (`package chassis.release`) evaluated over `chassis export --format opa`. Wired through `scripts/policy-gate.sh` and the `policy-opa` CI job; Chassis remains an evidence exporter. |
+| `packages/chassis-types/` | supported | TypeScript `.d.ts` generated from canonical schemas via `json-schema-to-typescript` (26 leaf modules: 18 root + 8 contract-kinds). `dist/`, `fingerprint.sha256`, and `manifest.json` are committed; rebuild with `npm run build`. |
 | `fixtures/happy-path/` | valid | One minimal contract per kind plus `rust-minimal` and `typescript-vite`; exercised by `chassis-core` integration tests. |
 | `fixtures/adversarial/` | reference | Surgical invalid contracts per kind + `invalid-schema`; exercised by `chassis-core` validator tests. |
 | `fixtures/diff/`, `fixtures/exempt/` | reference | Cases driving `chassis-core::diff` and `chassis-core::exempt` test suites. |
 | `fixtures/drift-repo/`, `fixtures/trace-render/` | reference | Bare git fixture for drift tests; expected Mermaid output for trace renderer. |
-| `docs/adr/` | active | Foundation ADRs through ADR-0025 (scope, ladder, claims, exemptions, schema semver, fingerprint, diff/exempt/kind rules, attestation envelope, claim annotations, drift scoring, supply-chain policy). |
+| `docs/adr/` | active | Foundation ADRs through ADR-0026 (scope, ladder, claims, exemptions, schema semver, fingerprint, diff/exempt/kind rules, attestation envelope, claim annotations, drift scoring, supply-chain policy, Spec Kit index). |
 | `docs/STABLE-IDS.md`, `docs/ASSURANCE-LADDER.md` | active | Load-bearing vocabulary docs. |
 | `docs/WAVE-PLAN.md` | active | Current delivery plan. |
 | `reference/python-cli/` | reference only | Original Python implementations; semantic spec for the Rust implementations now in tree. |

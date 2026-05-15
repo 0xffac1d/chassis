@@ -13,6 +13,8 @@ fn top_level_help_lists_every_stable_subcommand() {
         .stdout(contains("diff"))
         .stdout(contains("trace"))
         .stdout(contains("drift"))
+        .stdout(contains("export"))
+        .stdout(contains("spec-index"))
         .stdout(contains("exempt"))
         .stdout(contains("release-gate"))
         .stdout(contains("attest"));

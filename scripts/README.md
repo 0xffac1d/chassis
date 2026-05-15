@@ -37,3 +37,20 @@ Usage from the repository root:
 chmod +x scripts/verify-foundation.sh   # once, if needed
 ./scripts/verify-foundation.sh
 ```
+
+## `policy-gate.sh`
+
+Runs the **OPA policy spine** on top of Chassis exports:
+
+1. `opa test policy/` — Rego unit tests (`policy/chassis_release_test.rego`).
+2. `cargo run -p chassis-cli -- export --format opa --repo <repo> --json` → `policy-input.json` (or the directory from `POLICY_GATE_OUT_DIR`).
+3. `opa eval data.chassis.release.result` — writes `policy-result.json` with `allow` and sorted `deny_reasons`. Exits **2** if `allow` is not true.
+
+Requires the **OPA CLI** on `PATH`. CI installs it via `open-policy-agent/setup-opa`. Environment variables:
+
+- `POLICY_GATE_OUT_DIR` — output directory for inputs, results, and `policy-gate.log` (default `./dist/policy-gate` under the repo root when not set).
+- `POLICY_GATE_LOG` — optional explicit log path.
+
+```bash
+./scripts/policy-gate.sh /path/to/repo
+```

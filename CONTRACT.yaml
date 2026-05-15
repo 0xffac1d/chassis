@@ -18,7 +18,7 @@ exports:
     description: "chassis-jsonrpc (experimental): newline-delimited JSON-RPC 2.0 server over stdio exposing six methods. Not a Model Context Protocol implementation."
   - path: "packages/chassis-types/dist/index.d.ts"
     kind: module
-    description: "@chassis/core-types (supported): generated TypeScript .d.ts barrel for 25 schema modules (17 root + 8 contract-kinds)."
+    description: "@chassis/core-types (supported): generated TypeScript .d.ts barrel for 26 schema modules (18 root + 8 contract-kinds)."
 invariants:
   - id: chassis.schemas-self-contained
     text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."

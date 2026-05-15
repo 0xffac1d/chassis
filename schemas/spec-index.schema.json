@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/spec-index/v1",
+  "version": "1.0.0",
+  "title": "Chassis Spec Kit index (v1)",
+  "description": "Deterministic index of Spec Kit intent for Chassis trace, policy, and linker surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "chassis_preset_version",
+    "feature_id",
+    "constitution_principles",
+    "non_goals",
+    "requirements",
+    "tasks",
+    "implementation_constraints"
+  ],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "chassis_preset_version": { "type": "integer", "const": 1 },
+    "feature_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+    },
+    "title": { "type": "string" },
+    "summary": { "type": "string" },
+    "constitution_principles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_-]*$"
+          },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "non_goals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "description",
+          "acceptance_criteria",
+          "claim_ids",
+          "related_task_ids",
+          "touched_paths"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "pattern": "^[A-Z][A-Za-z0-9]*-[0-9]{3,}$" },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "acceptance_criteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "claim_ids": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "related_task_ids": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "touched_paths": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "depends_on", "touched_paths"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "pattern": "^TASK-[0-9]{3,}$" },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "depends_on": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "parallel_group": { "type": "string" },
+          "touched_paths": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "implementation_constraints": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

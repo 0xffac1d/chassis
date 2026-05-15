@@ -10,10 +10,10 @@ Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit
 
 | Crate / package | Status | What it ships |
 |---|---|---|
-| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, trace graph, drift report, DSSE attestation. `cargo test` clean on Rust ≥ 1.86. |
-| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace`, `drift`, `export`, `release-gate`, `attest sign`, `attest verify`. |
+| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`), trace graph, drift report, DSSE attestation. `cargo test` clean on Rust ≥ 1.86. |
+| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace`, `drift`, `export`, `spec-index export|validate|link`, `release-gate`, `attest sign`, `attest verify`. |
 | `crates/chassis-jsonrpc/` (binary: `chassis-jsonrpc`) | **experimental** | Newline-delimited JSON-RPC 2.0 server over stdio exposing six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Every emitted diagnostic validates against `schemas/diagnostic.schema.json`; `release_gate` returns the same predicate shape (`schemas/release-gate.schema.json`) the CLI writes. **Not** an MCP implementation — a real MCP surface (lifecycle + `tools/list` + `tools/call`) is future work, see `docs/future-mcp.md`. |
-| `packages/chassis-types/` (npm `@chassis/core-types`) | supported | 25 generated `.d.ts` modules (17 root schemas + 8 kind subschemas), plus committed `dist/`, `fingerprint.sha256`, `manifest.json`. |
+| `packages/chassis-types/` (npm `@chassis/core-types`) | supported | 26 generated `.d.ts` modules (18 root schemas + 8 kind subschemas), plus committed `dist/`, `fingerprint.sha256`, `manifest.json`. |
 
 All canonical schemas under `schemas/` resolve locally; happy-path and adversarial `CONTRACT.yaml` fixtures validate as documented in `fixtures/`.
 
@@ -29,8 +29,11 @@ chassis attest sign --private-key .chassis/keys/release.priv --out release-gate.
 chassis attest verify --public-key .chassis/keys/release.pub release-gate.dsse
 ```
 
-`chassis release-gate` bundles validate + trace + drift + exemption + (optional) attestation into one
-invocation when you want a single pass/fail verdict; the steps above are the granular form.
+`chassis release-gate` bundles validate + trace + drift + exemption + optional
+`artifacts/spec-index.json` linkage + (optional) attestation into one invocation
+when you want a single pass/fail verdict; the signed predicate records digest,
+`spec_failed`, and `spec_error_count` alongside the trace/drift/exemption axes.
+The steps above are the granular form.
 
 ### Release-grade attestation key policy
 
@@ -54,6 +57,8 @@ chassis export --format eventcatalog # service/message metadata from service and
 ```
 
 The EventCatalog-style adapter only uses data Chassis already has in `service` and `event-stream` contracts. Chassis does not emit OpenLineage run events because the current model has metadata, not runtime job/run telemetry.
+
+**OPA (Rego)** — Release policy lives in `policy/chassis_release.rego` and is evaluated over `chassis export --format opa` by `./scripts/policy-gate.sh` (also run in CI). When `artifacts/spec-index.json` is present, exports include `spec_kit.spec_index_digest` and merged spec-to-contract linker diagnostics. Chassis stays an evidence exporter; OPA evaluates `allow` and emits `policy-result.json`.
 
 `./scripts/verify-foundation.sh` is the local pre-push gate (Rust fmt/clippy/check/test, Node build + fingerprint parity + tests).
 
