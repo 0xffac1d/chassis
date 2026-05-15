@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/release-gate-predicate/v1",
+  "title": "Chassis release-gate attestation predicate (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_fingerprint",
+    "git_commit",
+    "built_at",
+    "trace_summary",
+    "drift_summary",
+    "exempt_summary",
+    "commands_run"
+  ],
+  "properties": {
+    "schema_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "git_commit": {
+      "type": "string",
+      "minLength": 4
+    },
+    "built_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "trace_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claims", "orphan_sites"],
+      "properties": {
+        "claims": { "type": "integer", "minimum": 0 },
+        "orphan_sites": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "drift_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale", "abandoned", "missing"],
+      "properties": {
+        "stale": { "type": "integer", "minimum": 0 },
+        "abandoned": { "type": "integer", "minimum": 0 },
+        "missing": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "exempt_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "expired_present"],
+      "properties": {
+        "active": { "type": "integer", "minimum": 0 },
+        "expired_present": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "commands_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["argv", "exit_code"],
+        "properties": {
+          "argv": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "exit_code": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

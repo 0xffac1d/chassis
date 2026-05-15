@@ -1,0 +1,3 @@
+# Minimal CODEOWNERS for exemption sign-off (ADR-0020).
+/.chassis/exemptions.yaml @chassis-core
+/CONTRACT.yaml @chassis-core

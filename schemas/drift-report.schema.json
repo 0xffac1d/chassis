@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/drift-report/v1",
+  "title": "Chassis drift report (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "summary", "diagnostics"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale", "abandoned", "missing"],
+      "properties": {
+        "stale": { "type": "integer", "minimum": 0 },
+        "abandoned": { "type": "integer", "minimum": 0 },
+        "missing": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

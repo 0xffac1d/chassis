@@ -4,6 +4,8 @@
 #![forbid(unsafe_code)]
 
 pub mod adr;
+pub mod attest;
+pub mod claims;
 pub mod contract;
 pub mod diagnostic;
 pub mod diff;

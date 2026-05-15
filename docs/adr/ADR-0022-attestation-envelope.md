@@ -13,6 +13,8 @@ enforces:
     description: "Statement subject digest does not match chassis-core::fingerprint::compute for the repo root."
   - rule: CH-ATTEST-PREDICATE-INVALID
     description: "Predicate JSON does not conform to the release-gate predicate schema."
+  - rule: CH-ATTEST-NOT-FOUND
+    description: "A cached attestation artifact (e.g. release_gate) was requested but the file is absent."
 ---
 
 # ADR-0022 — Attestation envelope

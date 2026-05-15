@@ -7,10 +7,13 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
+base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["serde", "clock"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
 git2 = { version = "0.18", default-features = false, features = ["vendored-libgit2"] }
 globset = "0.4"
 jsonschema = { version = "0.30", default-features = false }
+rand = "0.8"
 regex = "1"
 semver = "1"
 serde = { version = "1", features = ["derive"] }

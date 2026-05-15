@@ -41,6 +41,12 @@ fn discover_contracts(root: &Path) -> Result<Vec<PathBuf>, TraceError> {
                 ) {
                     continue;
                 }
+                if matches!(
+                    p.file_name().and_then(|n| n.to_str()),
+                    Some("fixtures") | Some("reference")
+                ) {
+                    continue;
+                }
                 walk(&p, out)?;
             } else if p.file_name().and_then(|n| n.to_str()) == Some("CONTRACT.yaml") {
                 out.push(p);

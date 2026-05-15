@@ -29,7 +29,10 @@ jobs:
       - name: Cargo cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/chassis-core
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-mcp
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -66,7 +69,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/chassis-core
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-mcp
 
       - name: Node digest
         id: node
@@ -90,3 +96,30 @@ jobs:
             exit 1
           fi
           echo "OK ${{ steps.node.outputs.digest }}"
+
+  self-attest:
+    name: self-attest (CLI trace + drift + DSSE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.86.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates/chassis-cli
+            crates/chassis-core
+            crates/chassis-mcp
+
+      - name: self-attest.sh
+        env:
+          SELF_ATTEST_ARTIFACT: ${{ github.workspace }}/release-gate.dsse
+        run: ./scripts/self-attest.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-dsse
+          path: release-gate.dsse

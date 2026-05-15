@@ -13,3 +13,5 @@ dist/
 
 .chassis/keys/*.priv
 .chassis/cache/
+
+/release-gate.dsse
