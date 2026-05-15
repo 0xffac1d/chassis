@@ -19,6 +19,10 @@ pub const CH_ATTEST_VERIFY_FAILED: &str = "CH-ATTEST-VERIFY-FAILED";
 pub const CH_ATTEST_SUBJECT_MISMATCH: &str = "CH-ATTEST-SUBJECT-MISMATCH";
 pub const CH_ATTEST_NOT_FOUND: &str = "CH-ATTEST-NOT-FOUND";
 pub const CH_ATTEST_ENVELOPE_SCHEMA: &str = "CH-ATTEST-ENVELOPE-SCHEMA";
+/// Surfaced by the CLI when no signing key is configured and the caller did
+/// not opt in to ephemeral signing. Declared kernel-side so the ADR-binding
+/// test pairs it with the ADR that lists it under `enforces[]`.
+pub const CH_ATTEST_KEY_MISSING: &str = "CH-ATTEST-KEY-MISSING";
 
 static DSSE_SCHEMA_STR: &str = include_str!("../../../../schemas/dsse-envelope.schema.json");
 
@@ -221,6 +225,18 @@ mod tests {
             },
             None,
             vec![],
+            crate::attest::GateOutcome {
+                verdict: crate::attest::Verdict::Pass,
+                fail_on_drift: true,
+                trace_failed: false,
+                drift_failed: false,
+                exemption_failed: false,
+                attestation_failed: false,
+                unsuppressed_blocking: 0,
+                suppressed: 0,
+                severity_overridden: 0,
+                final_exit_code: 0,
+            },
             Utc::now(),
         )
         .expect("assemble");
@@ -256,6 +272,18 @@ mod tests {
             },
             None,
             vec![],
+            crate::attest::GateOutcome {
+                verdict: crate::attest::Verdict::Pass,
+                fail_on_drift: true,
+                trace_failed: false,
+                drift_failed: false,
+                exemption_failed: false,
+                attestation_failed: false,
+                unsuppressed_blocking: 0,
+                suppressed: 0,
+                severity_overridden: 0,
+                final_exit_code: 0,
+            },
             Utc::now(),
         )
         .expect("assemble");

@@ -28,6 +28,7 @@ const CH_ATTEST_SUBJECT_MISMATCH: &str = "CH-ATTEST-SUBJECT-MISMATCH";
 const CH_ATTEST_PREDICATE_INVALID: &str = "CH-ATTEST-PREDICATE-INVALID";
 const CH_ATTEST_NOT_FOUND: &str = "CH-ATTEST-NOT-FOUND";
 const CH_ATTEST_ENVELOPE_SCHEMA: &str = "CH-ATTEST-ENVELOPE-SCHEMA";
+const CH_ATTEST_KEY_MISSING: &str = "CH-ATTEST-KEY-MISSING";
 
 const CH_TRACE_MALFORMED_CLAIM: &str = "CH-TRACE-MALFORMED-CLAIM";
 const CH_TRACE_CLAIM_NOT_IN_CONTRACT: &str = "CH-TRACE-CLAIM-NOT-IN-CONTRACT";
@@ -82,6 +83,7 @@ fn kernel_wire_ch_rules() -> BTreeSet<String> {
         CH_ATTEST_PREDICATE_INVALID,
         CH_ATTEST_NOT_FOUND,
         CH_ATTEST_ENVELOPE_SCHEMA,
+        CH_ATTEST_KEY_MISSING,
         supply_rid::LICENSE_ALLOW,
         supply_rid::ADVISORY_CLEAN,
         supply_rid::NO_NETWORK_CRATES,
@@ -93,6 +95,10 @@ fn kernel_wire_ch_rules() -> BTreeSet<String> {
         CH_DRIFT_CLAIM_STALE,
         CH_DRIFT_CLAIM_ABANDONED,
         CH_DRIFT_IMPL_MISSING,
+        crate::gate::rule_id::REPO_UNREADABLE,
+        crate::gate::rule_id::SUBSYSTEM_FAILURE,
+        crate::gate::rule_id::REGISTRY_MALFORMED,
+        crate::gate::rule_id::SCHEMA_INVALID,
     ]
     .into_iter()
     .map(|s| s.to_string())

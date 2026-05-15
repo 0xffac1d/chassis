@@ -1,0 +1,41 @@
+{
+  "attestation_failed": false,
+  "built_at": "2026-05-15T21:53:00.741035375+00:00",
+  "commands_run": [
+    {
+      "argv": [
+        "chassis",
+        "release-gate",
+        "--repo",
+        "/mnt/C/0xffac1d/chassis",
+        "--fail-on-drift",
+        "--attest"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "drift_failed": false,
+  "drift_summary": {
+    "abandoned": 0,
+    "missing": 0,
+    "stale": 0
+  },
+  "exempt_summary": {
+    "active": 0,
+    "expired_present": 0
+  },
+  "exemption_failed": false,
+  "fail_on_drift": true,
+  "final_exit_code": 0,
+  "git_commit": "2e47ea4aa8f807ef783dc2c2f7d8e6a3e25b2706",
+  "schema_fingerprint": "7523cae54f3e8eab28f52599a907e7f6bb5358865fbd55309850f6e00429b0a9",
+  "severity_overridden": 0,
+  "suppressed": 0,
+  "trace_failed": false,
+  "trace_summary": {
+    "claims": 10,
+    "orphan_sites": 0
+  },
+  "unsuppressed_blocking": 0,
+  "verdict": "pass"
+}

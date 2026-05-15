@@ -17,6 +17,16 @@ static COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
     jsonschema::validator_for(&schema).expect("compile release-gate schema")
 });
 
+/// Final verdict reported by the release-gate predicate. Mirrors the textual
+/// summary the CLI prints so a verifier reading only the signed artifact can
+/// reach the same conclusion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Verdict {
+    Pass,
+    Fail,
+}
+
 /// Summary embedded in the attestation predicate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceSummary {
@@ -49,6 +59,16 @@ pub struct ReleaseGatePredicate {
     pub schema_fingerprint: String,
     pub git_commit: String,
     pub built_at: String,
+    pub verdict: Verdict,
+    pub fail_on_drift: bool,
+    pub trace_failed: bool,
+    pub drift_failed: bool,
+    pub exemption_failed: bool,
+    pub attestation_failed: bool,
+    pub unsuppressed_blocking: usize,
+    pub suppressed: usize,
+    pub severity_overridden: usize,
+    pub final_exit_code: i32,
     pub trace_summary: TraceSummary,
     pub drift_summary: DriftSummary,
     pub exempt_summary: ExemptSummary,

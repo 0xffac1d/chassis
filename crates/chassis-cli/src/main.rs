@@ -16,7 +16,8 @@ use chassis_core::artifact::{
     validate_eventcatalog_metadata_value, validate_opa_input_value, validate_policy_input_value,
     validate_release_gate_value, validate_trace_graph_value,
 };
-use chassis_core::attest::predicate::CommandRun;
+use chassis_core::attest::predicate::{CommandRun, Verdict};
+use chassis_core::attest::GateOutcome;
 use chassis_core::contract::validate_metadata_contract;
 use chassis_core::diagnostic::Severity;
 use chassis_core::diff;
@@ -46,6 +47,10 @@ mod rule {
     pub const MISSING_FILE: &str = "CLI-MISSING-FILE";
     pub const MALFORMED_INPUT: &str = "CLI-MALFORMED-INPUT";
     pub const INTERNAL: &str = "CLI-INTERNAL";
+    /// No release signing key is present and the caller did not opt in to
+    /// ephemeral signing. Release-grade attestations are never signed with
+    /// implicit throwaway keys.
+    pub const ATTEST_KEY_MISSING: &str = "CH-ATTEST-KEY-MISSING";
 }
 
 #[derive(Parser, Debug)]
@@ -94,7 +99,16 @@ Exit codes:
   70  internal error
 
 When --json is set, every command's stdout is a single JSON document and
-errors are emitted as `{\"ok\": false, \"error\": {\"code\": \"...\", \"message\": \"...\"}}`.";
+errors are emitted as `{\"ok\": false, \"error\": {\"code\": \"...\", \"message\": \"...\"}}`.
+
+Attestation key policy:
+  - `attest sign` and `release-gate --attest` fail closed when no signing key
+    is present. Provide --private-key <path>, or place a hex Ed25519 key at
+    .chassis/keys/release.priv, OR opt explicitly into a throwaway keypair
+    with --ephemeral-key. Without one of these the command exits with
+    CH-ATTEST-KEY-MISSING. Ephemeral signing is for demos/tests only — the
+    CLI marks such artifacts as release_grade=false and writes the matching
+    public key next to the envelope.";
 
 #[derive(Subcommand, Debug)]
 enum Command {
@@ -138,9 +152,17 @@ enum Command {
         /// Path for the DSSE envelope when --attest is set.
         #[arg(long)]
         attest_out: Option<PathBuf>,
-        /// Path to an Ed25519 signing key (hex, 64 chars). Default: .chassis/keys/release.priv.
+        /// Path to an Ed25519 signing key (hex, 64 chars). When omitted, the
+        /// release gate requires `.chassis/keys/release.priv`; if absent the
+        /// command fails with CH-ATTEST-KEY-MISSING. Release-grade.
         #[arg(long)]
         private_key: Option<PathBuf>,
+        /// Sign with a freshly generated throwaway keypair for demos/tests.
+        /// The resulting attestation is marked NON-release-grade and the
+        /// public key is written next to the envelope. Mutually exclusive
+        /// with --private-key.
+        #[arg(long, conflicts_with = "private_key")]
+        ephemeral_key: bool,
     },
     /// Exemption-registry verifier.
     #[command(subcommand)]
@@ -172,9 +194,17 @@ enum ExemptCmd {
 enum AttestCmd {
     /// Assemble, sign, and write a DSSE envelope to --out.
     Sign {
-        /// Path to an Ed25519 signing key (hex, 64 chars). Default: .chassis/keys/release.priv.
+        /// Path to an Ed25519 signing key (hex, 64 chars). When omitted, the
+        /// signer requires `.chassis/keys/release.priv`; if absent the command
+        /// fails with CH-ATTEST-KEY-MISSING. Release-grade.
         #[arg(long)]
         private_key: Option<PathBuf>,
+        /// Sign with a freshly generated throwaway keypair for demos/tests.
+        /// Marks the resulting attestation NON-release-grade and writes the
+        /// public key next to the envelope. Mutually exclusive with
+        /// --private-key.
+        #[arg(long, conflicts_with = "private_key")]
+        ephemeral_key: bool,
         /// Destination path for the DSSE envelope JSON.
         #[arg(long)]
         out: PathBuf,
@@ -244,6 +274,18 @@ impl CliError {
         }
     }
 
+    fn attest_key_missing(path: &Path) -> Self {
+        Self {
+            code: exit::MISSING_FILE,
+            rule: rule::ATTEST_KEY_MISSING,
+            message: format!(
+                "no release signing key at {}; pass --private-key <path> or --ephemeral-key (demos/tests only)",
+                path.display()
+            ),
+            path: Some(path.to_path_buf()),
+        }
+    }
+
     fn render(&self, json: bool) {
         if json {
             let mut env = json!({
@@ -300,6 +342,7 @@ fn main() {
             out,
             attest_out,
             private_key,
+            ephemeral_key,
         } => run_release_gate(
             &root,
             fail_on_drift,
@@ -307,12 +350,15 @@ fn main() {
             out.as_deref(),
             attest_out.as_deref(),
             private_key.as_deref(),
+            ephemeral_key,
             json,
         ),
         Command::Exempt(ExemptCmd::Verify) => run_exempt_verify(&root, json),
-        Command::Attest(AttestCmd::Sign { private_key, out }) => {
-            run_attest_sign(&root, private_key.as_deref(), &out, json)
-        }
+        Command::Attest(AttestCmd::Sign {
+            private_key,
+            ephemeral_key,
+            out,
+        }) => run_attest_sign(&root, private_key.as_deref(), ephemeral_key, &out, json),
         Command::Attest(AttestCmd::Verify { public_key, file }) => {
             run_attest_verify(&root, public_key.as_deref(), &file, json)
         }
@@ -553,6 +599,7 @@ fn run_exempt_verify(root: &Path, json: bool) -> Result<i32, CliError> {
 
 // -- release gate --------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn run_release_gate(
     root: &Path,
     fail_on_drift: bool,
@@ -560,6 +607,7 @@ fn run_release_gate(
     out: Option<&Path>,
     attest_out: Option<&Path>,
     private_key: Option<&Path>,
+    ephemeral_key: bool,
     json: bool,
 ) -> Result<i32, CliError> {
     let now = Utc::now();
@@ -570,11 +618,41 @@ fn run_release_gate(
         .map(Path::to_path_buf)
         .unwrap_or_else(|| root.join("release-gate.dsse"));
 
+    let mut argv = vec![
+        "chassis".to_string(),
+        "release-gate".to_string(),
+        "--repo".to_string(),
+        root.display().to_string(),
+        if fail_on_drift {
+            "--fail-on-drift".to_string()
+        } else {
+            "--no-fail-on-drift".to_string()
+        },
+        if attest {
+            "--attest".to_string()
+        } else {
+            "--no-attest".to_string()
+        },
+    ];
+    if ephemeral_key {
+        argv.push("--ephemeral-key".to_string());
+    }
+
     let contract_summary = validate_repo_contracts(root)?;
     if contract_summary.invalid > 0 {
+        let final_exit_code = exit::VALIDATE_FAILED;
         let output = json!({
             "ok": false,
             "verdict": "fail",
+            "fail_on_drift": fail_on_drift,
+            "trace_failed": false,
+            "drift_failed": false,
+            "exemption_failed": false,
+            "attestation_failed": false,
+            "unsuppressed_blocking": 0,
+            "suppressed": 0,
+            "severity_overridden": 0,
+            "final_exit_code": final_exit_code,
             "schema_fingerprint": Value::Null,
             "git_commit": Value::Null,
             "contract_validation": contract_summary.to_json(),
@@ -585,7 +663,7 @@ fn run_release_gate(
             "attestation_path": Value::Null,
         });
         print_release_gate_output(&output, json);
-        return Ok(exit::VALIDATE_FAILED);
+        return Ok(final_exit_code);
     }
 
     let trace = build_trace_graph(root)
@@ -607,42 +685,22 @@ fn run_release_gate(
         fingerprint::compute(root).map_err(|e| CliError::internal(format!("fingerprint: {e}")))?;
     let git_commit = git_head(root)?;
 
-    let commands_run = vec![CommandRun {
-        argv: vec![
-            "chassis".to_string(),
-            "release-gate".to_string(),
-            "--repo".to_string(),
-            root.display().to_string(),
-            if fail_on_drift {
-                "--fail-on-drift".to_string()
-            } else {
-                "--no-fail-on-drift".to_string()
-            },
-            if attest {
-                "--attest".to_string()
-            } else {
-                "--no-attest".to_string()
-            },
-        ],
-        exit_code: 0,
-    }];
+    // Fail closed on attestation: when --attest is requested, resolve the
+    // signing key BEFORE any predicate is assembled. If there is no explicit
+    // --private-key, no .chassis/keys/release.priv, and no --ephemeral-key
+    // opt-in, abort so the gate cannot produce an implicitly throwaway-signed
+    // attestation that looks release-grade on inspection.
+    let sign_ctx = if attest {
+        Some(resolve_signing_key(
+            root,
+            private_key,
+            ephemeral_key,
+            &attestation_path,
+        )?)
+    } else {
+        None
+    };
 
-    let statement = chassis_core::attest::assemble(
-        root,
-        &trace,
-        &drift,
-        exemption_gate.registry.as_ref(),
-        commands_run,
-        now,
-    )
-    .map_err(|e| CliError::internal(format!("assemble release gate: {e}")))?;
-    let predicate_v = serde_json::to_value(&statement.predicate)
-        .map_err(|e| CliError::internal(format!("serialize release-gate predicate: {e}")))?;
-    validate_release_gate_value(&predicate_v)
-        .map_err(|errs| CliError::internal(format!("release-gate schema invalid: {errs:?}")))?;
-    write_json_file(&artifact_path, &predicate_v)?;
-
-    let trace_summary = trace_summary_json(&trace);
     let unsuppressed_drift_blocking = exemption_gate
         .unsuppressed_drift
         .iter()
@@ -661,20 +719,137 @@ fn run_release_gate(
             .count()
         > 0;
     let exemption_failed = exemption_gate.error_count > 0;
+    let unsuppressed_blocking = exemption_gate.unsuppressed_blocking_count();
+    let suppressed = exemption_gate.suppressed_count;
+    let severity_overridden = exemption_gate.overridden_count;
+
+    // Pre-attestation outcome: the verdict we would report if --attest is absent
+    // or signing succeeds. Encoded once into the predicate that we sign, write,
+    // and print so the three views agree.
+    let pre_exit = if trace_failed || drift_failed {
+        exit::DRIFT_DETECTED
+    } else if exemption_failed {
+        exit::EXEMPT_VIOLATION
+    } else {
+        exit::OK
+    };
+    let pre_outcome = GateOutcome {
+        verdict: if pre_exit == exit::OK {
+            Verdict::Pass
+        } else {
+            Verdict::Fail
+        },
+        fail_on_drift,
+        trace_failed,
+        drift_failed,
+        exemption_failed,
+        attestation_failed: false,
+        unsuppressed_blocking,
+        suppressed,
+        severity_overridden,
+        final_exit_code: pre_exit,
+    };
+    let pre_commands = vec![CommandRun {
+        argv: argv.clone(),
+        exit_code: pre_outcome.final_exit_code,
+    }];
+    let pre_statement = chassis_core::attest::assemble(
+        root,
+        &trace,
+        &drift,
+        exemption_gate.registry.as_ref(),
+        pre_commands,
+        pre_outcome.clone(),
+        now,
+    )
+    .map_err(|e| CliError::internal(format!("assemble release gate: {e}")))?;
 
     let mut attestation_written: Option<PathBuf> = None;
     let mut attestation_error: Option<String> = None;
-    if attest {
-        match sign_and_verify_statement(root, &statement, private_key, &attestation_path) {
-            Ok(()) => attestation_written = Some(attestation_path.clone()),
+    let mut release_grade: Option<bool> = None;
+    let mut public_key_path_out: Option<String> = None;
+    let mut public_key_fingerprint_out: Option<String> = None;
+    if let Some(ctx) = sign_ctx.as_ref() {
+        match sign_envelope_with_context(root, &pre_statement, ctx, &attestation_path) {
+            Ok(()) => {
+                attestation_written = Some(attestation_path.clone());
+                release_grade = Some(ctx.release_grade);
+                public_key_path_out = ctx
+                    .public_key_path
+                    .as_ref()
+                    .map(|p| p.display().to_string());
+                public_key_fingerprint_out = Some(ctx.public_key_fingerprint.clone());
+                if !ctx.release_grade {
+                    let pk_desc = ctx
+                        .public_key_path
+                        .as_ref()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| ctx.public_key_fingerprint.clone());
+                    eprintln!(
+                        "WARNING: ephemeral signing — this attestation is NOT release-grade. Public key written to {pk_desc} (fingerprint {})",
+                        ctx.public_key_fingerprint
+                    );
+                }
+            }
             Err(e) => attestation_error = Some(e.message),
         }
     }
+    let attestation_failed = attestation_error.is_some();
 
-    let passed = !trace_failed && !drift_failed && !exemption_failed && attestation_error.is_none();
+    // Final outcome: if attestation failed, the verdict the CLI prints and the
+    // unsigned artifact records flips to fail with the correct exit code. The
+    // signed envelope (if any) carried `pre_outcome`, which by construction
+    // saw `attestation_failed=false`, so it cannot lie about its own success.
+    let final_outcome = if attestation_failed {
+        GateOutcome {
+            verdict: Verdict::Fail,
+            attestation_failed: true,
+            final_exit_code: exit::ATTEST_VERIFY_FAILED,
+            ..pre_outcome.clone()
+        }
+    } else {
+        pre_outcome.clone()
+    };
+
+    let final_statement = if final_outcome == pre_outcome {
+        pre_statement
+    } else {
+        let final_commands = vec![CommandRun {
+            argv: argv.clone(),
+            exit_code: final_outcome.final_exit_code,
+        }];
+        chassis_core::attest::assemble(
+            root,
+            &trace,
+            &drift,
+            exemption_gate.registry.as_ref(),
+            final_commands,
+            final_outcome.clone(),
+            now,
+        )
+        .map_err(|e| CliError::internal(format!("assemble release gate: {e}")))?
+    };
+
+    let predicate_v = serde_json::to_value(&final_statement.predicate)
+        .map_err(|e| CliError::internal(format!("serialize release-gate predicate: {e}")))?;
+    validate_release_gate_value(&predicate_v)
+        .map_err(|errs| CliError::internal(format!("release-gate schema invalid: {errs:?}")))?;
+    write_json_file(&artifact_path, &predicate_v)?;
+
+    let trace_summary = trace_summary_json(&trace);
+    let passed = final_outcome.verdict == Verdict::Pass;
     let output = json!({
         "ok": passed,
         "verdict": if passed { "pass" } else { "fail" },
+        "fail_on_drift": fail_on_drift,
+        "trace_failed": trace_failed,
+        "drift_failed": drift_failed,
+        "exemption_failed": exemption_failed,
+        "attestation_failed": attestation_failed,
+        "unsuppressed_blocking": unsuppressed_blocking,
+        "suppressed": suppressed,
+        "severity_overridden": severity_overridden,
+        "final_exit_code": final_outcome.final_exit_code,
         "schema_fingerprint": schema_fingerprint,
         "git_commit": git_commit,
         "contract_validation": contract_summary.to_json(),
@@ -683,7 +858,7 @@ fn run_release_gate(
             "stale": drift.summary.stale,
             "abandoned": drift.summary.abandoned,
             "missing": drift.summary.missing,
-            "unsuppressed_blocking": exemption_gate.unsuppressed_blocking_count(),
+            "unsuppressed_blocking": unsuppressed_blocking,
         },
         "exemption_summary": exemption_gate.to_summary_json(),
         "artifact_path": artifact_path.display().to_string(),
@@ -691,18 +866,13 @@ fn run_release_gate(
             .as_ref()
             .map(|p| p.display().to_string()),
         "attestation_error": attestation_error,
+        "attestation_release_grade": release_grade,
+        "attestation_public_key_path": public_key_path_out,
+        "attestation_public_key_fingerprint": public_key_fingerprint_out,
     });
     print_release_gate_output(&output, json);
 
-    if passed {
-        Ok(exit::OK)
-    } else if attestation_error.is_some() {
-        Ok(exit::ATTEST_VERIFY_FAILED)
-    } else if exemption_failed {
-        Ok(exit::EXEMPT_VIOLATION)
-    } else {
-        Ok(exit::DRIFT_DETECTED)
-    }
+    Ok(final_outcome.final_exit_code)
 }
 
 #[derive(Debug)]
@@ -987,29 +1157,128 @@ fn trace_summary_json(trace: &chassis_core::trace::TraceGraph) -> Value {
     })
 }
 
-fn sign_and_verify_statement(
+/// Resolved Ed25519 signing material plus enough context for the CLI to
+/// describe the resulting attestation honestly: whether it is release-grade,
+/// where the corresponding public key landed on disk (if anywhere), and the
+/// public-key fingerprint (hex-encoded 32-byte verifying key) so the verifier
+/// side can confirm identity without trusting the signed envelope alone.
+struct SignContext {
+    signing_key: ed25519_dalek::SigningKey,
+    release_grade: bool,
+    public_key_fingerprint: String,
+    public_key_path: Option<PathBuf>,
+    ephemeral: bool,
+}
+
+fn hex_of_bytes(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+fn ephemeral_pubkey_path(envelope_out: &Path) -> PathBuf {
+    let s = envelope_out.as_os_str().to_string_lossy().into_owned();
+    PathBuf::from(format!("{s}.ephemeral.pub"))
+}
+
+/// If `priv_path` ends in `.priv`, return the sibling `.pub` path when that
+/// file exists on disk. Used purely to surface a deterministic public-key
+/// location in CLI output when one is conventionally present.
+fn derived_pub_path(priv_path: &Path) -> Option<PathBuf> {
+    let s = priv_path.to_string_lossy().into_owned();
+    if let Some(stem) = s.strip_suffix(".priv") {
+        let pub_path = PathBuf::from(format!("{stem}.pub"));
+        if pub_path.exists() {
+            return Some(pub_path);
+        }
+    }
+    None
+}
+
+/// Resolve the signing key for an attest/release-gate run. The policy:
+/// - `--ephemeral-key` opt-in: generate a fresh keypair, write its public key
+///   next to the envelope, and mark the attestation as non-release-grade.
+/// - explicit `--private-key`: read from that path.
+/// - neither flag: require `.chassis/keys/release.priv`; if absent, fail
+///   closed with CH-ATTEST-KEY-MISSING.
+// @claim chassis.attest-key-policy-fail-closed
+fn resolve_signing_key(
+    root: &Path,
+    private_key: Option<&Path>,
+    ephemeral: bool,
+    envelope_out: &Path,
+) -> Result<SignContext, CliError> {
+    use chassis_core::attest::sign::{generate_keypair, signing_key_from_hex, verifying_key_for};
+
+    if ephemeral {
+        let sk = generate_keypair();
+        let vk = verifying_key_for(&sk);
+        let pub_hex = hex_of_bytes(&vk.to_bytes());
+        let pub_path = ephemeral_pubkey_path(envelope_out);
+        if let Some(parent) = pub_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| CliError::internal(format!("mkdir {}: {e}", parent.display())))?;
+        }
+        fs::write(&pub_path, format!("{pub_hex}\n"))
+            .map_err(|e| CliError::internal(format!("write {}: {e}", pub_path.display())))?;
+        return Ok(SignContext {
+            signing_key: sk,
+            release_grade: false,
+            public_key_fingerprint: pub_hex,
+            public_key_path: Some(pub_path),
+            ephemeral: true,
+        });
+    }
+
+    let pk_path: PathBuf = match private_key {
+        Some(p) => p.to_path_buf(),
+        None => {
+            let default = root.join(".chassis/keys/release.priv");
+            if !default.exists() {
+                return Err(CliError::attest_key_missing(&default));
+            }
+            default
+        }
+    };
+
+    let sk_hex = read_text(&pk_path)?;
+    let sk = signing_key_from_hex(sk_hex.trim())
+        .map_err(|e| CliError::malformed(&pk_path, format!("private key: {e}")))?;
+    let vk = verifying_key_for(&sk);
+    let pub_hex = hex_of_bytes(&vk.to_bytes());
+    let derived_pub = derived_pub_path(&pk_path);
+
+    Ok(SignContext {
+        signing_key: sk,
+        release_grade: true,
+        public_key_fingerprint: pub_hex,
+        public_key_path: derived_pub,
+        ephemeral: false,
+    })
+}
+
+fn sign_envelope_with_context(
     root: &Path,
     statement: &chassis_core::attest::Statement,
-    private_key: Option<&Path>,
+    ctx: &SignContext,
     out: &Path,
 ) -> Result<(), CliError> {
     use chassis_core::attest::sign::{
-        generate_keypair, sign_statement, signing_key_from_hex, verify_envelope,
-        verify_subject_matches_repo, verifying_key_for,
+        sign_statement, verify_envelope, verify_subject_matches_repo, verifying_key_for,
     };
     use chassis_core::attest::{CH_ATTEST_SUBJECT_MISMATCH, CH_ATTEST_VERIFY_FAILED};
 
-    let default_pk = root.join(".chassis/keys/release.priv");
-    let pk_path: &Path = private_key.unwrap_or(&default_pk);
-    let sk = if private_key.is_none() && !default_pk.exists() {
-        generate_keypair()
-    } else {
-        let sk_hex = read_text(pk_path)?;
-        signing_key_from_hex(sk_hex.trim())
-            .map_err(|e| CliError::malformed(pk_path, format!("private key: {e}")))?
-    };
-    let envelope =
-        sign_statement(statement, &sk).map_err(|e| CliError::internal(format!("sign: {e}")))?;
+    let mut envelope = sign_statement(statement, &ctx.signing_key)
+        .map_err(|e| CliError::internal(format!("sign: {e}")))?;
+    // DSSE `keyid` is informational and not part of the signed PAE bytes, but
+    // it lets a verifier match the envelope to a public key without trusting
+    // the payload first. `ephemeral:` is a stable marker that downstream code
+    // and humans can use to refuse a release-grade gate.
+    if let Some(sig) = envelope.signatures.get_mut(0) {
+        sig.keyid = Some(if ctx.ephemeral {
+            format!("ephemeral:{}", ctx.public_key_fingerprint)
+        } else {
+            ctx.public_key_fingerprint.clone()
+        });
+    }
     let env_v = serde_json::to_value(&envelope)
         .map_err(|e| CliError::internal(format!("serialize envelope: {e}")))?;
     validate_dsse_envelope_value(&env_v).map_err(|errs| {
@@ -1020,7 +1289,7 @@ fn sign_and_verify_statement(
     })?;
     write_json_file(out, &env_v)?;
 
-    let vk = verifying_key_for(&sk);
+    let vk = verifying_key_for(&ctx.signing_key);
     let verified = verify_envelope(&envelope, &vk)
         .map_err(|e| CliError::attest_verify(CH_ATTEST_VERIFY_FAILED, format!("{e}")))?;
     verify_subject_matches_repo(&verified, root)
@@ -1072,6 +1341,18 @@ fn print_release_gate_output(output: &Value, json: bool) {
     println!("trace_summary={}", output["trace_summary"]);
     println!("drift_summary={}", output["drift_summary"]);
     println!("exemption_summary={}", output["exemption_summary"]);
+    println!(
+        "blocking_reasons: trace={} drift={} exemption={} attestation={}",
+        output["trace_failed"],
+        output["drift_failed"],
+        output["exemption_failed"],
+        output["attestation_failed"],
+    );
+    println!(
+        "exemptions: unsuppressed_blocking={} suppressed={} severity_overridden={}",
+        output["unsuppressed_blocking"], output["suppressed"], output["severity_overridden"],
+    );
+    println!("final_exit_code={}", output["final_exit_code"]);
     if let Some(path) = output["artifact_path"].as_str() {
         println!("artifact_path={path}");
     }
@@ -1085,36 +1366,86 @@ fn print_release_gate_output(output: &Value, json: bool) {
 fn run_attest_sign(
     root: &Path,
     private_key: Option<&Path>,
+    ephemeral_key: bool,
     out: &Path,
     json: bool,
 ) -> Result<i32, CliError> {
-    use chassis_core::attest::sign::signing_key_from_hex;
-    use chassis_core::attest::{assemble, sign_statement};
+    use chassis_core::attest::assemble;
 
-    let default_pk = root.join(".chassis/keys/release.priv");
-    let pk_path: &Path = private_key.unwrap_or(&default_pk);
-    let sk_hex = read_text(pk_path)?;
-    let sk = signing_key_from_hex(sk_hex.trim())
-        .map_err(|e| CliError::malformed(pk_path, format!("private key: {e}")))?;
-
+    let now = Utc::now();
     let trace = build_trace_graph(root)
         .map_err(|e| CliError::internal(format!("trace (for attest): {e}")))?;
-    let drift = build_drift_report(root, &trace, Utc::now())
+    let drift = build_drift_report(root, &trace, now)
         .map_err(|e| CliError::internal(format!("drift (for attest): {e}")))?;
-    let ex = load_exemptions(root);
+    let exemption_gate = load_and_apply_exemptions(root, drift.diagnostics.clone(), now)?;
 
-    let stmt = assemble(root, &trace, &drift, ex.as_ref(), vec![], Utc::now())
-        .map_err(|e| CliError::internal(format!("assemble: {e}")))?;
-    let envelope =
-        sign_statement(&stmt, &sk).map_err(|e| CliError::internal(format!("sign: {e}")))?;
-    let env_v = serde_json::to_value(&envelope)
-        .map_err(|e| CliError::internal(format!("serialize envelope: {e}")))?;
-    validate_dsse_envelope_value(&env_v)
-        .map_err(|errs| CliError::internal(format!("DSSE envelope schema invalid: {errs:?}")))?;
+    let ctx = resolve_signing_key(root, private_key, ephemeral_key, out)?;
 
-    let txt = serde_json::to_string_pretty(&env_v)
-        .map_err(|e| CliError::internal(format!("pretty-print envelope: {e}")))?;
-    fs::write(out, txt).map_err(|e| CliError::internal(format!("write {}: {e}", out.display())))?;
+    let unsuppressed_drift_blocking = exemption_gate
+        .unsuppressed_drift
+        .iter()
+        .any(|d| matches!(d.severity, Severity::Error | Severity::Warning));
+    let trace_failed = trace.orphan_sites.len()
+        + trace
+            .claims
+            .values()
+            .filter(|n| n.impl_sites.is_empty())
+            .count()
+        + trace
+            .claims
+            .values()
+            .filter(|n| n.test_sites.is_empty())
+            .count()
+        > 0;
+    let drift_failed = unsuppressed_drift_blocking;
+    let exemption_failed = exemption_gate.error_count > 0;
+    let exit_code = if trace_failed || drift_failed {
+        exit::DRIFT_DETECTED
+    } else if exemption_failed {
+        exit::EXEMPT_VIOLATION
+    } else {
+        exit::OK
+    };
+    let outcome = GateOutcome {
+        verdict: if exit_code == exit::OK {
+            Verdict::Pass
+        } else {
+            Verdict::Fail
+        },
+        fail_on_drift: true,
+        trace_failed,
+        drift_failed,
+        exemption_failed,
+        attestation_failed: false,
+        unsuppressed_blocking: exemption_gate.unsuppressed_blocking_count(),
+        suppressed: exemption_gate.suppressed_count,
+        severity_overridden: exemption_gate.overridden_count,
+        final_exit_code: exit_code,
+    };
+    let mut argv = vec![
+        "chassis".to_string(),
+        "attest".to_string(),
+        "sign".to_string(),
+        "--repo".to_string(),
+        root.display().to_string(),
+    ];
+    if ephemeral_key {
+        argv.push("--ephemeral-key".to_string());
+    }
+    let commands = vec![CommandRun { argv, exit_code }];
+
+    let stmt = assemble(
+        root,
+        &trace,
+        &drift,
+        exemption_gate.registry.as_ref(),
+        commands,
+        outcome,
+        now,
+    )
+    .map_err(|e| CliError::internal(format!("assemble: {e}")))?;
+
+    sign_envelope_with_context(root, &stmt, &ctx, out)?;
 
     let sha256 = stmt
         .subject
@@ -1122,18 +1453,38 @@ fn run_attest_sign(
         .map(|s| s.digest.sha256.clone())
         .unwrap_or_default();
 
-    if json {
-        println!(
-            "{}",
-            json!({
-                "ok": true,
-                "out": out.display().to_string(),
-                "sha256": sha256,
-                "predicateType": stmt.predicate_type,
-            })
+    if !ctx.release_grade {
+        let pk_desc = ctx
+            .public_key_path
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| ctx.public_key_fingerprint.clone());
+        eprintln!(
+            "WARNING: ephemeral signing — this attestation is NOT release-grade. Public key written to {pk_desc} (fingerprint {})",
+            ctx.public_key_fingerprint
         );
+    }
+
+    if json {
+        let mut payload = json!({
+            "ok": true,
+            "out": out.display().to_string(),
+            "sha256": sha256,
+            "predicateType": stmt.predicate_type,
+            "release_grade": ctx.release_grade,
+            "public_key_fingerprint": ctx.public_key_fingerprint,
+        });
+        if let Some(p) = &ctx.public_key_path {
+            payload["public_key_path"] = json!(p.display().to_string());
+        }
+        println!("{payload}");
     } else {
         println!("wrote {}", out.display());
+        println!("release_grade={}", ctx.release_grade);
+        println!("public_key_fingerprint={}", ctx.public_key_fingerprint);
+        if let Some(p) = &ctx.public_key_path {
+            println!("public_key_path={}", p.display());
+        }
     }
     Ok(exit::OK)
 }
@@ -1182,12 +1533,4 @@ fn run_attest_verify(
         println!("ok {}", file.display());
     }
     Ok(exit::OK)
-}
-
-fn load_exemptions(root: &Path) -> Option<exempt::Registry> {
-    let p = root.join(".chassis/exemptions.yaml");
-    let raw = fs::read_to_string(p).ok()?;
-    let y: serde_yaml::Value = serde_yaml::from_str(&raw).ok()?;
-    let j = serde_json::to_value(y).ok()?;
-    serde_json::from_value(j).ok()
 }

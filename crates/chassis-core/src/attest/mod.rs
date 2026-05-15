@@ -9,12 +9,12 @@ pub mod sign;
 use std::fmt;
 
 pub use assemble::{
-    assemble, validate_statement_json, DigestSet, Statement, SubjectDescriptor, PREDICATE_TYPE,
-    STATEMENT_TYPE,
+    assemble, validate_statement_json, DigestSet, GateOutcome, Statement, SubjectDescriptor,
+    PREDICATE_TYPE, STATEMENT_TYPE,
 };
 pub use predicate::{
     validate_release_gate_predicate, CommandRun, DriftSummary, ExemptSummary, ReleaseGatePredicate,
-    TraceSummary, CH_ATTEST_PREDICATE_INVALID,
+    TraceSummary, Verdict, CH_ATTEST_PREDICATE_INVALID,
 };
 pub use sign::{
     dsse_pae, generate_keypair, sign_statement, signing_key_from_hex, validate_dsse_envelope,

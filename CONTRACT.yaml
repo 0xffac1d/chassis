@@ -12,13 +12,13 @@ exports:
     description: "chassis-core (supported): Rust kernel — validators, contract diff, exemption registry, fingerprint, trace graph, drift, export facts, DSSE attestation."
   - path: "crates/chassis-cli/src/main.rs"
     kind: module
-    description: "chassis-cli (supported): `chassis` binary with subcommands validate, diff, exempt verify, trace, drift, export, attest sign, attest verify."
+    description: "chassis-cli (supported): `chassis` binary with subcommands validate, diff, exempt verify, trace, drift, export, release-gate, attest sign, attest verify."
   - path: "crates/chassis-jsonrpc/src/main.rs"
     kind: module
     description: "chassis-jsonrpc (experimental): newline-delimited JSON-RPC 2.0 server over stdio exposing six methods. Not a Model Context Protocol implementation."
   - path: "packages/chassis-types/dist/index.d.ts"
     kind: module
-    description: "@chassis/core-types (supported): generated TypeScript .d.ts barrel for 20 schema modules (12 root + 8 contract-kinds)."
+    description: "@chassis/core-types (supported): generated TypeScript .d.ts barrel for 25 schema modules (17 root + 8 contract-kinds)."
 invariants:
   - id: chassis.schemas-self-contained
     text: "All canonical schemas under schemas/ resolve every $ref locally; no external $refs."
@@ -52,6 +52,20 @@ invariants:
       - "crates/chassis-core/src/exports.rs::tests::opa_input_wraps_policy_input"
       - "crates/chassis-core/src/exports.rs::tests::cedar_facts_are_export_facts_not_policy_decisions"
       - "crates/chassis-core/src/exports.rs::tests::eventcatalog_metadata_uses_supported_event_contract_fields"
+  - id: chassis.attest-key-policy-fail-closed
+    text: "`chassis attest sign` and `chassis release-gate --attest` never sign with an implicitly fabricated keypair: either --private-key, .chassis/keys/release.priv, or an explicit --ephemeral-key opt-in must be present. Ephemeral signing surfaces release_grade=false and the public-key fingerprint."
+    test_linkage:
+      - "crates/chassis-cli/tests/cli_attest.rs::attest_sign_missing_private_key_exits_66"
+      - "crates/chassis-cli/tests/cli_attest.rs::attest_sign_with_explicit_private_key_passes"
+      - "crates/chassis-cli/tests/cli_attest.rs::attest_sign_ephemeral_key_writes_non_release_grade_artifact"
+      - "crates/chassis-cli/tests/cli_attest.rs::attest_sign_rejects_ephemeral_with_explicit_private_key"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attest_with_no_key_fails_closed"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attest_with_release_key_passes_release_grade"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attest_with_explicit_private_key_passes"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attest_ephemeral_key_marks_non_release_grade"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attestation_verify_passes_for_correct_key"
+      - "crates/chassis-cli/tests/cli_release_gate.rs::release_gate_attestation_tamper_fails_verify"
+      - "crates/chassis-cli/tests/cli_attest.rs::attest_verify_wrong_public_key_exits_6"
 edge_cases:
   - id: chassis.adversarial-fixture-rejected
     text: "fixtures/adversarial/invalid-schema/CONTRACT.yaml fails canonical validation with at least one 'required' or 'enum' error."

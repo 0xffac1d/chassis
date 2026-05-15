@@ -81,9 +81,17 @@ fn malformed_json_returns_parse_error_negative_32700() {
 
     let second: Value = read_ndjson_reply(&mut lines);
     assert_eq!(second["id"], json!(991));
-    assert_eq!(
-        second.pointer("/error/message").and_then(Value::as_str),
-        Some(chassis_core::attest::CH_ATTEST_NOT_FOUND)
+    // The temp dir is not a git repo, so the live release_gate computation
+    // surfaces a CH-GATE-* failure. The exact id can change as the gate
+    // surface grows; assert the prefix and the -32603 application error
+    // code instead of pinning the literal.
+    let msg = second
+        .pointer("/error/message")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(
+        msg.starts_with("CH-GATE-"),
+        "expected CH-GATE-* error, got: {msg}"
     );
     assert_eq!(second["error"]["code"], -32603);
 }

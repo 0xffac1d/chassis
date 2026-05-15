@@ -35,6 +35,8 @@ Rule-ID prefixes claimed by accepted ADRs. Each prefix is governed by the listed
 - `CH-DIFF-*` — ADR-0019
 - `CH-DRIFT-*` — ADR-0024
 - `CH-EXEMPT-*` — ADR-0020
+- `CH-RUST-*` — ADR-0021 (e.g. `CH-RUST-METADATA-CONTRACT`, the wire rule emitted by the canonical Rust validator).
+- `CH-SUPPLY-*` — ADR-0025
 - `CH-TRACE-*` — ADR-0023
 - `CLAIM-*` — ADR-0003 (ADR-0005 superseded by ADR-0023; source-annotation grammar moved to `CH-TRACE-*`)
 - `DEFERRAL-*` — ADR-0016

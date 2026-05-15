@@ -16,6 +16,7 @@ demo/pass.sh
 demo/fail-contract.sh
 demo/fail-drift.sh
 demo/fail-exemption.sh
+demo/fail-attestation.sh
 ```
 
 What each script proves:
@@ -24,5 +25,6 @@ What each script proves:
 - `fail-contract.sh`: the package still looks like ordinary source code, but the declared contract version is invalid, so the release gate fails at `contract`.
 - `fail-drift.sh`: tests and source still typecheck, but an implementation claim annotation was removed. Chassis detects that a contract claim has no backing implementation site and fails at `drift`.
 - `fail-exemption.sh`: source and tests are unchanged, but a waiver omits the required CODEOWNERS acknowledgment. Chassis fails at `exemptions`.
+- `fail-attestation.sh`: a release-gate attestation is signed and then its payload is tampered. `chassis attest verify` rejects the modified envelope, proving the release verdict cannot be rewritten after signing.
 
 Set `CHASSIS_BIN=/path/to/chassis` to use an already-built binary; otherwise the scripts run `cargo run -p chassis-cli`.

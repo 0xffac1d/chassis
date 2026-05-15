@@ -61,6 +61,7 @@ fn attest_sign_json_returns_machine_readable_summary() {
 }
 
 #[test]
+// @claim chassis.attest-key-policy-fail-closed
 fn attest_sign_missing_private_key_exits_66() {
     let (dir, out) = signable_repo();
     fs::remove_file(dir.path().join(".chassis/keys/release.priv")).expect("priv key cleanup");
@@ -74,7 +75,11 @@ fn attest_sign_missing_private_key_exits_66() {
         .code(exit::MISSING_FILE);
 
     let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON envelope");
-    assert_eq!(v["error"]["code"], "CLI-MISSING-FILE");
+    // The fail-closed key resolver maps a missing release key to
+    // CH-ATTEST-KEY-MISSING (not the generic CLI-MISSING-FILE) so callers can
+    // see *why* the file matters — ephemeral signing must be an explicit
+    // opt-in, not a silent fallback.
+    assert_eq!(v["error"]["code"], "CH-ATTEST-KEY-MISSING");
 }
 
 #[test]
@@ -230,4 +235,91 @@ fn base64_encode(input: &[u8]) -> String {
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
     STANDARD.encode(input)
+}
+
+// -- key policy tests ---------------------------------------------------------
+
+#[test]
+fn attest_sign_with_explicit_private_key_passes() {
+    // A signer that names its private key explicitly is release-grade: the
+    // operator named the key, so the resulting attestation can be audited
+    // against that named identity.
+    let (dir, out) = signable_repo();
+    let priv_path = dir.path().join(".chassis/keys/release.priv");
+
+    let assert = chassis()
+        .args(["--json", "attest", "sign", "--private-key"])
+        .arg(&priv_path)
+        .args(["--out"])
+        .arg(&out)
+        .arg("--repo")
+        .arg(dir.path())
+        .assert()
+        .code(exit::OK);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON summary");
+    assert_eq!(v["ok"], Value::Bool(true));
+    assert_eq!(v["release_grade"], Value::Bool(true));
+    assert!(
+        v["public_key_fingerprint"]
+            .as_str()
+            .is_some_and(|s| s.len() == 64),
+        "release-grade signing surfaces the 64-hex public-key fingerprint"
+    );
+}
+
+#[test]
+fn attest_sign_ephemeral_key_writes_non_release_grade_artifact() {
+    // Ephemeral signing is an explicit opt-in. The on-disk envelope still
+    // verifies, but the CLI surfaces release_grade=false and writes the
+    // public key as a sibling so the demo verifier knows where to look.
+    let (dir, out) = signable_repo();
+    // Remove the default release key so we know the ephemeral path is what
+    // actually fired.
+    fs::remove_file(dir.path().join(".chassis/keys/release.priv")).unwrap();
+
+    let assert = chassis()
+        .args(["--json", "attest", "sign", "--ephemeral-key", "--out"])
+        .arg(&out)
+        .arg("--repo")
+        .arg(dir.path())
+        .assert()
+        .code(exit::OK);
+
+    let v: Value = serde_json::from_str(&stdout(&assert)).expect("JSON summary");
+    assert_eq!(v["ok"], Value::Bool(true));
+    assert_eq!(
+        v["release_grade"],
+        Value::Bool(false),
+        "ephemeral signing must be flagged non-release-grade"
+    );
+    let pk_path = v["public_key_path"]
+        .as_str()
+        .expect("ephemeral path must surface its public key file")
+        .to_string();
+    let fp = v["public_key_fingerprint"]
+        .as_str()
+        .expect("ephemeral path must surface a fingerprint")
+        .to_string();
+    assert_eq!(fp.len(), 64);
+    let pk_hex = fs::read_to_string(&pk_path).expect("ephemeral public key written");
+    assert_eq!(pk_hex.trim(), fp, "fingerprint must match file contents");
+}
+
+#[test]
+fn attest_sign_rejects_ephemeral_with_explicit_private_key() {
+    // Clap should refuse the combination; "release-grade" and "throwaway"
+    // are mutually exclusive by design.
+    let (dir, out) = signable_repo();
+    let priv_path = dir.path().join(".chassis/keys/release.priv");
+
+    chassis()
+        .args(["attest", "sign", "--ephemeral-key", "--private-key"])
+        .arg(&priv_path)
+        .args(["--out"])
+        .arg(&out)
+        .arg("--repo")
+        .arg(dir.path())
+        .assert()
+        .failure();
 }

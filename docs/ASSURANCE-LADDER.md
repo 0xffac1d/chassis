@@ -2,7 +2,7 @@
 
 Five rungs. A claim advances rungs only when a verifier emits evidence at that rung. The contract author **declares** intent; the system **verifies** the rest.
 
-**MVP scope (per ADR-0001):** only `declared` is implementable today via `chassis-core`'s `CanonicalMetadataContractValidator`. The other four rungs require infrastructure (coherence walker, test-runner integration, runtime enforcement point, telemetry pipeline) that does not yet ship from this repo. The `chassis <verb>` invocations below describe the intended verifier surface; some of those verbs (`validate`, `trace`, `drift`, `attest`) already ship in `crates/chassis-cli/` against the `chassis` binary, but none of them advance a claim past `declared` on their own.
+**MVP scope (per ADR-0001):** only `declared` is implementable today via `chassis-core`'s `CanonicalMetadataContractValidator`. The other four rungs require infrastructure (coherence walker, test-runner integration, runtime enforcement point, telemetry pipeline) that does not yet ship from this repo. The `chassis <verb>` invocations below describe the intended verifier surface; the verbs `validate`, `trace`, `drift`, `export`, `release-gate`, and `attest sign|verify` already ship in `crates/chassis-cli/` against the `chassis` binary, but none of them advance a claim past `declared` on their own.
 
 ## declared
 The claim exists in a contract and passes JSON Schema validation against `schemas/contract.schema.json`. No semantic check.

@@ -1,6 +1,8 @@
-# Foundations notes (Wave 1)
+# Foundations notes — Wave 1 ADR snapshot (relocated 2026-05-15)
 
-Snapshot of decisions recorded as ADRs on 2026-05-14. Each row answers “what,” “why,” and “how it differs from `reference/adrs-original/`.”
+Originally lived at `docs/FOUNDATIONS-NOTES.md`. Frozen on 2026-05-14 with the Wave 1 set; Waves 2–6 added ADR-0018 through ADR-0025, which this snapshot does not cover. Current ADR coverage lives in `CLAUDE.md` (the "What's in the tree → docs/adr/" row) and the per-wave entries of `docs/WAVE-PLAN.md`; the canonical rule-prefix → ADR map is `docs/STABLE-IDS.md`.
+
+Snapshot of decisions recorded as ADRs on 2026-05-14. Each row answers "what," "why," and "how it differs from `reference/adrs-original/`."
 
 | ADR | Decision | Why | Predecessor delta |
 |-----|----------|-----|-------------------|

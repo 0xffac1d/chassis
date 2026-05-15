@@ -14,6 +14,7 @@ pub mod exempt;
 pub mod exemption;
 pub mod exports;
 pub mod fingerprint;
+pub mod gate;
 pub mod supply;
 pub mod trace;
 pub mod validators;
