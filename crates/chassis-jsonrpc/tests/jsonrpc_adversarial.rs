@@ -461,8 +461,11 @@ fn release_gate_invalid_contract_returns_invalid_params_with_structured_data() {
     // receives the same structured `contract_validation` summary the CLI
     // prints under `--json`. This is the cross-surface parity guarantee.
     let tmp = TempDir::new().expect("tempdir");
-    std::fs::write(tmp.path().join("CONTRACT.yaml"), "name: broken\nkind: library\n")
-        .expect("write CONTRACT.yaml");
+    std::fs::write(
+        tmp.path().join("CONTRACT.yaml"),
+        "name: broken\nkind: library\n",
+    )
+    .expect("write CONTRACT.yaml");
     // Minimal git repo with a HEAD so the gate's git-worktree check passes.
     git_init_with_initial_commit(tmp.path());
 

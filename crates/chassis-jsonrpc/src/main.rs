@@ -140,7 +140,12 @@ fn rpc_error(id: &Value, code: i64, msg: impl Into<String>) -> Value {
 /// envelope. Used when a stable rule id ships an associated structured
 /// summary (e.g. `CH-GATE-CONTRACT-INVALID` and its contract validation
 /// report).
-fn rpc_error_with_data(id: &Value, code: i64, msg: impl Into<String>, data: Option<Value>) -> Value {
+fn rpc_error_with_data(
+    id: &Value,
+    code: i64,
+    msg: impl Into<String>,
+    data: Option<Value>,
+) -> Value {
     let mut err = json!({ "code": code, "message": msg.into() });
     if let Some(d) = data {
         err["data"] = d;
@@ -407,8 +412,9 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
                         );
                     }
                     let code = match e.rule_id {
-                        gate::rule_id::REPO_UNREADABLE
-                        | gate::rule_id::GIT_METADATA_REQUIRED => rpc_code::INVALID_PARAMS,
+                        gate::rule_id::REPO_UNREADABLE | gate::rule_id::GIT_METADATA_REQUIRED => {
+                            rpc_code::INVALID_PARAMS
+                        }
                         _ => rpc_code::INTERNAL_ERROR,
                     };
                     rpc_error(&id, code, format!("{}: {}", e.rule_id, e.message))
