@@ -1,2 +1,1 @@
-# Mutable refs we deliberately keep semver-pinned (documented exceptions).
-slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+# Mutable refs deliberately allowed. Keep empty unless an immutable SHA is impossible.
