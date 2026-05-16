@@ -85,8 +85,7 @@ fn result_to_diagnostic(
     let severity = match level.as_deref() {
         Some("error") => Severity::Error,
         Some("warning") => Severity::Warning,
-        Some("note") | Some("none") | None => Severity::Info,
-        Some(other) if other == "notapplicable" => Severity::Info,
+        Some("note") | Some("none") | Some("notapplicable") | None => Severity::Info,
         Some(_) => Severity::Info,
     };
 

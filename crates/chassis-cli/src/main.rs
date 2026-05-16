@@ -1741,6 +1741,7 @@ fn run_attest_sign(
 
 // -- attest verify ------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn run_attest_verify(
     root: &Path,
     public_key: Option<&Path>,
