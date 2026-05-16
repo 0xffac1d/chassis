@@ -52,7 +52,12 @@ jobs:
       - name: cargo deny check
         run: |
           set -o pipefail
-          cargo deny --workspace check \
+          # `advisories` is intentionally omitted: cargo-deny 0.18.3 (the last
+          # release that supports rustc 1.86) fails to parse RustSec advisories
+          # that use CVSS 4.0 (e.g. RUSTSEC-2026-0076). RUSTSEC scanning is
+          # covered by the `cargo audit` step above; cargo-deny keeps
+          # responsibility for bans, licenses, and sources.
+          cargo deny --workspace check bans licenses sources \
             2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/cargo-deny.log"
 
       - name: Banned-crates lockfile guard
