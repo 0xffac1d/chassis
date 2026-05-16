@@ -50,7 +50,7 @@ jobs:
           ./target/release/chassis scanner ingest --tool semgrep --sarif semgrep.sarif --out dist/scanner-semgrep.json --repo "$GITHUB_WORKSPACE"
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@df409f7d926037fbd2facedec903059a8d3a71a0 # v3.28.8
+        uses: github/codeql-action/upload-sarif@dd746615b3b9d728a6a37ca2045b68ca76d4841a # v3.28.8
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
           sarif_file: semgrep.sarif
