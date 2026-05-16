@@ -168,6 +168,7 @@ REQUIRED=(
   ".github/workflows/policy-gate.yml"
   ".github/workflows/self-attest.yml"
   ".github/workflows/source-archive.yml"
+  ".github/workflows/source-archive-pr.yml"
   ".github/workflows/release-evidence.yml"
   ".github/workflows/semgrep.yml"
   ".github/workflows/codeql.yml"

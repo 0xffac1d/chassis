@@ -8,7 +8,15 @@ SHA="${HEAD_SHA:?}"
 for attempt in $(seq 1 90); do
 	missing=""
 	for wf in foundation.yml supply-chain.yml policy-gate.yml self-attest.yml source-archive.yml semgrep.yml codeql.yml; do
-		rid="$(gh run list --repo "$REPO" --workflow "$wf" --commit "$SHA" --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -1)"
+		if [[ "$wf" == "source-archive.yml" ]]; then
+			rid="$(gh run list --repo "$REPO" --workflow "source-archive.yml" --commit "$SHA" --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -1)"
+			if [[ -z "${rid:-}" ]]; then
+				# PRs run source-archive-pr.yml; main runs source-archive.yml (+ SLSA). Either satisfies this gate.
+				rid="$(gh run list --repo "$REPO" --workflow "source-archive-pr.yml" --commit "$SHA" --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -1)"
+			fi
+		else
+			rid="$(gh run list --repo "$REPO" --workflow "$wf" --commit "$SHA" --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -1)"
+		fi
 		if [[ -z "${rid:-}" ]]; then
 			missing="$missing $wf"
 		fi

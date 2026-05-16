@@ -3,7 +3,6 @@ name: source-archive
 on:
   push:
     branches: [main, master]
-  pull_request:
 
 concurrency:
   group: source-archive-${{ github.workflow }}-${{ github.ref }}
@@ -56,7 +55,6 @@ jobs:
           path: dist/chassis-source-ci.tar.gz
 
       - name: Attest build provenance (GitHub)
-        if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
         with:
           subject-path: dist/chassis-source-ci.tar.gz
@@ -112,9 +110,6 @@ jobs:
 
   slsa-provenance:
     name: SLSA generic provenance
-    # Reusable generator + release asset upload assume non-PR contexts (`refs/tags/*` or
-    # workflow_dispatch). PRs still build the tarball + run extract-smoke.
-    if: github.event_name != 'pull_request'
     needs: archive
     secrets: inherit
     permissions:
@@ -129,7 +124,6 @@ jobs:
 
   verify-slsa:
     name: slsa-verifier (source archive)
-    if: github.event_name != 'pull_request'
     needs:
       - archive
       - slsa-provenance

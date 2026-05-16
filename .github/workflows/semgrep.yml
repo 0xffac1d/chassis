@@ -24,7 +24,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install Semgrep
-        run: pip install semgrep==1.90.0
+        run: |
+          pip install setuptools
+          pip install semgrep==1.90.0
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # ratchet: master
         with:

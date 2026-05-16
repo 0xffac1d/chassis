@@ -62,7 +62,7 @@ flags (`trace_failed`, `drift_failed`, `exemption_failed`, `attestation_failed`,
 `spec_failed`), `unsuppressed_blocking`, `suppressed`, `severity_overridden`,
 `final_exit_code`, and the `commands_run` log.
 
-**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (`git archive` tarballs without `.git`) are **not** `release-gate` runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`. Those same archives **are** expected to run `./scripts/verify-foundation.sh` (docs-lint, Rust, Node gates); CI proves this via `source-archive.yml` extract-and-smoke.
+**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (`git archive` tarballs without `.git`) are **not** `release-gate` runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`. Those same archives **are** expected to run `./scripts/verify-foundation.sh` (docs-lint, Rust, Node gates); CI proves this via `source-archive.yml` / `source-archive-pr.yml` extract-and-smoke.
 
 **Default artifact paths.** Without `--out` / `--attest-out`, the CLI writes
 predicates and DSSE envelopes under `<repo>/dist/` (gitignored). The root-level
@@ -107,7 +107,8 @@ Foundation gates are split by workflow name:
 | `supply-chain.yml` | `cargo audit`, `cargo deny`, banned deps, PR `dependency-review`. |
 | `policy-gate.yml` | OPA over `chassis export --format opa` (`policy/chassis_release.rego`). |
 | `self-attest.yml` | `scripts/self-attest.sh` + Cosign keyless sign/verify on `release-gate.dsse`. |
-| `source-archive.yml` | `git archive` + hygiene + GitHub attest-build-provenance + SLSA generic provenance + `slsa-verifier` + extract-smoke of `verify-foundation.sh`. |
+| `source-archive.yml` | On `main`/`master` push: `git archive` + hygiene + GitHub attest-build-provenance + SLSA generic provenance + `slsa-verifier` + extract-smoke of `verify-foundation.sh`. |
+| `source-archive-pr.yml` | On pull requests: tarball + extract-smoke only (reusable SLSA jobs cannot be `if:`-skipped on the caller job). |
 | `semgrep.yml` / `codeql.yml` / `renovate-config-validator.yml` | Static analysis + Renovate config schema. |
 | `release-evidence.yml` | After the above succeed for a commit, downloads artifacts, re-validates with `validate_artifact`, checks `CH-EVIDENCE-DIGEST-MISMATCH` round-trips, and uploads one `release-evidence-<sha>.tar.gz` bundle. |
 
