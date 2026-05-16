@@ -33,7 +33,24 @@ run_step action-pin-hygiene    bash .github/scripts/check-action-pins.sh
 run_step cargo-fmt          cargo fmt --check --all
 run_step cargo-clippy       cargo clippy --workspace --all-targets -- -D warnings
 run_step cargo-check        cargo check --workspace
-run_step cargo-test         cargo test --workspace
+# When we are running from an extracted source archive (`git archive` output has
+# no `.git/`), tests that exercise the live repo's git metadata cannot run.
+# The shipped CI matrix runs the full test suite in `foundation.yml`; this
+# fallback keeps `source-archive (PR)` / `source-archive` extract-smoke
+# meaningful without forcing an impossible precondition.
+if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  run_step cargo-test         cargo test --workspace
+else
+  echo "verify-foundation: extracted release archive (no .git) — skipping git-dependent test sets"
+  run_step cargo-test-no-git  cargo test --workspace -- \
+    --skip drift::git::tests \
+    --skip drift::report::tests::fixture_repo_drift_report_validates_schema \
+    --skip attest::sign::tests \
+    --skip attest::assemble::tests \
+    --skip gate::tests::compute_produces_schema_valid_predicate_for_self_repo \
+    --skip gate::tests::compute_require_scanners_rejects_nonzero_summary_errors \
+    --skip cli_release_gate
+fi
 # Explicit named gate: every Diagnostic emitted by any kernel surface must
 # (a) validate against schemas/diagnostic.schema.json and
 # (b) carry a ruleId bound to an accepted ADR's enforces[].

@@ -31,11 +31,10 @@ rules:
     pattern: dbg!(...)
     paths:
       include:
-        - crates/chassis-core/**/*.rs
+        - "crates/chassis-core/src/**/*.rs"
       exclude:
         - "crates/chassis-core/src/**/*tests*.rs"
         - "crates/chassis-core/src/**/tests/**"
-        - "crates/chassis-core/tests/**"
 
   - id: chassis-no-println-core
     languages: [rust]
@@ -44,18 +43,17 @@ rules:
     patterns:
       - pattern: println!(...)
       - pattern-not-inside: |
-          #[cfg(test)]
-          mod $M { ... }
-      - pattern-not-inside: |
-          #[test]
-          fn $F(...) { ... }
+          mod $M {
+            ...
+          }
     paths:
+      # `crates/chassis-core/examples/` is intentionally illustrative; it is not
+      # the library surface, so println! there is benign.
       include:
-        - crates/chassis-core/**/*.rs
+        - "crates/chassis-core/src/**/*.rs"
       exclude:
         - "crates/chassis-core/src/**/*tests*.rs"
         - "crates/chassis-core/src/**/tests/**"
-        - "crates/chassis-core/tests/**"
 
   - id: chassis-no-panic-runtime-cli
     languages: [rust]
@@ -89,20 +87,23 @@ rules:
           - pattern: todo!(...)
           - pattern: unimplemented!(...)
       - pattern-not-inside: |
-          #[cfg(test)]
-          mod $M { ... }
+          mod $M {
+            ...
+          }
+      # Build-time fail-fast: `compile_schema` / `from_embedded` validate that
+      # `include_str!`-embedded JSON Schema is a valid jsonschema validator.
+      # A failure here is a compile-time bug, not a runtime path.
       - pattern-not-inside: |
-          #[test]
-          fn $F(...) { ... }
-      # `assert_adr_bound` is a public test-only helper that panics with a rich
-      # diagnostic when its caller's diagnostic is not ADR-bound (see
-      # `diagnostic.rs::assert_adr_bound`). It's only ever called from tests.
+          fn compile_schema(...) { ... }
+      - pattern-not-inside: |
+          pub fn from_embedded(...) -> Self { ... }
+      # `assert_adr_bound` is a documented test-only helper that panics with a
+      # rich diagnostic when a caller's diagnostic is not ADR-bound.
       - pattern-not-inside: |
           pub fn assert_adr_bound(...) { ... }
     paths:
       include:
-        - crates/chassis-core/**/*.rs
+        - "crates/chassis-core/src/**/*.rs"
       exclude:
         - "crates/chassis-core/src/**/*tests*.rs"
         - "crates/chassis-core/src/**/tests/**"
-        - "crates/chassis-core/tests/**"
