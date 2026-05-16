@@ -25,7 +25,9 @@ jobs:
 
       - name: Install Semgrep
         run: |
-          pip install setuptools
+          # setuptools>=81 drops pkg_resources, which opentelemetry-instrumentation
+          # (a transitive dep of semgrep==1.90) still imports. Pin <81.
+          pip install 'setuptools<81'
           pip install semgrep==1.90.0
 
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # ratchet: master

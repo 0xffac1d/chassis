@@ -1020,8 +1020,10 @@ mod tests {
         let repo = git2::Repository::open(&base).unwrap();
         let mut idx = repo.index().unwrap();
         idx.add_path(std::path::Path::new("CONTRACT.yaml")).unwrap();
-        idx.add_path(std::path::Path::new("dist/scanner-semgrep.json")).unwrap();
-        idx.add_path(std::path::Path::new("dist/scanner-codeql.json")).unwrap();
+        idx.add_path(std::path::Path::new("dist/scanner-semgrep.json"))
+            .unwrap();
+        idx.add_path(std::path::Path::new("dist/scanner-codeql.json"))
+            .unwrap();
         idx.write().unwrap();
         let tree_id = idx.write_tree().unwrap();
         let tree = repo.find_tree(tree_id).unwrap();
