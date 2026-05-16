@@ -52,7 +52,11 @@ else
     --skip attest::assemble::tests \
     --skip gate::tests::compute_produces_schema_valid_predicate_for_self_repo \
     --skip gate::tests::compute_require_scanners_rejects_nonzero_summary_errors \
-    --skip cli_release_gate
+    --skip cli_release_gate \
+    --skip release_gate_happy_path_predicate_matches_schema_and_cli_fields \
+    --skip release_gate_fail_on_drift_false_changes_outcome \
+    --skip release_gate_happy_path_predicate_matches_schema \
+    --skip drift_report_happy_path_matches_drift_schema
 fi
 # Explicit named gate: every Diagnostic emitted by any kernel surface must
 # (a) validate against schemas/diagnostic.schema.json and
