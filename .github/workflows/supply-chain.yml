@@ -38,9 +38,10 @@ jobs:
         run: cargo install --locked cargo-audit
 
       - name: Install cargo-deny
-        # cargo-deny 0.19+ requires rustc 1.88+; we pin 1.86 (rust-toolchain.toml).
-        # The 0.18.x series is the supported line for rustc 1.85+.
-        run: cargo install --locked --version "^0.18" cargo-deny
+        # cargo-deny 0.18.4+ + 0.19.x require rustc 1.88+; we pin 1.86
+        # (rust-toolchain.toml). 0.18.3 is the last release that supports
+        # rustc 1.85/1.86.
+        run: cargo install --locked --version 0.18.3 cargo-deny
 
       - name: cargo audit
         run: |
