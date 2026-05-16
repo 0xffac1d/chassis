@@ -17,7 +17,7 @@ use crate::trace::types::TraceGraph;
 
 use super::predicate::{
     validate_release_gate_predicate, CommandRun, DriftSummary, ExemptSummary, ReleaseGatePredicate,
-    TraceSummary, Verdict,
+    ScannerPredicateSummary, TraceSummary, Verdict,
 };
 use super::AttestError;
 
@@ -33,6 +33,7 @@ pub struct GateOutcome {
     pub drift_failed: bool,
     pub exemption_failed: bool,
     pub attestation_failed: bool,
+    pub scanner_failed: bool,
     pub spec_index_present: bool,
     pub spec_index_digest: Option<String>,
     pub spec_failed: bool,
@@ -41,6 +42,7 @@ pub struct GateOutcome {
     pub suppressed: usize,
     pub severity_overridden: usize,
     pub final_exit_code: i32,
+    pub scanner_summary: ScannerPredicateSummary,
 }
 
 pub const STATEMENT_TYPE: &str = "https://in-toto.io/Statement/v1";
@@ -154,6 +156,7 @@ pub fn assemble(
         drift_failed: outcome.drift_failed,
         exemption_failed: outcome.exemption_failed,
         attestation_failed: outcome.attestation_failed,
+        scanner_failed: outcome.scanner_failed,
         spec_index_present: outcome.spec_index_present,
         spec_index_digest: outcome.spec_index_digest.clone(),
         spec_failed: outcome.spec_failed,
@@ -165,6 +168,7 @@ pub fn assemble(
         trace_summary,
         drift_summary,
         exempt_summary,
+        scanner_summary: outcome.scanner_summary.clone(),
         commands_run,
     };
 
@@ -212,6 +216,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    use crate::attest::predicate::ScannerSarifDigests;
     use crate::drift::report::{DriftReport, DriftSummaryCounts};
     use crate::trace::types::TraceGraph;
 
@@ -246,6 +251,7 @@ mod tests {
             drift_failed: false,
             exemption_failed: false,
             attestation_failed: false,
+            scanner_failed: false,
             spec_index_present: false,
             spec_index_digest: None,
             spec_failed: false,
@@ -254,6 +260,15 @@ mod tests {
             suppressed: 0,
             severity_overridden: 0,
             final_exit_code: 0,
+            scanner_summary: ScannerPredicateSummary {
+                tools: vec![],
+                errors: 0,
+                warnings: 0,
+                sarif_digests: ScannerSarifDigests {
+                    semgrep: None,
+                    codeql: None,
+                },
+            },
         };
         let stmt =
             assemble(&repo, &trace, &drift, None, vec![], outcome, Utc::now()).expect("assemble");

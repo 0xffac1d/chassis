@@ -99,6 +99,30 @@ deny_reasons contains sprintf("diagnostic_warning:%s", [object.get(d, "ruleId", 
 	d.severity == "warning"
 }
 
+# Belt-and-suspenders: malformed severities must not slip past OPA type checks if schema validation is bypassed.
+deny_reasons contains "diagnostic_schema_invalid" if {
+	version == 1
+	is_object(pi)
+	some d
+	d = diagnostics[_]
+	not diagnostic_severity_valid(d)
+}
+
+deny_reasons contains "exemption_diagnostic_schema_invalid" if {
+	version == 1
+	is_object(pi)
+	is_object(ex)
+	some d
+	d = object.get(ex, "diagnostics", [])[_]
+	not diagnostic_severity_valid(d)
+}
+
+diagnostic_severity_valid(d) if d.severity == "error"
+
+diagnostic_severity_valid(d) if d.severity == "warning"
+
+diagnostic_severity_valid(d) if d.severity == "info"
+
 ex := object.get(pi, "exemptions", null)
 
 deny_reasons contains "missing_exemptions" if {
@@ -112,6 +136,39 @@ deny_reasons contains sprintf("exemption_verify_error:%s", [object.get(d, "ruleI
 	is_object(ex)
 	some d
 	d = object.get(ex, "diagnostics", [])[_]
+	d.severity == "error"
+}
+
+# Scanner evidence (normalized SARIF summaries); see ADR-0033.
+scanner_summaries := object.get(pi, "scanner_summaries", [])
+
+scanner_evidence_required if {
+	object.get(pi, "scanner_required", false) == true
+}
+
+deny_reasons contains sprintf("scanner_required_missing:%s", [tool]) if {
+	version == 1
+	is_object(pi)
+	scanner_evidence_required
+	tool = scanner_required_tools[_]
+	not has_scanner_tool(tool)
+}
+
+scanner_required_tools := ["semgrep", "codeql"]
+
+has_scanner_tool(tool) if {
+	some s
+	s = scanner_summaries[_]
+	object.get(s, "tool", "") == tool
+}
+
+deny_reasons contains sprintf("scanner_error:%s", [object.get(d, "ruleId", "")]) if {
+	version == 1
+	is_object(pi)
+	some s
+	s = scanner_summaries[_]
+	some d
+	d = object.get(s, "diagnostics", [])[_]
 	d.severity == "error"
 }
 

@@ -26,7 +26,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::attest::assemble::GateOutcome;
 use crate::attest::predicate::{
-    CommandRun, DriftSummary, ExemptSummary, ReleaseGatePredicate, TraceSummary, Verdict,
+    CommandRun, DriftSummary, ExemptSummary, ReleaseGatePredicate, ScannerPredicateSummary,
+    ScannerSarifDigests, TraceSummary, Verdict,
 };
 use crate::contract::validate_metadata_contract;
 use crate::diagnostic::{Diagnostic, Severity};
@@ -35,6 +36,7 @@ use crate::exempt::{
     apply::apply_exemptions, list, verify as exempt_verify, Codeowners, ListFilter, Registry,
 };
 use crate::fingerprint;
+use crate::scanner::{self, ScannerSummary, ScannerTool};
 use crate::spec_index::{digest_sha256_hex, link_spec_index, validate_spec_index_value, SpecIndex};
 use crate::trace::{build_trace_graph, types::TraceGraph, validate_trace_graph};
 
@@ -56,9 +58,11 @@ pub mod rule_id {
     pub const SUBSYSTEM_FAILURE: &str = "CH-GATE-SUBSYSTEM-FAILURE";
     /// The exemption registry file existed but failed to parse.
     pub const REGISTRY_MALFORMED: &str = "CH-GATE-REGISTRY-MALFORMED";
-    /// One of the artifact serializations failed its canonical schema check —
-    /// trace-graph, drift-report, or release-gate predicate.
+    /// An emitted artifact did not satisfy its canonical JSON Schema.
     pub const SCHEMA_INVALID: &str = "CH-GATE-SCHEMA-INVALID";
+    /// `--require-scanners` / CI path: normalized scanner evidence missing,
+    /// corrupt, incomplete, or reporting blocking findings when required clean.
+    pub const SCANNER_EVIDENCE_REQUIRED: &str = "CH-GATE-SCANNER-EVIDENCE-REQUIRED";
 }
 
 /// Error from [`compute`]. Each variant carries a stable rule id so the CLI
@@ -293,6 +297,8 @@ pub struct GateRun {
     pub git_commit: String,
     pub fail_on_drift: bool,
     pub now: DateTime<Utc>,
+    pub scanner_summaries: Vec<ScannerSummary>,
+    pub unsuppressed_scanner: Vec<Diagnostic>,
 }
 
 impl GateRun {
@@ -332,6 +338,7 @@ impl GateRun {
         self.trace.diagnostics.iter().filter(blocking).count()
             + self.spec.diagnostics.iter().filter(blocking).count()
             + self.unsuppressed_drift.iter().filter(blocking).count()
+            + self.unsuppressed_scanner.iter().filter(blocking).count()
     }
 
     /// Active (non-revoked, non-expired) entries in the registry, as of `now`.
@@ -354,6 +361,40 @@ impl GateRun {
         self.spec.failed()
     }
 
+    pub fn scanner_failed(&self) -> bool {
+        self.unsuppressed_scanner
+            .iter()
+            .any(|d| matches!(d.severity, Severity::Error | Severity::Warning))
+    }
+
+    pub fn scanner_predicate_summary(&self) -> ScannerPredicateSummary {
+        let mut tools = Vec::new();
+        let mut errors = 0usize;
+        let mut warnings = 0usize;
+        let mut digests = ScannerSarifDigests {
+            semgrep: None,
+            codeql: None,
+        };
+        for s in &self.scanner_summaries {
+            tools.push(match s.tool {
+                ScannerTool::Semgrep => "semgrep".to_string(),
+                ScannerTool::Codeql => "codeql".to_string(),
+            });
+            errors += s.errors;
+            warnings += s.warnings;
+            match s.tool {
+                ScannerTool::Semgrep => digests.semgrep = Some(s.sarif_sha256.clone()),
+                ScannerTool::Codeql => digests.codeql = Some(s.sarif_sha256.clone()),
+            }
+        }
+        ScannerPredicateSummary {
+            tools,
+            errors,
+            warnings,
+            sarif_digests: digests,
+        }
+    }
+
     /// Build the per-axis [`GateOutcome`] embedded into the signed predicate.
     /// `attestation_failed` reflects whether signing succeeded (false when the
     /// caller did not attempt to sign).
@@ -362,11 +403,13 @@ impl GateRun {
         let drift_failed = self.drift_failed();
         let exemption_failed = self.exemption_failed();
         let spec_failed = self.spec_failed();
+        let scanner_failed = self.scanner_failed();
         let passed = !spec_failed
             && !trace_failed
             && !drift_failed
             && !exemption_failed
-            && !attestation_failed;
+            && !attestation_failed
+            && !scanner_failed;
         // Exit code precedence matches `chassis release-gate`.
         let final_exit_code = if passed {
             0
@@ -374,7 +417,7 @@ impl GateRun {
             6
         } else if spec_failed {
             2
-        } else if trace_failed || drift_failed {
+        } else if trace_failed || drift_failed || scanner_failed {
             5
         } else if exemption_failed {
             3
@@ -388,6 +431,7 @@ impl GateRun {
             drift_failed,
             exemption_failed,
             attestation_failed,
+            scanner_failed,
             spec_index_present: self.spec.present,
             spec_index_digest: self.spec.digest.clone(),
             spec_failed,
@@ -396,6 +440,7 @@ impl GateRun {
             suppressed: self.suppressed,
             severity_overridden: self.overridden,
             final_exit_code,
+            scanner_summary: self.scanner_predicate_summary(),
         }
     }
 
@@ -455,6 +500,7 @@ impl GateRun {
             drift_failed: outcome.drift_failed,
             exemption_failed: outcome.exemption_failed,
             attestation_failed: outcome.attestation_failed,
+            scanner_failed: outcome.scanner_failed,
             spec_index_present: outcome.spec_index_present,
             spec_index_digest: outcome.spec_index_digest.clone(),
             spec_failed: outcome.spec_failed,
@@ -466,6 +512,7 @@ impl GateRun {
             trace_summary,
             drift_summary,
             exempt_summary,
+            scanner_summary: outcome.scanner_summary.clone(),
             commands_run,
         };
 
@@ -485,7 +532,16 @@ impl GateRun {
 ///
 /// Caller controls `fail_on_drift` so the CLI's `--fail-on-drift` flag and a
 /// future JSON-RPC `params.fail_on_drift` option produce matching verdicts.
-pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<GateRun, GateError> {
+///
+/// When `require_scanners` is true (CLI: `--require-scanners`), both
+/// `dist/scanner-semgrep.json` and `dist/scanner-codeql.json` must exist and
+/// validate; otherwise [`GateError`] carries [`rule_id::SCANNER_EVIDENCE_REQUIRED`].
+pub fn compute(
+    repo: &Path,
+    now: DateTime<Utc>,
+    fail_on_drift: bool,
+    require_scanners: bool,
+) -> Result<GateRun, GateError> {
     if !repo.is_dir() {
         return Err(GateError::new(
             rule_id::REPO_UNREADABLE,
@@ -550,11 +606,53 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         )
     })?;
 
+    let scanner_summaries_loaded = match scanner::load_scanner_summaries_from_repo(repo) {
+        Ok(s) => s,
+        Err(e) => {
+            return Err(GateError::new(
+                if require_scanners {
+                    rule_id::SCANNER_EVIDENCE_REQUIRED
+                } else {
+                    rule_id::SUBSYSTEM_FAILURE
+                },
+                e,
+            ));
+        }
+    };
+    if require_scanners {
+        let has_semgrep = scanner_summaries_loaded
+            .iter()
+            .any(|s| s.tool == ScannerTool::Semgrep);
+        let has_codeql = scanner_summaries_loaded
+            .iter()
+            .any(|s| s.tool == ScannerTool::Codeql);
+        if !has_semgrep || !has_codeql {
+            return Err(GateError::new(
+                rule_id::SCANNER_EVIDENCE_REQUIRED,
+                "require-scanners: expected dist/scanner-semgrep.json and dist/scanner-codeql.json",
+            ));
+        }
+        // Plan / CI: require-scanners means normalized evidence must be clean
+        // (summary.errors is pre-exemption SARIF rollup).
+        if scanner_summaries_loaded.iter().any(|s| s.errors > 0) {
+            return Err(GateError::new(
+                rule_id::SCANNER_EVIDENCE_REQUIRED,
+                "require-scanners: scanner summaries must report errors == 0",
+            ));
+        }
+    }
+
+    let scan_flat: Vec<Diagnostic> = scanner_summaries_loaded
+        .iter()
+        .flat_map(|s| s.diagnostics.clone())
+        .collect();
+
     let exempt = load_and_apply_exemptions(
         repo,
         std::mem::take(&mut trace.diagnostics),
         std::mem::take(&mut spec.diagnostics),
         std::mem::take(&mut drift.diagnostics),
+        scan_flat,
         now,
     )?;
 
@@ -562,6 +660,12 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
     spec.diagnostics = exempt.unsuppressed_spec;
     let drift_unsuppressed = exempt.unsuppressed_drift;
     drift.diagnostics = drift_unsuppressed.clone();
+
+    let scanner_summaries = crate::exports::rebuild_scanner_summaries(
+        &scanner_summaries_loaded,
+        &exempt.unsuppressed_scanner,
+    );
+    let unsuppressed_scanner = exempt.unsuppressed_scanner;
 
     let schema_fingerprint = fingerprint::compute(repo)
         .map_err(|e| GateError::new(rule_id::SUBSYSTEM_FAILURE, format!("fingerprint: {e}")))?;
@@ -582,6 +686,8 @@ pub fn compute(repo: &Path, now: DateTime<Utc>, fail_on_drift: bool) -> Result<G
         git_commit,
         fail_on_drift,
         now,
+        scanner_summaries,
+        unsuppressed_scanner,
     })
 }
 
@@ -678,6 +784,7 @@ struct ExemptionState {
     unsuppressed_trace: Vec<Diagnostic>,
     unsuppressed_spec: Vec<Diagnostic>,
     unsuppressed_drift: Vec<Diagnostic>,
+    unsuppressed_scanner: Vec<Diagnostic>,
 }
 
 fn load_and_apply_exemptions(
@@ -685,6 +792,7 @@ fn load_and_apply_exemptions(
     trace_diag: Vec<Diagnostic>,
     spec_diag: Vec<Diagnostic>,
     drift_diag: Vec<Diagnostic>,
+    scanner_diag: Vec<Diagnostic>,
     now: DateTime<Utc>,
 ) -> Result<ExemptionState, GateError> {
     let p = repo.join(".chassis/exemptions.yaml");
@@ -698,6 +806,7 @@ fn load_and_apply_exemptions(
             unsuppressed_trace: trace_diag,
             unsuppressed_spec: spec_diag,
             unsuppressed_drift: drift_diag,
+            unsuppressed_scanner: scanner_diag,
         });
     }
     let raw = std::fs::read_to_string(&p).map_err(|e| {
@@ -740,6 +849,12 @@ fn load_and_apply_exemptions(
     audit += applied_drift.audit.len();
     let drift_us = applied_drift.unsuppressed;
 
+    let applied_scanner = apply_exemptions(scanner_diag, &registry, now);
+    suppressed += applied_scanner.suppressed.len();
+    overridden += applied_scanner.overridden.len();
+    audit += applied_scanner.audit.len();
+    let scanner_us = applied_scanner.unsuppressed;
+
     Ok(ExemptionState {
         registry: Some(registry),
         diagnostics: exempt_diagnostics,
@@ -749,6 +864,7 @@ fn load_and_apply_exemptions(
         unsuppressed_trace: trace_us,
         unsuppressed_spec: spec_us,
         unsuppressed_drift: drift_us,
+        unsuppressed_scanner: scanner_us,
     })
 }
 
@@ -766,7 +882,7 @@ mod tests {
     #[test]
     fn compute_produces_schema_valid_predicate_for_self_repo() {
         let repo = repo_root();
-        let run = compute(&repo, Utc::now(), true).expect("gate compute");
+        let run = compute(&repo, Utc::now(), true, false).expect("gate compute");
         let predicate = run.predicate(vec![], false).expect("predicate");
         let v = serde_json::to_value(&predicate).unwrap();
         crate::attest::predicate::validate_release_gate_predicate(&v)
@@ -776,7 +892,7 @@ mod tests {
     #[test]
     fn compute_rejects_missing_repo() {
         let bogus = std::path::PathBuf::from("/this/path/does/not/exist/anywhere");
-        let err = compute(&bogus, Utc::now(), true).expect_err("must fail for missing repo");
+        let err = compute(&bogus, Utc::now(), true, false).expect_err("must fail for missing repo");
         assert_eq!(err.rule_id, rule_id::REPO_UNREADABLE);
     }
 
@@ -790,7 +906,7 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&base).unwrap();
-        let err = compute(&base, Utc::now(), true).expect_err("must require git metadata");
+        let err = compute(&base, Utc::now(), true, false).expect_err("must require git metadata");
         assert_eq!(err.rule_id, rule_id::GIT_METADATA_REQUIRED);
         assert!(
             err.message.contains("`.git`") && err.message.contains("archive"),
@@ -841,7 +957,8 @@ mod tests {
         repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
             .unwrap();
 
-        let err = compute(&base, Utc::now(), true).expect_err("invalid contract must fail closed");
+        let err =
+            compute(&base, Utc::now(), true, false).expect_err("invalid contract must fail closed");
         assert_eq!(err.rule_id, rule_id::CONTRACT_INVALID);
         let report = err
             .contract_report
@@ -850,6 +967,70 @@ mod tests {
         assert!(report.has_invalid());
         assert_eq!(report.invalid, 1);
         assert_eq!(report.errors[0].code, CH_RUST_METADATA_CONTRACT);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn compute_require_scanners_rejects_nonzero_summary_errors() {
+        use serde_json::json;
+
+        let base = std::env::temp_dir().join(format!(
+            "chassis-gate-scan-err-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(base.join("dist")).unwrap();
+        let scan = json!({
+            "tool": "semgrep",
+            "sarifSha256": "a234567890123456789012345678901234567890123456789012345678901234",
+            "total": 1,
+            "errors": 1,
+            "warnings": 0,
+            "infos": 0,
+            "diagnostics": [{
+                "ruleId": "CH-SCANNER-FINDING",
+                "severity": "error",
+                "message": "blocked",
+                "source": "semgrep",
+                "subject": "src/x.rs"
+            }]
+        });
+        std::fs::write(
+            base.join("dist/scanner-semgrep.json"),
+            serde_json::to_string_pretty(&scan).unwrap(),
+        )
+        .unwrap();
+        let mut codeql = scan.clone();
+        codeql["tool"] = json!("codeql");
+        std::fs::write(
+            base.join("dist/scanner-codeql.json"),
+            serde_json::to_string_pretty(&codeql).unwrap(),
+        )
+        .unwrap();
+
+        let contract = std::fs::read_to_string(
+            repo_root().join("fixtures/happy-path/rust-minimal/CONTRACT.yaml"),
+        )
+        .unwrap();
+        std::fs::write(base.join("CONTRACT.yaml"), contract).unwrap();
+
+        let _ = git2::Repository::init(&base).unwrap();
+        let repo = git2::Repository::open(&base).unwrap();
+        let mut idx = repo.index().unwrap();
+        idx.add_path(std::path::Path::new("CONTRACT.yaml")).unwrap();
+        idx.add_path(std::path::Path::new("dist/scanner-semgrep.json")).unwrap();
+        idx.add_path(std::path::Path::new("dist/scanner-codeql.json")).unwrap();
+        idx.write().unwrap();
+        let tree_id = idx.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let sig = git2::Signature::now("test", "test@example.com").unwrap();
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .unwrap();
+
+        let err = compute(&base, Utc::now(), true, true).expect_err("scanner summary errors");
+        assert_eq!(err.rule_id, rule_id::SCANNER_EVIDENCE_REQUIRED);
         let _ = std::fs::remove_dir_all(&base);
     }
 }

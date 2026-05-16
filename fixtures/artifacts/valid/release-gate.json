@@ -8,6 +8,7 @@
   "drift_failed": false,
   "exemption_failed": false,
   "attestation_failed": false,
+  "scanner_failed": false,
   "spec_index_present": false,
   "spec_index_digest": null,
   "spec_failed": false,
@@ -19,6 +20,12 @@
   "trace_summary": { "claims": 7, "orphan_sites": 0 },
   "drift_summary": { "stale": 1, "abandoned": 0, "missing": 0 },
   "exempt_summary": { "active": 0, "expired_present": 0 },
+  "scanner_summary": {
+    "tools": [],
+    "errors": 0,
+    "warnings": 0,
+    "sarifDigests": {}
+  },
   "commands_run": [
     { "argv": ["cargo", "test", "--workspace"], "exit_code": 0 }
   ]

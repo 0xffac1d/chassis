@@ -232,6 +232,7 @@ mod tests {
                 drift_failed: false,
                 exemption_failed: false,
                 attestation_failed: false,
+                scanner_failed: false,
                 spec_index_present: false,
                 spec_index_digest: None,
                 spec_failed: false,
@@ -240,6 +241,15 @@ mod tests {
                 suppressed: 0,
                 severity_overridden: 0,
                 final_exit_code: 0,
+                scanner_summary: crate::attest::predicate::ScannerPredicateSummary {
+                    tools: vec![],
+                    errors: 0,
+                    warnings: 0,
+                    sarif_digests: crate::attest::predicate::ScannerSarifDigests {
+                        semgrep: None,
+                        codeql: None,
+                    },
+                },
             },
             Utc::now(),
         )
@@ -283,6 +293,7 @@ mod tests {
                 drift_failed: false,
                 exemption_failed: false,
                 attestation_failed: false,
+                scanner_failed: false,
                 spec_index_present: false,
                 spec_index_digest: None,
                 spec_failed: false,
@@ -291,6 +302,15 @@ mod tests {
                 suppressed: 0,
                 severity_overridden: 0,
                 final_exit_code: 0,
+                scanner_summary: crate::attest::predicate::ScannerPredicateSummary {
+                    tools: vec![],
+                    errors: 0,
+                    warnings: 0,
+                    sarif_digests: crate::attest::predicate::ScannerSarifDigests {
+                        semgrep: None,
+                        codeql: None,
+                    },
+                },
             },
             Utc::now(),
         )

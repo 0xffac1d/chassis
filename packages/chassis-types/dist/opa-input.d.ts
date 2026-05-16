@@ -16,10 +16,10 @@ export interface OpaInput {
     };
     contracts: ContractFact[];
     claims: ClaimFact[];
-    diagnostics: {}[];
+    diagnostics: Diagnostic[];
     exemptions: {
       registry?: null | {};
-      diagnostics: {}[];
+      diagnostics: Diagnostic[];
     };
     drift_summary: {
       stale: number;
@@ -29,6 +29,8 @@ export interface OpaInput {
     spec_kit?: {
       spec_index_digest: string;
     };
+    scanner_summaries: ScannerSummary[];
+    scanner_required: boolean;
   };
 }
 export interface ContractFact {
@@ -56,4 +58,46 @@ export interface ClaimSite {
   line: number;
   claim_id: string;
   kind: 'impl' | 'test';
+}
+/**
+ * Inline mirror of schemas/diagnostic.schema.json load-bearing fields for OPA input validation (2020-12).
+ */
+export interface Diagnostic {
+  source?: string;
+  subject?: string;
+  ruleId: string;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  violated?: {
+    convention: string;
+  };
+  docs?: string;
+  fix?: {
+    applicability: 'automatic' | 'suggested' | 'manual-only';
+    description?: string;
+    patch?: string;
+  };
+  location?: {
+    path: string;
+    range?: {
+      start: Position;
+      end?: Position;
+    };
+  };
+  detail?: {};
+}
+export interface Position {
+  line: number;
+  column?: number;
+}
+export interface ScannerSummary {
+  tool: 'semgrep' | 'codeql';
+  toolVersion?: string;
+  sarifSha256: string;
+  runId?: string;
+  total: number;
+  errors: number;
+  warnings: number;
+  infos: number;
+  diagnostics: Diagnostic[];
 }

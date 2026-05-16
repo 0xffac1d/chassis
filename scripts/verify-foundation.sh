@@ -29,6 +29,7 @@ run_step() {
 
 run_step docs-lint             bash scripts/docs-lint.sh
 run_step pre-commit-parity     bash scripts/verify-pre-commit-parity.sh
+run_step action-pin-hygiene    bash .github/scripts/check-action-pins.sh
 run_step cargo-fmt          cargo fmt --check --all
 run_step cargo-clippy       cargo clippy --workspace --all-targets -- -D warnings
 run_step cargo-check        cargo check --workspace

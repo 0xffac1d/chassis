@@ -20,6 +20,8 @@ needles=(
 	"verify-schema-metadata"
 	"verify-fingerprint"
 	"diagnostic_governance"
+	"action-pin-hygiene"
+	"check-action-pins"
 )
 for n in "${needles[@]}"; do
 	if ! grep -qF "$n" "$cfg"; then

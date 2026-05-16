@@ -390,40 +390,58 @@ fn dispatch(repo: &Path, req: &Value) -> Value {
                     .transpose()?
                     .unwrap_or(true);
 
+                let require_scanners = req
+                    .get("params")
+                    .and_then(|p| p.as_object())
+                    .and_then(|m| m.get("require_scanners"))
+                    .map(|v| {
+                        v.as_bool().ok_or_else(|| {
+                            rpc_error(
+                                &id,
+                                rpc_code::INVALID_PARAMS,
+                                "params.require_scanners must be a boolean",
+                            )
+                        })
+                    })
+                    .transpose()?
+                    .unwrap_or(false);
+
                 let now = Utc::now();
-                let run = gate::compute(repo, now, fail_on_drift).map_err(|e| {
-                    // Match CLI semantics: a `CONTRACT_INVALID` preflight is
-                    // bad input from the agent's point of view (the repo it
-                    // pointed us at fails the canonical schema), so surface
-                    // the structured `contract_validation` payload via the
-                    // JSON-RPC error `data` field. CLI and JSON-RPC then
-                    // describe the same failure off the same `gate::compute`
-                    // call.
-                    if e.rule_id == gate::rule_id::CONTRACT_INVALID {
-                        let data = e
-                            .contract_report
-                            .as_ref()
-                            .and_then(|r| serde_json::to_value(r).ok());
-                        return rpc_error_with_data(
-                            &id,
-                            rpc_code::INVALID_PARAMS,
-                            format!("{}: {}", e.rule_id, e.message),
-                            data,
-                        );
-                    }
-                    let code = match e.rule_id {
-                        gate::rule_id::REPO_UNREADABLE | gate::rule_id::GIT_METADATA_REQUIRED => {
-                            rpc_code::INVALID_PARAMS
+                let run =
+                    gate::compute(repo, now, fail_on_drift, require_scanners).map_err(|e| {
+                        // Match CLI semantics: a `CONTRACT_INVALID` preflight is
+                        // bad input from the agent's point of view (the repo it
+                        // pointed us at fails the canonical schema), so surface
+                        // the structured `contract_validation` payload via the
+                        // JSON-RPC error `data` field. CLI and JSON-RPC then
+                        // describe the same failure off the same `gate::compute`
+                        // call.
+                        if e.rule_id == gate::rule_id::CONTRACT_INVALID {
+                            let data = e
+                                .contract_report
+                                .as_ref()
+                                .and_then(|r| serde_json::to_value(r).ok());
+                            return rpc_error_with_data(
+                                &id,
+                                rpc_code::INVALID_PARAMS,
+                                format!("{}: {}", e.rule_id, e.message),
+                                data,
+                            );
                         }
-                        _ => rpc_code::INTERNAL_ERROR,
-                    };
-                    rpc_error(&id, code, format!("{}: {}", e.rule_id, e.message))
-                })?;
+                        let code = match e.rule_id {
+                            gate::rule_id::REPO_UNREADABLE
+                            | gate::rule_id::GIT_METADATA_REQUIRED
+                            | gate::rule_id::SCANNER_EVIDENCE_REQUIRED => rpc_code::INVALID_PARAMS,
+                            _ => rpc_code::INTERNAL_ERROR,
+                        };
+                        rpc_error(&id, code, format!("{}: {}", e.rule_id, e.message))
+                    })?;
                 let commands_run = vec![CommandRun {
                     argv: vec![
                         "chassis-jsonrpc".to_string(),
                         "release_gate".to_string(),
                         format!("--fail-on-drift={fail_on_drift}"),
+                        format!("--require-scanners={require_scanners}"),
                     ],
                     exit_code: run.outcome(false).final_exit_code,
                 }];

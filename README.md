@@ -2,7 +2,7 @@
 
 Typed metadata vocabulary and verifiable-adherence layer for spec-driven AI development. Provides stable identifier conventions (rule IDs, claim IDs, ADR IDs), a five-rung assurance ladder (`declared → coherent → verified → enforced → observed`), and the shape of a signed attestation artifact for releases.
 
-Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit), not a competitor: Spec Kit captures intent, `chassis` proves the code still honors it. The supported surface today is a trace graph (spec ↔ code ↔ test), drift scoring against git history, breaking-change contract diff, DSSE-signed release attestation, and an exemption registry with hard expiry. Scope: **Rust + TypeScript only** (see `docs/adr/ADR-0001-project-scope-and-positioning.md`).
+Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit), not a competitor: Spec Kit captures intent, `chassis` proves the code still honors it. Chassis consumes the documented **`yaml-meta` Markdown preset** (ADR-0029), not arbitrary Spec Kit Markdown. The supported surface today is a trace graph (spec ↔ code ↔ test), drift scoring against git history, breaking-change contract diff, DSSE-signed release attestation, and an exemption registry with hard expiry. Scope: **Rust + TypeScript only** (see `docs/adr/ADR-0001-project-scope-and-positioning.md`).
 
 **Status: pre-alpha kernel.** Not yet published to crates.io or npm.
 
@@ -10,8 +10,8 @@ Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit
 
 | Crate / package | Status | What it ships |
 |---|---|---|
-| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`), trace graph, drift report, DSSE attestation. `cargo test` clean on Rust ≥ 1.86. |
-| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace` (regex or tree-sitter extractor), `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `release-gate`, `attest sign`, `attest verify`. |
+| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`; Markdown bridge accepts **only** the `yaml-meta` preset per ADR-0029), trace graph, drift report, DSSE attestation, SARIF scanner evidence. `cargo test` clean on Rust ≥ 1.86. |
+| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace` (regex or tree-sitter extractor), `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `scanner ingest|verify-evidence`, `release-gate`, `attest sign`, `attest verify`. |
 | `crates/chassis-jsonrpc/` (binary: `chassis-jsonrpc`) | **experimental** | Newline-delimited JSON-RPC 2.0 server over stdio exposing six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Every emitted diagnostic validates against `schemas/diagnostic.schema.json`; `release_gate` returns the same predicate shape (`schemas/release-gate.schema.json`) the CLI writes. **Not** an MCP implementation — a real MCP surface (lifecycle + `tools/list` + `tools/call`) is future work, see `docs/future-mcp.md`. |
 | `packages/chassis-types/` (npm `@chassis/core-types`) | supported | 26 generated `.d.ts` modules (18 root schemas + 8 kind subschemas), plus committed `dist/`, `fingerprint.sha256`, `manifest.json`. |
 

@@ -111,7 +111,7 @@ if not isinstance(inp, dict):
     fail("`input` must be an object")
 if inp.get("version") != 1:
     fail("`input.version` must be the integer 1 (Chassis policy-input v1)")
-for field in ("repo", "contracts", "claims", "diagnostics", "exemptions", "drift_summary"):
+for field in ("repo", "contracts", "claims", "diagnostics", "exemptions", "drift_summary", "scanner_summaries", "scanner_required"):
     if field not in inp:
         fail(f"`input.{field}` required")
 if not isinstance(inp.get("repo"), dict) or "root" not in inp["repo"]:
@@ -119,7 +119,30 @@ if not isinstance(inp.get("repo"), dict) or "root" not in inp["repo"]:
 ds = inp["drift_summary"]
 if not isinstance(ds, dict) or any(k not in ds for k in ("stale", "abandoned", "missing")):
     fail("`input.drift_summary` must include stale/abandoned/missing")
-print("policy-gate: opa-input shape valid (fallback shape check; install python `jsonschema` for full draft-2020-12 coverage)")
+
+
+def check_diag_list(items, label):
+    if not isinstance(items, list):
+        fail(f"`{label}` must be an array")
+    allowed_sev = {"error", "warning", "info"}
+    for i, d in enumerate(items):
+        if not isinstance(d, dict):
+            fail(f"`{label}[{i}]` must be an object")
+        sev = d.get("severity")
+        if sev not in allowed_sev:
+            fail(
+                f"`{label}[{i}].severity` must be one of {sorted(allowed_sev)} (got {sev!r})"
+            )
+
+
+check_diag_list(inp.get("diagnostics", []), "input.diagnostics")
+exemptions = inp.get("exemptions")
+if not isinstance(exemptions, dict):
+    fail("`input.exemptions` must be an object")
+check_diag_list(exemptions.get("diagnostics", []), "input.exemptions.diagnostics")
+print(
+    "policy-gate: opa-input shape valid (fallback shape check; install python `jsonschema` for full draft-2020-12 coverage)"
+)
 PY
 
 echo ">> opa eval data.chassis.release.result (schema-backed)"
