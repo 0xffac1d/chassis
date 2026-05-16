@@ -38,7 +38,10 @@ run_step cargo-check        cargo check --workspace
 # The shipped CI matrix runs the full test suite in `foundation.yml`; this
 # fallback keeps `source-archive (PR)` / `source-archive` extract-smoke
 # meaningful without forcing an impossible precondition.
-if git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+# `git rev-parse --git-dir` would walk to parents; check for a literal `.git`
+# entry at $ROOT so we don't accidentally treat the surrounding CI checkout as
+# our own git context.
+if [[ -d "$ROOT/.git" ]] || [[ -f "$ROOT/.git" ]]; then
   run_step cargo-test         cargo test --workspace
 else
   echo "verify-foundation: extracted release archive (no .git) — skipping git-dependent test sets"
