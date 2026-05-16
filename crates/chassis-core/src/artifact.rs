@@ -64,3 +64,20 @@ pub fn validate_in_toto_statement_value(value: &Value) -> Result<(), Vec<String>
 pub fn validate_dsse_envelope_value(value: &Value) -> Result<(), Vec<String>> {
     validate_dsse_envelope_json(value)
 }
+
+/// Validate a JSON value against `schemas/scanner-summary.schema.json`.
+pub fn validate_scanner_summary_value(value: &Value) -> Result<(), Vec<String>> {
+    use serde_json::Value as J;
+    use std::sync::LazyLock;
+    static SCHEMA_STR: &str = include_str!("../../../schemas/scanner-summary.schema.json");
+    static COMPILED: LazyLock<jsonschema::Validator> = LazyLock::new(|| {
+        let schema: J = serde_json::from_str(SCHEMA_STR).expect("scanner-summary schema");
+        jsonschema::validator_for(&schema).expect("compile scanner-summary schema")
+    });
+    let errs: Vec<String> = COMPILED.iter_errors(value).map(|e| e.to_string()).collect();
+    if errs.is_empty() {
+        Ok(())
+    } else {
+        Err(errs)
+    }
+}

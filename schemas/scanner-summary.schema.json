@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chassis.dev/schemas/scanner-summary/v1",
+  "version": "1.0.0",
+  "title": "Chassis scanner summary (SARIF normalization)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tool",
+    "sarifSha256",
+    "total",
+    "errors",
+    "warnings",
+    "infos",
+    "diagnostics"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "enum": ["semgrep", "codeql"]
+    },
+    "toolVersion": { "type": "string" },
+    "sarifSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "runId": { "type": "string" },
+    "total": { "type": "integer", "minimum": 0 },
+    "errors": { "type": "integer", "minimum": 0 },
+    "warnings": { "type": "integer", "minimum": 0 },
+    "infos": { "type": "integer", "minimum": 0 },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["ruleId", "severity", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "subject": { "type": "string", "minLength": 1 },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "violated": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["convention"],
+          "properties": {
+            "convention": {
+              "type": "string",
+              "pattern": "^ADR-\\d{4,}$"
+            }
+          }
+        },
+        "docs": { "type": "string", "format": "uri" },
+        "fix": { "type": "object" },
+        "location": { "type": "object" },
+        "detail": { "type": "object" }
+      }
+    }
+  }
+}

@@ -581,7 +581,7 @@ mod tests {
                 assert_eq!(from, Severity::Error);
                 assert_eq!(to, Severity::Warning);
             }
-            _ => panic!("expected SeverityOverride"),
+            _ => panic!("expected SeverityOverride"), // nosemgrep: chassis-no-panic-runtime-core
         }
         assert_eq!(out.overridden[0].original.severity, Severity::Error);
         // suppressed bucket is empty: override does not delete evidence

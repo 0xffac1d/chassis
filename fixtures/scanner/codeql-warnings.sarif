@@ -1,0 +1,30 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "codeql",
+          "version": "2.15.0",
+          "rules": [{ "id": "js/sql-injection" }]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "js/sql-injection",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": { "text": "Possible SQL injection" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "app.js" },
+                "region": { "startLine": 42 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

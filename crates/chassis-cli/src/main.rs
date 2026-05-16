@@ -14,7 +14,8 @@ use serde_json::{json, Value};
 use chassis_core::artifact::{
     validate_cedar_facts_value, validate_drift_report_value, validate_dsse_envelope_value,
     validate_eventcatalog_metadata_value, validate_opa_input_value, validate_policy_input_value,
-    validate_release_gate_value, validate_spec_index_value, validate_trace_graph_value,
+    validate_release_gate_value, validate_scanner_summary_value, validate_spec_index_value,
+    validate_trace_graph_value,
 };
 use chassis_core::attest::GateOutcome;
 use chassis_core::attest::CH_PROVENANCE_COSIGN_VERIFY_FAILED;
@@ -30,6 +31,9 @@ use chassis_core::fingerprint;
 use chassis_core::gate::{
     compute as gate_compute, validate_repo_contracts as gate_validate_repo_contracts,
     ContractError, ContractReport,
+};
+use chassis_core::scanner::{
+    ingest_sarif_bytes, load_scanner_summaries_from_repo, verify_scanner_evidence_dir, ScannerTool,
 };
 use chassis_core::spec_index::{
     digest_sha256_hex, export_from_source_yaml_path, link_spec_index, SpecIndex,
@@ -109,6 +113,8 @@ Stable subcommands:
   spec-index validate         Schema-validate spec-index.json.
   spec-index link             Link spec requirements to CONTRACT.yaml claims.
   exempt verify               Statically verify .chassis/exemptions.yaml against CODEOWNERS.
+  scanner ingest              Normalize Semgrep/CodeQL SARIF to dist/scanner-*.json.
+  scanner verify-evidence     Require dist/scanner-semgrep.json + dist/scanner-codeql.json (evidence dir).
   release-gate                Run validate + trace + drift + exemptions + optional attestation (needs `.git`).
   attest sign --out <FILE>    Assemble + sign a DSSE-wrapped release-gate Statement.
   attest verify <FILE>        Verify a DSSE envelope (signature + repo subject digest).
@@ -183,6 +189,10 @@ enum Command {
         /// Fail when unsuppressed drift diagnostics remain.
         #[arg(long)]
         fail_on_drift: bool,
+        /// When set, both `dist/scanner-semgrep.json` and `dist/scanner-codeql.json`
+        /// must exist, validate, and load — matching CI release gates.
+        #[arg(long, default_value_t = false)]
+        require_scanners: bool,
         /// Write and verify a DSSE-wrapped in-toto attestation.
         #[arg(long)]
         attest: bool,
@@ -207,6 +217,9 @@ enum Command {
     /// Exemption-registry verifier.
     #[command(subcommand)]
     Exempt(ExemptCmd),
+    /// Ingest SARIF and emit a Chassis-normalized scanner summary JSON.
+    #[command(subcommand)]
+    Scanner(ScannerCmd),
     /// Release-gate attestation (DSSE envelope over an in-toto Statement).
     #[command(subcommand)]
     Attest(AttestCmd),
@@ -269,6 +282,38 @@ enum AttestCmd {
         #[arg(long)]
         cosign_certificate_oidc_issuer_regexp: Option<String>,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ScannerToolCli {
+    #[value(name = "semgrep")]
+    Semgrep,
+    #[value(name = "codeql")]
+    Codeql,
+}
+
+impl From<ScannerToolCli> for ScannerTool {
+    fn from(value: ScannerToolCli) -> Self {
+        match value {
+            ScannerToolCli::Semgrep => ScannerTool::Semgrep,
+            ScannerToolCli::Codeql => ScannerTool::Codeql,
+        }
+    }
+}
+
+#[derive(Subcommand, Debug)]
+enum ScannerCmd {
+    /// Normalize SARIF 2.1 to `schemas/scanner-summary` JSON (default: `<repo>/dist/scanner-<tool>.json`).
+    Ingest {
+        #[arg(long, value_enum)]
+        tool: ScannerToolCli,
+        #[arg(long)]
+        sarif: PathBuf,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Require both normalized summaries under `<dir>/dist/`.
+    VerifyEvidence { dir: PathBuf },
 }
 
 #[derive(Subcommand, Debug)]
@@ -431,6 +476,7 @@ fn main() {
         },
         Command::ReleaseGate {
             fail_on_drift,
+            require_scanners,
             attest,
             out,
             attest_out,
@@ -439,6 +485,7 @@ fn main() {
         } => run_release_gate(
             &root,
             fail_on_drift,
+            require_scanners,
             attest,
             out.as_deref(),
             attest_out.as_deref(),
@@ -446,6 +493,7 @@ fn main() {
             ephemeral_key,
             json,
         ),
+        Command::Scanner(cmd) => run_scanner(&root, cmd, json),
         Command::Exempt(ExemptCmd::Verify) => run_exempt_verify(&root, json),
         Command::Attest(AttestCmd::Sign {
             private_key,
@@ -865,12 +913,74 @@ fn run_exempt_verify(root: &Path, json: bool) -> Result<i32, CliError> {
     }
 }
 
+// -- scanner -------------------------------------------------------------------
+
+fn run_scanner(root: &Path, cmd: ScannerCmd, json: bool) -> Result<i32, CliError> {
+    use chassis_core::scanner::CH_SCANNER_SARIF_MALFORMED;
+
+    match cmd {
+        ScannerCmd::Ingest { tool, sarif, out } => {
+            let tool: ScannerTool = tool.into();
+            let bytes =
+                fs::read(&sarif).map_err(|e| CliError::malformed(&sarif, format!("read: {e}")))?;
+            let summary = ingest_sarif_bytes(tool, &bytes).map_err(|e| {
+                CliError::malformed_no_path(format!("{CH_SCANNER_SARIF_MALFORMED}: {e}"))
+            })?;
+            let out_path = out.unwrap_or_else(|| {
+                root.join("dist").join(match tool {
+                    ScannerTool::Semgrep => "scanner-semgrep.json",
+                    ScannerTool::Codeql => "scanner-codeql.json",
+                })
+            });
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)
+                    .map_err(|e| CliError::internal(format!("create {}: {e}", parent.display())))?;
+            }
+            let v = serde_json::to_value(&summary)
+                .map_err(|e| CliError::internal(format!("serialize scanner summary: {e}")))?;
+            validate_scanner_summary_value(&v)
+                .map_err(|errs| CliError::internal(format!("scanner summary schema: {errs:?}")))?;
+            write_json_file(&out_path, &v)?;
+            if json {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": true,
+                        "out": out_path.display().to_string()
+                    })
+                );
+            } else {
+                println!("wrote {}", out_path.display());
+            }
+            Ok(exit::OK)
+        }
+        ScannerCmd::VerifyEvidence { dir } => {
+            verify_scanner_evidence_dir(&dir).map_err(|e| {
+                CliError::missing_file(&dir, format!("scanner verify-evidence: {e}"))
+            })?;
+            if json {
+                println!(
+                    "{}",
+                    json!({
+                        "ok": true,
+                        "dir": dir.display().to_string()
+                    })
+                );
+            } else {
+                println!("scanner verify-evidence: ok ({})", dir.display());
+            }
+            Ok(exit::OK)
+        }
+    }
+}
+
 // -- release gate --------------------------------------------------------------
 
 #[allow(clippy::too_many_arguments)]
 fn run_release_gate(
     root: &Path,
     fail_on_drift: bool,
+    require_scanners: bool,
     attest: bool,
     out: Option<&Path>,
     attest_out: Option<&Path>,
@@ -905,6 +1015,9 @@ fn run_release_gate(
     if ephemeral_key {
         argv.push("--ephemeral-key".to_string());
     }
+    if require_scanners {
+        argv.push("--require-scanners".to_string());
+    }
 
     // Run the shared preflight up-front so that the CLI envelope can carry
     // the structured `contract_validation` payload even on the truncated
@@ -929,6 +1042,7 @@ fn run_release_gate(
             "drift_failed": false,
             "exemption_failed": false,
             "attestation_failed": false,
+            "scanner_failed": false,
             "spec_index_present": false,
             "spec_index_digest": Value::Null,
             "spec_link_failed": false,
@@ -943,6 +1057,7 @@ fn run_release_gate(
             "trace_summary": Value::Null,
             "drift_summary": Value::Null,
             "exemption_summary": Value::Null,
+            "scanner_summary": Value::Null,
             "artifact_path": Value::Null,
             "attestation_path": Value::Null,
         });
@@ -950,7 +1065,7 @@ fn run_release_gate(
         return Ok(final_exit_code);
     }
 
-    let run = gate_compute(root, now, fail_on_drift)
+    let run = gate_compute(root, now, fail_on_drift, require_scanners)
         .map_err(|e| CliError::internal(format!("release gate: {}: {}", e.rule_id, e.message)))?;
     let trace = &run.trace;
     let drift = &run.drift;
@@ -1080,6 +1195,7 @@ fn run_release_gate(
         "drift_failed": run.drift_failed(),
         "exemption_failed": run.exemption_failed(),
         "attestation_failed": attestation_failed,
+        "scanner_failed": run.scanner_failed(),
         "spec_index_present": spec_index_present,
         "spec_index_digest": spec_index_digest,
         "spec_link_failed": spec_link_failed,
@@ -1099,6 +1215,8 @@ fn run_release_gate(
             "unsuppressed_blocking": run.unsuppressed_blocking(),
         },
         "exemption_summary": exemption_summary_from_gate(&run),
+        "scanner_summary": serde_json::to_value(&final_outcome.scanner_summary)
+            .map_err(|e| CliError::internal(format!("serialize scanner summary: {e}")))?,
         "artifact_path": artifact_path.display().to_string(),
         "attestation_path": attestation_written
             .as_ref()
@@ -1156,6 +1274,9 @@ fn build_export_policy_input(root: &Path) -> Result<exports::PolicyInput, CliErr
         schema_fingerprint: Some(schema_fingerprint),
     };
 
+    let scanner_summaries = load_scanner_summaries_from_repo(root)
+        .map_err(|e| CliError::internal(format!("scanner summaries (for export): {e}")))?;
+
     Ok(exports::build_policy_input(
         repo,
         contracts,
@@ -1165,6 +1286,8 @@ fn build_export_policy_input(root: &Path) -> Result<exports::PolicyInput, CliErr
         exemptions,
         spec_kit,
         spec_link_diags,
+        scanner_summaries,
+        false,
     ))
 }
 
@@ -1541,7 +1664,7 @@ fn run_attest_sign(
     use chassis_core::attest::assemble;
 
     let now = Utc::now();
-    let run = gate_compute(root, now, true).map_err(|e| {
+    let run = gate_compute(root, now, true, false).map_err(|e| {
         CliError::internal(format!("attest sign (gate): {}: {}", e.rule_id, e.message))
     })?;
 
@@ -1618,6 +1741,7 @@ fn run_attest_sign(
 
 // -- attest verify ------------------------------------------------------------
 
+#[allow(clippy::too_many_arguments)]
 fn run_attest_verify(
     root: &Path,
     public_key: Option<&Path>,

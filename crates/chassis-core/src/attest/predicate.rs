@@ -53,6 +53,24 @@ pub struct CommandRun {
     pub exit_code: i32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScannerSarifDigests {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semgrep: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub codeql: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScannerPredicateSummary {
+    pub tools: Vec<String>,
+    pub errors: usize,
+    pub warnings: usize,
+    pub sarif_digests: ScannerSarifDigests,
+}
+
 /// JSON object matching `schemas/release-gate.schema.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReleaseGatePredicate {
@@ -65,6 +83,7 @@ pub struct ReleaseGatePredicate {
     pub drift_failed: bool,
     pub exemption_failed: bool,
     pub attestation_failed: bool,
+    pub scanner_failed: bool,
     pub spec_index_present: bool,
     pub spec_index_digest: Option<String>,
     pub spec_failed: bool,
@@ -76,6 +95,7 @@ pub struct ReleaseGatePredicate {
     pub trace_summary: TraceSummary,
     pub drift_summary: DriftSummary,
     pub exempt_summary: ExemptSummary,
+    pub scanner_summary: ScannerPredicateSummary,
     pub commands_run: Vec<CommandRun>,
 }
 

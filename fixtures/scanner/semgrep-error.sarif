@@ -1,0 +1,30 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "semgrep",
+          "version": "1.90.0",
+          "rules": [{ "id": "eqeq-bad" }]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "eqeq-bad",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": { "text": "useless comparison" },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/main.rs" },
+                "region": { "startLine": 10, "startColumn": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

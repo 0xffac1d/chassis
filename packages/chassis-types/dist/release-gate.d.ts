@@ -13,6 +13,7 @@ export interface ReleaseGate {
   drift_failed: boolean;
   exemption_failed: boolean;
   attestation_failed: boolean;
+  scanner_failed: boolean;
   spec_index_present: boolean;
   spec_index_digest: null | string;
   spec_failed: boolean;
@@ -33,6 +34,15 @@ export interface ReleaseGate {
   exempt_summary: {
     active: number;
     expired_present: number;
+  };
+  scanner_summary: {
+    tools: string[];
+    errors: number;
+    warnings: number;
+    sarifDigests: {
+      semgrep?: null | string;
+      codeql?: null | string;
+    };
   };
   commands_run: {
     argv: string[];

@@ -2,7 +2,7 @@
 
 Typed metadata vocabulary and verifiable-adherence layer for spec-driven AI development. Provides stable identifier conventions (rule IDs, claim IDs, ADR IDs), a five-rung assurance ladder (`declared → coherent → verified → enforced → observed`), and the shape of a signed attestation artifact for releases.
 
-Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit), not a competitor: Spec Kit captures intent, `chassis` proves the code still honors it. The supported surface today is a trace graph (spec ↔ code ↔ test), drift scoring against git history, breaking-change contract diff, DSSE-signed release attestation, and an exemption registry with hard expiry. Scope: **Rust + TypeScript only** (see `docs/adr/ADR-0001-project-scope-and-positioning.md`).
+Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit), not a competitor: Spec Kit captures intent, `chassis` proves the code still honors it. Chassis consumes the documented **`yaml-meta` Markdown preset** (ADR-0029), not arbitrary Spec Kit Markdown. The supported surface today is a trace graph (spec ↔ code ↔ test), drift scoring against git history, breaking-change contract diff, DSSE-signed release attestation, and an exemption registry with hard expiry. Scope: **Rust + TypeScript only** (see `docs/adr/ADR-0001-project-scope-and-positioning.md`).
 
 **Status: pre-alpha kernel.** Not yet published to crates.io or npm.
 
@@ -10,8 +10,8 @@ Designed as a complement to [GitHub Spec Kit](https://github.com/github/spec-kit
 
 | Crate / package | Status | What it ships |
 |---|---|---|
-| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`), trace graph, drift report, DSSE attestation. `cargo test` clean on Rust ≥ 1.86. |
-| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace` (regex or tree-sitter extractor), `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `release-gate`, `attest sign`, `attest verify`. |
+| `crates/chassis-core/` | supported | Rust kernel: validators, contract diff, exemption registry, fingerprint, Spec Kit index + linker (`spec_index`; Markdown bridge accepts **only** the `yaml-meta` preset per ADR-0029), trace graph, drift report, DSSE attestation, SARIF scanner evidence. `cargo test` clean on Rust ≥ 1.86. |
+| `crates/chassis-cli/` (binary: `chassis`) | supported | Subcommands `validate`, `diff`, `exempt verify`, `trace` (regex or tree-sitter extractor), `drift`, `export`, `spec-index export|validate|link|from-spec-kit`, `scanner ingest|verify-evidence`, `release-gate`, `attest sign`, `attest verify`. |
 | `crates/chassis-jsonrpc/` (binary: `chassis-jsonrpc`) | **experimental** | Newline-delimited JSON-RPC 2.0 server over stdio exposing six methods (`validate_contract`, `diff_contracts`, `trace_claim`, `drift_report`, `release_gate`, `list_exemptions`). Every emitted diagnostic validates against `schemas/diagnostic.schema.json`; `release_gate` returns the same predicate shape (`schemas/release-gate.schema.json`) the CLI writes. **Not** an MCP implementation — a real MCP surface (lifecycle + `tools/list` + `tools/call`) is future work, see `docs/future-mcp.md`. |
 | `packages/chassis-types/` (npm `@chassis/core-types`) | supported | 26 generated `.d.ts` modules (18 root schemas + 8 kind subschemas), plus committed `dist/`, `fingerprint.sha256`, `manifest.json`. |
 
@@ -62,7 +62,7 @@ flags (`trace_failed`, `drift_failed`, `exemption_failed`, `attestation_failed`,
 `spec_failed`), `unsuppressed_blocking`, `suppressed`, `severity_overridden`,
 `final_exit_code`, and the `commands_run` log.
 
-**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (`git archive` tarballs without `.git`) are **not** `release-gate` runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`. Those same archives **are** expected to run `./scripts/verify-foundation.sh` (docs-lint, Rust, Node gates); CI proves this via `source-archive.yml` extract-and-smoke.
+**Git checkout required for `release-gate`.** The command expects a Git working tree at the repo root (a `.git` directory and readable `HEAD`): drift compares claim edits to file history, and the predicate includes `git_commit`. Extracted source archives (`git archive` tarballs without `.git`) are **not** `release-gate` runnable — use `git clone` or otherwise preserve checkout metadata. The stable failure id is `CH-GATE-GIT-METADATA-REQUIRED`. Those same archives **are** expected to run `./scripts/verify-foundation.sh` (docs-lint, Rust, Node gates); CI proves this via `source-archive.yml` / `source-archive-pr.yml` extract-and-smoke.
 
 **Default artifact paths.** Without `--out` / `--attest-out`, the CLI writes
 predicates and DSSE envelopes under `<repo>/dist/` (gitignored). The root-level
@@ -107,7 +107,8 @@ Foundation gates are split by workflow name:
 | `supply-chain.yml` | `cargo audit`, `cargo deny`, banned deps, PR `dependency-review`. |
 | `policy-gate.yml` | OPA over `chassis export --format opa` (`policy/chassis_release.rego`). |
 | `self-attest.yml` | `scripts/self-attest.sh` + Cosign keyless sign/verify on `release-gate.dsse`. |
-| `source-archive.yml` | `git archive` + hygiene + GitHub attest-build-provenance + SLSA generic provenance + `slsa-verifier` + extract-smoke of `verify-foundation.sh`. |
+| `source-archive.yml` | On `main`/`master` push: `git archive` + hygiene + GitHub attest-build-provenance + SLSA generic provenance + `slsa-verifier` + extract-smoke of `verify-foundation.sh`. |
+| `source-archive-pr.yml` | On pull requests: tarball + extract-smoke only (reusable SLSA jobs cannot be `if:`-skipped on the caller job). |
 | `semgrep.yml` / `codeql.yml` / `renovate-config-validator.yml` | Static analysis + Renovate config schema. |
 | `release-evidence.yml` | After the above succeed for a commit, downloads artifacts, re-validates with `validate_artifact`, checks `CH-EVIDENCE-DIGEST-MISMATCH` round-trips, and uploads one `release-evidence-<sha>.tar.gz` bundle. |
 

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "repo": { "root": "/tmp/repo" },
+  "contracts": [],
+  "claims": [],
+  "diagnostics": [
+    {
+      "severity": "error",
+      "message": "missing ruleId"
+    }
+  ],
+  "exemptions": { "registry": null, "diagnostics": [] },
+  "drift_summary": { "stale": 0, "abandoned": 0, "missing": 0 },
+  "scanner_summaries": [],
+  "scanner_required": false
+}

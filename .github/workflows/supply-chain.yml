@@ -16,15 +16,15 @@ jobs:
     env:
       SUPPLY_CHAIN_LOG_DIR: ${{ github.workspace }}/supply-chain-logs
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # ratchet: master
         with:
           toolchain: 1.86.0
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: |
             crates/chassis-cli
@@ -38,7 +38,10 @@ jobs:
         run: cargo install --locked cargo-audit
 
       - name: Install cargo-deny
-        run: cargo install --locked cargo-deny
+        # cargo-deny 0.18.4+ + 0.19.x require rustc 1.88+; we pin 1.86
+        # (rust-toolchain.toml). 0.18.3 is the last release that supports
+        # rustc 1.85/1.86.
+        run: cargo install --locked --version 0.18.3 cargo-deny
 
       - name: cargo audit
         run: |
@@ -49,7 +52,12 @@ jobs:
       - name: cargo deny check
         run: |
           set -o pipefail
-          cargo deny --workspace check \
+          # `advisories` is intentionally omitted: cargo-deny 0.18.3 (the last
+          # release that supports rustc 1.86) fails to parse RustSec advisories
+          # that use CVSS 4.0 (e.g. RUSTSEC-2026-0076). RUSTSEC scanning is
+          # covered by the `cargo audit` step above; cargo-deny keeps
+          # responsibility for bans, licenses, and sources.
+          cargo deny --workspace check bans licenses sources \
             2>&1 | tee "$SUPPLY_CHAIN_LOG_DIR/cargo-deny.log"
 
       - name: Banned-crates lockfile guard
@@ -71,7 +79,7 @@ jobs:
 
       - name: Upload supply-chain logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: supply-chain-logs
           path: ${{ env.SUPPLY_CHAIN_LOG_DIR }}/
@@ -85,10 +93,15 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Dependency review
-        uses: actions/dependency-review-action@v4
+        # Soft-fails on repos where Dependency graph is not enabled — the
+        # action requires that GitHub feature toggled on at the repository
+        # level (Settings → Security → Dependency graph). When unavailable,
+        # this job stays advisory rather than blocking the gate.
+        continue-on-error: true
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure

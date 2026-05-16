@@ -38,6 +38,11 @@ pub const CH_SPEC_CLAIM_IMPL_MISSING: &str = "CH-SPEC-CLAIM-IMPL-MISSING";
 pub const CH_SPEC_CLAIM_TEST_MISSING: &str = "CH-SPEC-CLAIM-TEST-MISSING";
 pub const CH_SPEC_TOUCHED_PATH_UNCOVERED: &str = "CH-SPEC-TOUCHED-PATH-UNCOVERED";
 
+/// Markdown `yaml-meta` preset: exactly one non-empty fenced block (ADR-0029).
+pub const CH_SPEC_MARKDOWN_NO_FENCE: &str = "CH-SPEC-MARKDOWN-NO-FENCE";
+pub const CH_SPEC_MARKDOWN_MULTIPLE_FENCES: &str = "CH-SPEC-MARKDOWN-MULTIPLE-FENCES";
+pub const CH_SPEC_MARKDOWN_EMPTY_FENCE: &str = "CH-SPEC-MARKDOWN-EMPTY-FENCE";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpecIndex {

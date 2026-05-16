@@ -19,7 +19,7 @@ jobs:
       actions: read
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
@@ -33,18 +33,18 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: bash .github/scripts/wait-for-all-gates.sh
 
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9 # ratchet: master
         with:
           toolchain: 1.86.0
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           workspaces: |
             crates/chassis-cli
             crates/chassis-core
             crates/chassis-jsonrpc
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
 
@@ -58,6 +58,19 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: bash .github/scripts/bundle-release-evidence.sh
         # script uses HEAD_SHA and writes to evidence/
+
+      - name: Scanner evidence verify (dist + both summaries)
+        run: |
+          set -euo pipefail
+          cargo run -p chassis-cli -- scanner verify-evidence "$GITHUB_WORKSPACE/evidence"
+
+      - name: Validate normalized scanner summaries
+        run: |
+          set -euo pipefail
+          for f in evidence/dist/scanner-semgrep.json evidence/dist/scanner-codeql.json; do
+            [[ -f "$f" ]]
+            cargo run -p chassis-core --example validate_artifact -- scanner-summary "$f"
+          done
 
       - name: Re-validate governance artifacts (chassis-core)
         run: |
@@ -102,7 +115,7 @@ jobs:
           set -euo pipefail
           tar -czvf "release-evidence-${{ github.event.workflow_run.head_sha }}.tar.gz" evidence
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-evidence
           path: release-evidence-${{ github.event.workflow_run.head_sha }}.tar.gz

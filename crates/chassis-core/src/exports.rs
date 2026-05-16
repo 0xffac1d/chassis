@@ -17,6 +17,7 @@ use crate::contract::Claim;
 use crate::diagnostic::Diagnostic;
 use crate::drift::report::DriftSummaryCounts;
 use crate::exempt::Registry;
+use crate::scanner::ScannerSummary;
 use crate::trace::types::{ClaimContractKind, ClaimSite, TraceGraph};
 
 static POLICY_INPUT_SCHEMA_STR: &str = include_str!("../../../schemas/policy-input.schema.json");
@@ -94,6 +95,9 @@ pub struct PolicyInput {
     pub drift_summary: DriftSummaryCounts,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub spec_kit: Option<SpecKitExtension>,
+    pub scanner_summaries: Vec<ScannerSummary>,
+    #[serde(default)]
+    pub scanner_required: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,13 +150,8 @@ pub struct EventCatalogMetadata {
 /// Build the canonical Chassis policy-input fact bundle.
 ///
 /// **Exemption parity with the release gate:** when `exemptions.registry` is
-/// present, the registry is applied to the trace, drift, and spec-link
-/// diagnostic buckets the same way `chassis_core::gate::compute` applies it
-/// — so OPA, Cedar, and any other consumer reading
-/// `chassis export --format opa` cannot see (or deny on) a finding that
-/// release-gate has already suppressed. Exemption *verifier* diagnostics
-/// (registry shape errors) are passed through verbatim because they remain
-/// fail-closed governance evidence and are never themselves suppressible.
+/// present, the registry is applied to the trace, drift, spec-link, and
+/// scanner diagnostic buckets the same way `chassis_core::gate::compute` applies it
 #[allow(clippy::too_many_arguments)]
 pub fn build_policy_input(
     repo: RepoFacts,
@@ -163,6 +162,8 @@ pub fn build_policy_input(
     exemptions: ExemptionFacts,
     spec_kit: Option<SpecKitExtension>,
     spec_link_diagnostics: Vec<Diagnostic>,
+    scanner_summaries: Vec<ScannerSummary>,
+    scanner_required: bool,
 ) -> PolicyInput {
     build_policy_input_at(
         repo,
@@ -173,6 +174,8 @@ pub fn build_policy_input(
         exemptions,
         spec_kit,
         spec_link_diagnostics,
+        scanner_summaries,
+        scanner_required,
         chrono::Utc::now(),
     )
 }
@@ -189,30 +192,50 @@ pub fn build_policy_input_at(
     exemptions: ExemptionFacts,
     spec_kit: Option<SpecKitExtension>,
     spec_link_diagnostics: Vec<Diagnostic>,
+    scanner_summaries: Vec<ScannerSummary>,
+    scanner_required: bool,
     now: chrono::DateTime<chrono::Utc>,
 ) -> PolicyInput {
     let trace_diag = trace.diagnostics.clone();
     let mut audit_diagnostics: Vec<Diagnostic> = Vec::new();
 
-    let (trace_us, drift_us, spec_us) = if let Some(reg) = exemptions.registry.as_ref() {
-        // Each bucket is filtered independently — same shape as gate.rs so
-        // that suppressed/overridden counts add up identically.
+    let scan_flat: Vec<Diagnostic> = scanner_summaries
+        .iter()
+        .flat_map(|s| s.diagnostics.clone())
+        .collect();
+
+    let (trace_us, drift_us, spec_us, scan_us) = if let Some(reg) = exemptions.registry.as_ref() {
         let t = crate::exempt::apply::apply_exemptions(trace_diag, reg, now);
         let d = crate::exempt::apply::apply_exemptions(drift_diagnostics, reg, now);
         let s = crate::exempt::apply::apply_exemptions(spec_link_diagnostics, reg, now);
+        let sc = crate::exempt::apply::apply_exemptions(scan_flat, reg, now);
         audit_diagnostics.extend(t.audit);
         audit_diagnostics.extend(d.audit);
         audit_diagnostics.extend(s.audit);
-        (t.unsuppressed, d.unsuppressed, s.unsuppressed)
+        audit_diagnostics.extend(sc.audit);
+        (
+            t.unsuppressed,
+            d.unsuppressed,
+            s.unsuppressed,
+            sc.unsuppressed,
+        )
     } else {
-        (trace_diag, drift_diagnostics, spec_link_diagnostics)
+        (
+            trace_diag,
+            drift_diagnostics,
+            spec_link_diagnostics,
+            scan_flat,
+        )
     };
+
+    let rebuilt_scanner = rebuild_scanner_summaries(&scanner_summaries, &scan_us);
 
     let mut diagnostics = Vec::new();
     diagnostics.extend(trace_us);
     diagnostics.extend(drift_us);
     diagnostics.extend(exemptions.diagnostics.clone());
     diagnostics.extend(spec_us);
+    diagnostics.extend(scan_us);
     // Audit info diagnostics are non-blocking and let policy / agents see
     // the suppression actions chassis took on this run.
     diagnostics.extend(audit_diagnostics);
@@ -239,7 +262,38 @@ pub fn build_policy_input_at(
         exemptions,
         drift_summary,
         spec_kit,
+        scanner_summaries: rebuilt_scanner,
+        scanner_required,
     }
+}
+
+pub(crate) fn rebuild_scanner_summaries(
+    originals: &[ScannerSummary],
+    scan_unsuppressed: &[Diagnostic],
+) -> Vec<ScannerSummary> {
+    let mut out = Vec::new();
+    for orig in originals {
+        let label = orig.tool.source_label();
+        let diags: Vec<Diagnostic> = scan_unsuppressed
+            .iter()
+            .filter(|d| d.source.as_deref() == Some(label))
+            .cloned()
+            .collect();
+        let mut s = ScannerSummary {
+            tool: orig.tool,
+            tool_version: orig.tool_version.clone(),
+            sarif_sha256: orig.sarif_sha256.clone(),
+            run_id: orig.run_id.clone(),
+            total: 0,
+            errors: 0,
+            warnings: 0,
+            infos: 0,
+            diagnostics: diags,
+        };
+        s.recompute_counts();
+        out.push(s);
+    }
+    out
 }
 
 pub fn contract_fact(path: PathBuf, document: Value) -> Result<ContractFact, String> {
@@ -503,6 +557,8 @@ mod tests {
             },
             None,
             vec![],
+            vec![],
+            false,
         )
     }
 
@@ -624,6 +680,8 @@ mod tests {
             },
             None,
             vec![],
+            vec![],
+            false,
             now,
         );
 
@@ -678,5 +736,51 @@ mod tests {
         validate_eventcatalog_metadata_value(&v).expect("schema-valid EventCatalog metadata");
         assert_eq!(metadata.messages.len(), 1);
         assert_eq!(metadata.services.len(), 0);
+    }
+
+    fn adversarial_policy_input(fixture: &str) -> Value {
+        let path = format!(
+            "{}/../../fixtures/adversarial/policy-input-malformed-diagnostic/{fixture}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let raw = std::fs::read_to_string(path).expect("fixture");
+        serde_json::from_str(&raw).expect("json")
+    }
+
+    #[test]
+    fn policy_input_schema_rejects_malformed_diagnostic_severity() {
+        let v = adversarial_policy_input("bad-severity.json");
+        assert!(
+            validate_policy_input_value(&v).is_err(),
+            "garbage severity must fail schema validation"
+        );
+    }
+
+    #[test]
+    fn policy_input_schema_rejects_missing_rule_id() {
+        let v = adversarial_policy_input("missing-rule-id.json");
+        assert!(validate_policy_input_value(&v).is_err());
+    }
+
+    #[test]
+    fn policy_input_schema_rejects_malformed_exemption_diagnostic() {
+        let v = adversarial_policy_input("exemption-diagnostic-bad.json");
+        assert!(validate_policy_input_value(&v).is_err());
+    }
+
+    #[test]
+    fn opa_input_schema_rejects_malformed_diagnostics() {
+        for f in [
+            "bad-severity.json",
+            "missing-rule-id.json",
+            "exemption-diagnostic-bad.json",
+        ] {
+            let inner = adversarial_policy_input(f);
+            let opa = json!({ "input": inner });
+            assert!(
+                validate_opa_input_value(&opa).is_err(),
+                "opa wrapper must reject {f}"
+            );
+        }
     }
 }

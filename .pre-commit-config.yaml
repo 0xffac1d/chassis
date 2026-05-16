@@ -9,6 +9,12 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: action-pin-hygiene
+        name: check-action-pins.sh
+        entry: bash .github/scripts/check-action-pins.sh
+        language: system
+        pass_filenames: false
+
       - id: cargo-fmt
         name: cargo fmt --check --all
         entry: bash -lc 'cargo fmt --check --all'
