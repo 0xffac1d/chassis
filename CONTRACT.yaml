@@ -88,13 +88,13 @@ invariants:
       - "crates/chassis-core/tests/spec_kit_markdown_parity.rs"
       - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_spec_kit_markdown_bridge"
   - id: chassis.provenance-cosign-slsa
-    text: "CI cosign keyless signs release-gate.dsse and verifies with workflow identity pinning; source tarball gets SLSA generic provenance verified via slsa-verifier plus GitHub attest-build-provenance (ADR-0030, ADR-0031)."
+    text: "CI cosign keyless signs release-gate.dsse and verifies with workflow identity pinning; source tarball gets pinned GitHub attest-build-provenance (ADR-0030, ADR-0031)."
     test_linkage:
       - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_provenance_cosign_slsa"
       - ".github/workflows/self-attest.yml (Cosign keyless sign + verify)"
-      - ".github/workflows/source-archive.yml (SLSA generator + verify-slsa)"
+      - ".github/workflows/source-archive.yml (GitHub attest-build-provenance)"
   - id: chassis.evidence-digest-roundtrip
-    text: "release-evidence recomputes digests after download: schema-manifest subject from in-toto-statement matches the checkout fingerprint; source tarball sha256 matches SLSA DSSE subjects (CH-EVIDENCE-DIGEST-MISMATCH)."
+    text: "release-evidence recomputes digests after download: schema-manifest subject from in-toto-statement matches the checkout fingerprint; source tarball sha256 is checked against SLSA DSSE subjects when a downloadable provenance artifact is present (CH-EVIDENCE-DIGEST-MISMATCH)."
     test_linkage:
       - "crates/chassis-core/tests/contract_claim_coverage.rs::test_claim_evidence_digest_roundtrip"
       - ".github/scripts/verify-in-toto-subject-digest.sh"

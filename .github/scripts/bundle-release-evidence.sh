@@ -87,8 +87,9 @@ jq -n \
 download_optional source-archive.yml archive-smoke-logs "$OUT/archive-smoke-logs"
 download_optional source-archive.yml source-archive-logs "$OUT/source-archive-logs"
 
-# SLSA provenance artifact name is chosen by slsa-github-generator (*.intoto.jsonl).
+# Optional provenance artifacts, when a workflow produces any *.intoto.jsonl files.
 rid_archive="$(gh run list --repo "$REPO" --workflow source-archive.yml --commit "$SHA" --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -1)"
+if [[ -n "$rid_archive" ]]; then
 	mkdir -p "$OUT/slsa-provenance"
 	mapfile -t prov_names < <(gh api "repos/$REPO/actions/runs/$rid_archive/artifacts" --paginate --jq '.artifacts[] | select(.name | endswith("intoto.jsonl")) | .name' | sort -u)
 	for aname in "${prov_names[@]}"; do

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Compare tarball bytes on disk to SLSA generic provenance subjects (post-download).
+# Compare tarball bytes on disk to SLSA generic provenance subjects when such
+# provenance is present in the evidence bundle. GitHub build provenance is
+# persisted as an attestation, not as a normal workflow artifact, so this check
+# is optional until a downloadable DSSE/JSONL provenance artifact is available.
 set -euo pipefail
 EVIDENCE="${1:?evidence directory}"
 TAR="$(find "$EVIDENCE/chassis-source-archive" -name '*.tar.gz' -print -quit || true)"
@@ -11,8 +14,8 @@ shopt -s nullglob
 PROVS=("$EVIDENCE"/slsa-provenance/*.intoto.jsonl)
 shopt -u nullglob
 if [[ ${#PROVS[@]} -eq 0 ]]; then
-	echo "CH-EVIDENCE-DIGEST-MISMATCH: missing SLSA provenance under evidence/slsa-provenance" >&2
-	exit 1
+	echo "evidence-digest: SKIP no downloadable SLSA provenance under evidence/slsa-provenance"
+	exit 0
 fi
 PROV="${PROVS[0]}"
 python3 - "$TAR" "$PROV" <<'PY'

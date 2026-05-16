@@ -107,7 +107,7 @@ jobs:
           bash .github/scripts/verify-in-toto-subject-digest.sh "$GITHUB_WORKSPACE" \
             "evidence/self-attest-artifacts/in-toto-statement.json"
 
-      - name: Source archive tarball vs SLSA subject digests
+      - name: Source archive tarball vs optional SLSA subject digests
         run: bash .github/scripts/verify-evidence-tarball-slsa-subject.sh evidence
 
       - name: Pack release-evidence tarball

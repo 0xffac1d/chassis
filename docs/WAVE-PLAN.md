@@ -83,4 +83,4 @@ Remaining:
 - **Spec Kit Markdown bridge:** `chassis spec-index from-spec-kit` + Markdown↔YAML parity fixture (ADR-0029).
 - **`pre-commit` + parity gate:** `.pre-commit-config.yaml` mirrors `verify-foundation.sh`; `verify-pre-commit-parity.sh` fails on drift.
 - **Static / dependency scanning:** Semgrep (`.semgrep.yml` + SARIF), CodeQL (Rust + JavaScript matrix), Renovate config + validator workflow.
-- **Provenance layering:** Cosign keyless sign/verify on `release-gate.dsse` in `self-attest.yml` (ADR-0030); SLSA generic provenance + `slsa-verifier` + GitHub `attest-build-provenance` in `source-archive.yml` (ADR-0031).
+- **Provenance layering:** Cosign keyless sign/verify on `release-gate.dsse` in `self-attest.yml` (ADR-0030); GitHub `attest-build-provenance` in `source-archive.yml` (ADR-0031).
