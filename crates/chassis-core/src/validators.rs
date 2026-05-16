@@ -148,12 +148,13 @@ mod tests {
             .join(dir)
             .join("CONTRACT.yaml");
         let raw = std::fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e)); // nosemgrep: chassis-no-panic-runtime-core
         let value: serde_json::Value =
             serde_yaml::from_str(&raw).expect("parse fixture CONTRACT.yaml");
         CanonicalMetadataContractValidator
             .validate(&value)
             .unwrap_or_else(|e| panic!("{dir} fixture failed validation: {e}"));
+        // nosemgrep: chassis-no-panic-runtime-core
     }
 
     #[test]
@@ -214,7 +215,7 @@ mod tests {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../fixtures/adversarial/invalid-schema/CONTRACT.yaml");
         let raw = std::fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e));
+            .unwrap_or_else(|e| panic!("read {}: {}", path.display(), e)); // nosemgrep: chassis-no-panic-runtime-core
         let value: serde_json::Value =
             serde_yaml::from_str(&raw).expect("parse invalid-schema CONTRACT.yaml");
         let err = CanonicalMetadataContractValidator

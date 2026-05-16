@@ -96,13 +96,13 @@ mod tests {
         for &(kind, fname) in &pairs {
             let p = schemas_dir.join(fname);
             let raw: Value = serde_json::from_reader(
-                fs::File::open(&p).unwrap_or_else(|e| panic!("open {}: {e}", p.display())),
+                fs::File::open(&p).unwrap_or_else(|e| panic!("open {}: {e}", p.display())), // nosemgrep: chassis-no-panic-runtime-core
             )
-            .unwrap_or_else(|e| panic!("parse {}: {e}", p.display()));
+            .unwrap_or_else(|e| panic!("parse {}: {e}", p.display())); // nosemgrep: chassis-no-panic-runtime-core
             let req = raw
                 .get("required")
                 .and_then(Value::as_array)
-                .unwrap_or_else(|| panic!("{}: missing required", p.display()));
+                .unwrap_or_else(|| panic!("{}: missing required", p.display())); // nosemgrep: chassis-no-panic-runtime-core
 
             let mut from_schema: BTreeSet<String> = BTreeSet::new();
             for v in req {
@@ -112,7 +112,7 @@ mod tests {
                 }
             }
             let tbl: BTreeSet<String> = kind_required_fields(kind)
-                .unwrap_or_else(|| panic!("no table row for kind `{kind}`"))
+                .unwrap_or_else(|| panic!("no table row for kind `{kind}`")) // nosemgrep: chassis-no-panic-runtime-core
                 .iter()
                 .map(|s| (*s).to_string())
                 .collect();

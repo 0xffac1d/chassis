@@ -228,6 +228,7 @@ mod tests {
             .join("../../fixtures/scanner")
             .join(name);
         std::fs::read(&p).unwrap_or_else(|e| panic!("read {}: {e}", p.display()))
+        // nosemgrep: chassis-no-panic-runtime-core
     }
 
     #[test]

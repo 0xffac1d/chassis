@@ -42,10 +42,7 @@ rules:
     severity: WARNING
     patterns:
       - pattern: println!(...)
-      - pattern-not-inside: |
-          mod $M {
-            ...
-          }
+      - pattern-not-inside: mod $M { ... }
     paths:
       # `crates/chassis-core/examples/` is intentionally illustrative; it is not
       # the library surface, so println! there is benign.
@@ -86,10 +83,7 @@ rules:
           - pattern: panic!(...)
           - pattern: todo!(...)
           - pattern: unimplemented!(...)
-      - pattern-not-inside: |
-          mod $M {
-            ...
-          }
+      - pattern-not-inside: mod $M { ... }
       # Build-time fail-fast: `compile_schema` / `from_embedded` validate that
       # `include_str!`-embedded JSON Schema is a valid jsonschema validator.
       # A failure here is a compile-time bug, not a runtime path.
